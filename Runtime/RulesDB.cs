@@ -69,6 +69,7 @@ public class RuleDBEntry
     public int RuleID;
     public string ruleName;
     public string payload;
+    public ScriptableObject PayloadObject;
     public List<RuleDBFactWrite> factWrites;
     public List<RuleDBAtomEntry> atoms;
 }

@@ -10,7 +10,7 @@ using Debug = UnityEngine.Debug;
 public class FactMatcherJobSystem : MonoBehaviour
 {
 
-    /*public RulesDB ruleDB;
+    public RulesDB ruleDB;
     private NativeArray<float> _factValues;
     private NativeArray<FMRule> _rules;
     private NativeArray<RuleAtom> _ruleAtoms;
@@ -193,5 +193,5 @@ public class FactMatcherJobSystem : MonoBehaviour
     static void LogWritebacks(object msg)
     {
         Debug.Log(msg);
-    }*/
+    }
 }

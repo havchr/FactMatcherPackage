@@ -13,7 +13,7 @@ namespace FactMatcher
         
         public enum RuleScriptParserEnum
         {
-            ParsingRule,ParsingResponse,ParsingFactWrite,LookingForRule
+            ParsingRule,ParsingResponse,ParsingFactWrite,LookingForRule,ParsingPayloadObject
         }
         public void GenerateFromText(string text,List<RuleDBEntry> rules,ref int factID,ref Dictionary<string,int> addedFactIDNames,ref int ruleID)
         {
@@ -22,6 +22,7 @@ namespace FactMatcher
             Dictionary<string,List<RuleDBAtomEntry>> parsedAtoms = new Dictionary<string, List<RuleDBAtomEntry>>();
             RuleDBEntry currentRule = null;
             StringBuilder payload = new StringBuilder();
+            ScriptableObject payloadObject = null;
             using (System.IO.StringReader reader = new System.IO.StringReader(text))
             {
                 string line;
@@ -120,12 +121,44 @@ namespace FactMatcher
                             state = RuleScriptParserEnum.ParsingResponse;
                             payload.Clear();
                         }
+                        if (line.Trim().Contains(":PayloadObject:"))
+                        {
+                            
+                            Debug.Log($"Getting ready to look for Payload object");
+                            state = RuleScriptParserEnum.ParsingPayloadObject;
+                            payload.Clear();
+                        }
                     
                     }
                     else if (state == RuleScriptParserEnum.ParsingFactWrite)
                     {
 
                         ParseFactWrites(line, currentRule);
+                        if (line.Trim().Contains(":PayloadObject:"))
+                        {
+                            
+                            Debug.Log($"Getting ready to look for Payload object");
+                            state = RuleScriptParserEnum.ParsingPayloadObject;
+                            payload.Clear();
+                        }
+                        if (line.Trim().Contains(":Response:"))
+                        {
+                            state = RuleScriptParserEnum.ParsingResponse;
+                            payload.Clear();
+                        }
+                    }
+                    else if (state == RuleScriptParserEnum.ParsingPayloadObject)
+                    {
+                        if (line.Trim().Contains(":End:"))
+                        {
+                            Debug.Log($"payload is {payload} trying to parse that as payload object");
+                            //Try to load resource from payload into payloadObject
+                            payloadObject = Resources.Load<ScriptableObject>(payload.ToString());
+                        }
+                        else
+                        {
+                            payload.Append(line);
+                        }
                         if (line.Trim().Contains(":Response:"))
                         {
                             state = RuleScriptParserEnum.ParsingResponse;
@@ -139,6 +172,8 @@ namespace FactMatcher
                             //Store rule...
                             state = RuleScriptParserEnum.LookingForRule;
                             currentRule.payload = payload.ToString();
+                            currentRule.PayloadObject = payloadObject;
+                            payloadObject = null;
                             if (rules.Any(entry => entry.ruleName.Equals(currentRule.ruleName)))
                             {
                                Debug.LogError($"Allready Contains a rule named {currentRule.ruleName} - will not add"); 
