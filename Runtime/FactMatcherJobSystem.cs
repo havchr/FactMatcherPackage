@@ -16,6 +16,8 @@ public class FactMatcherJobSystem : MonoBehaviour
     private NativeArray<RuleAtom> _ruleAtoms;
     private NativeArray<FactMatcher.FMRule> _bestRule;
     private NativeArray<int> _bestRuleMatches;
+    private bool _inReload = false;
+    private bool _dataDisposed = false;
     
     public void Init()
     {
@@ -24,6 +26,21 @@ public class FactMatcherJobSystem : MonoBehaviour
         FactMatcher.Functions.CreateNativeRules(this.ruleDB, out _rules, out _ruleAtoms);
         _bestRule = new NativeArray<FMRule>(1,Allocator.Persistent);
         _bestRuleMatches = new NativeArray<int>(1,Allocator.Persistent);
+        _dataDisposed = false;
+        _inReload = false;
+    }
+
+    
+    #if ODIN_INSPECTOR
+    [Sirenix.OdinInspector.Button("Reload")]
+    #endif
+    public void Reload()
+    {
+        _inReload = true;
+        DisposeData();
+        ruleDB.CreateRulesFromRulescripts();
+        Init();
+        
     }
 
     public float this[int i]
@@ -36,9 +53,20 @@ public class FactMatcherJobSystem : MonoBehaviour
     {
         return ruleDB.StringId(str);
     }
+    
+    public int FactID(string str)
+    {
+        return ruleDB.FactId(str);
+    }
+
 
     public RuleDBEntry PickBestRule()
     {
+        if (_inReload)
+        {
+            Debug.Log("In reload");
+            return null;
+        }
         
         var job = new FactMatcherMatch() 
         {
@@ -102,12 +130,22 @@ public class FactMatcherJobSystem : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (!_dataDisposed)
+        {
+           DisposeData(); 
+        }
+    }
+
+    private void DisposeData()
+    {
         _factValues.Dispose();
         _rules.Dispose();
         _ruleAtoms.Dispose();
         _bestRule.Dispose();
         _bestRuleMatches.Dispose();
+        _dataDisposed = true;
     }
+
 
 #if FACTMATCHER_BURST
     [BurstCompile(CompileSynchronously = true)]
@@ -115,11 +153,11 @@ public class FactMatcherJobSystem : MonoBehaviour
     private struct FactMatcherMatch : IJob
     {
 
-        [ReadOnly] public NativeArray<float> FactValues;
+        [Unity.Collections.ReadOnly] public NativeArray<float> FactValues;
 
-        [ReadOnly] public NativeArray<FactMatcher.FMRule> Rules;
+        [Unity.Collections.ReadOnly] public NativeArray<FactMatcher.FMRule> Rules;
 
-        [ReadOnly] public NativeArray<FactMatcher.RuleAtom> RuleAtoms;
+        [Unity.Collections.ReadOnly] public NativeArray<FactMatcher.RuleAtom> RuleAtoms;
 
         [WriteOnly] public NativeArray<FactMatcher.FMRule> BestRule;
         [WriteOnly] public NativeArray<int> BestRuleMatches;

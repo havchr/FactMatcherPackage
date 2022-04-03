@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using FactMatcher;
+using UnityEditor;
 using UnityEngine;
 
 public enum FactValueType
@@ -77,7 +78,9 @@ public class RuleDBEntry
 [CreateAssetMenu(fileName = "RulesDB", menuName = "FactMatcher/RulesDB", order = 1)]
 public class RulesDB : ScriptableObject
 {
-    
+
+    public bool CompileToCSharp = false;
+    private Dictionary<string, int> FactIdsMap;
     private Dictionary<string, int> RuleStringMap;
     private Dictionary<int, RuleDBEntry> RuleMap;
     public List<TextAsset> generateFrom;
@@ -87,7 +90,41 @@ public class RulesDB : ScriptableObject
     {
         RuleStringMap = RuleStringIDs(this);
         RuleMap = CreateEntryFromIDDic(this);
+        FactIdsMap = CreateFactIds();
     }
+    
+    
+    public void CreateRulesFromRulescripts()
+    {
+        if (generateFrom != null)
+        {
+            rules.Clear();
+            int factID = 0;
+            int ruleID = 0;
+            Dictionary<string,int> addedFactIDS = new Dictionary<string, int>();
+            foreach (var ruleScript in generateFrom)
+            {
+                var parser = new RuleScriptParser();
+                parser.GenerateFromText(ruleScript.text,rules,ref factID,ref addedFactIDS, ref ruleID); 
+            }
+
+        }
+    }
+
+    private Dictionary<string, int> CreateFactIds()
+    {
+        var result = new Dictionary<string,int>();
+		foreach (var rule in rules)
+		{
+
+			foreach (var atom in rule.atoms)
+            {
+                result[atom.factName] = atom.factID;
+            }
+		}
+        return result;
+    }
+
     public int StringId(string str)
     {
         if (RuleStringMap == null)
@@ -96,6 +133,19 @@ public class RulesDB : ScriptableObject
         }
         int id = -1;
         if (!RuleStringMap.TryGetValue(str, out id))
+        {
+            id = -1;
+        }
+        return id;
+    }
+    public int FactId(string str)
+    {
+        if (FactIdsMap == null)
+        {
+            InitRuleDB();
+        }
+        int id = -1;
+        if (!FactIdsMap.TryGetValue(str, out id))
         {
             id = -1;
         }
@@ -135,6 +185,7 @@ public class RulesDB : ScriptableObject
         int id = 0;
         foreach (var rule in current.rules)
         {
+            
             foreach (var factWrite in rule.factWrites)
             {
                 if (factWrite.writeMode == RuleDBFactWrite.WriteMode.SetString 
@@ -178,14 +229,14 @@ public class RulesDB : ScriptableObject
 					topFactID = atom.factID;
 				}
 			}
-			
-			foreach (var factWrite in rule.factWrites)
-			{
-				if (factWrite.factID > topFactID)
-				{
-					topFactID = factWrite.factID;
-				}
-			}
+
+            foreach (var factWrite in rule.factWrites)
+            {
+                if (factWrite.factID > topFactID)
+                {
+                    topFactID = factWrite.factID;
+                }
+            }
 		}
 		return topFactID + 1;
 	}

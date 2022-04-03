@@ -90,29 +90,26 @@ public class FactMatcherCodeGenerator
 				}
 			}
 
-			if (rule.factWrites != null)
+			foreach (var factWrite in rule.factWrites)
 			{
-				foreach (var factWrite in rule.factWrites)
+				
+				if (factWrite.factName !=null && factWrite.factName.Length > 1)
 				{
+					var genNames = CreateFactVariableNameFromFact(factWrite.factName);
+
+					var key = genNames.Item1;
+					var factName  = genNames.Item2;
 					
-					if (factWrite.factName !=null && factWrite.factName.Length > 1)
+					if (!allKnownFacts.ContainsKey(key))
 					{
-						var genNames = CreateFactVariableNameFromFact(factWrite.factName);
-
-						var key = genNames.Item1;
-						var factName  = genNames.Item2;
-						
-						if (!allKnownFacts.ContainsKey(key))
-						{
-							allKnownFacts[ key ] = new List<(string,int)>();
-						}
-
-						if (!allKnownFacts[key].Contains((factName,factWrite.factID)))
-						{
-							allKnownFacts[ key ].Add((factName,factWrite.factID));
-						}
-						
+						allKnownFacts[ key ] = new List<(string,int)>();
 					}
+
+					if (!allKnownFacts[key].Contains((factName,factWrite.factID)))
+					{
+						allKnownFacts[ key ].Add((factName,factWrite.factID));
+					}
+					
 				}
 			}
 		}

@@ -99,17 +99,9 @@ public class RuleDBEditor : Editor
 	
     private void GenerateFromText()
     {
-        if (_rulesDB.generateFrom != null)
+        _rulesDB.CreateRulesFromRulescripts();
+        if (_rulesDB.CompileToCSharp && _rulesDB.generateFrom!=null)
         {
-            _rulesDB.rules.Clear();
-            int factID = 0;
-            int ruleID = 0;
-            Dictionary<string,int> addedFactIDS = new Dictionary<string, int>();
-            foreach (var ruleScript in _rulesDB.generateFrom)
-            {
-                var parser = new RuleScriptParser();
-                parser.GenerateFromText(ruleScript.text,_rulesDB.rules,ref factID,ref addedFactIDS, ref ruleID); 
-            }
             GenerateFactIDS();
         }
     }
