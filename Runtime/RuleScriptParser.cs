@@ -1,10 +1,7 @@
-﻿#if UNITY_EDITOR
-using System;
-using System.Collections;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using Unity.Plastic.Antlr3.Runtime.Misc;
 using UnityEngine;
 
 namespace FactMatcher
@@ -403,4 +400,3 @@ namespace FactMatcher
         }
     }
 }
-#endif
