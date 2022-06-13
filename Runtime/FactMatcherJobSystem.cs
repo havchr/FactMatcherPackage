@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using FactMatcher;
@@ -7,8 +8,18 @@ using Unity.Jobs;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 
+[Serializable]
+public class FactMatcherDebugRewriteEntry{
+    public string key;
+    public string value;
+    public bool handleAsString;
+}
+
 public class FactMatcherJobSystem : MonoBehaviour
 {
+
+    public bool DebugWhileEditorRewriteEnable = false;
+    public List<FactMatcherDebugRewriteEntry> DebugRewriteEntries;
 
     public RulesDB ruleDB;
     private NativeArray<float> _factValues;
@@ -62,6 +73,15 @@ public class FactMatcherJobSystem : MonoBehaviour
 
     public RuleDBEntry PickBestRule()
     {
+
+    
+#if UNITY_EDITOR
+        if (Application.isEditor && DebugWhileEditorRewriteEnable)
+        {
+            HandleDebugRewriteFacts();
+        }
+#endif
+        
         if (_inReload)
         {
             Debug.Log("In reload");
@@ -92,7 +112,36 @@ public class FactMatcherJobSystem : MonoBehaviour
         return rule;
     }
 
-    
+    #if UNITY_EDITOR
+    private void HandleDebugRewriteFacts()
+    {
+        for (int i = 0; i < DebugRewriteEntries.Count; i++)
+        {
+            var index = FactID(DebugRewriteEntries[i].key);
+            if (index != -1)
+            {
+                if (DebugRewriteEntries[i].handleAsString)
+                {
+                    _factValues[index] = DebugRewriteEntries[i].handleAsString ? StringID(DebugRewriteEntries[i].value) : float.Parse(DebugRewriteEntries[i].value);
+                }
+                else if (float.TryParse(DebugRewriteEntries[i].value, out float value))
+                {
+                    _factValues[index] = value;
+                }
+                else
+                {
+                    Debug.LogWarning($"could not parse value {DebugRewriteEntries[i].value} to float for key {DebugRewriteEntries[i].key}.");
+                }
+            }
+            else
+            {
+                Debug.LogWarning($"Trying to rewrite key {DebugRewriteEntries[i].key} but could not find it in the FactMatcher system.");
+            }
+        }
+    }
+    #endif
+
+
     private void HandleFactWrites(RuleDBEntry rule)
     {
         //Handle fact writes.
