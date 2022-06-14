@@ -70,6 +70,8 @@ public class RuleDBEntry
     public int RuleID;
     public string ruleName;
     public string payload;
+    [NonSerialized]
+    public int payloadStringID;
     public ScriptableObject PayloadObject;
     public List<RuleDBFactWrite> factWrites;
     public List<RuleDBAtomEntry> atoms;
@@ -185,7 +187,12 @@ public class RulesDB : ScriptableObject
         int id = 0;
         foreach (var rule in current.rules)
         {
-            
+            if (!dic.ContainsKey(rule.payload))
+            {
+                dic[rule.payload] = id;
+                rule.payloadStringID = id;
+                id++;
+            }
             foreach (var factWrite in rule.factWrites)
             {
                 if (factWrite.writeMode == RuleDBFactWrite.WriteMode.SetString 

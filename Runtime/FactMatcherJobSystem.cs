@@ -29,6 +29,7 @@ public class FactMatcherJobSystem : MonoBehaviour
     private NativeArray<int> _bestRuleMatches;
     private bool _inReload = false;
     private bool _dataDisposed = false;
+    private bool _hasBeenInited = false;
     
     public void Init()
     {
@@ -39,6 +40,7 @@ public class FactMatcherJobSystem : MonoBehaviour
         _bestRuleMatches = new NativeArray<int>(1,Allocator.Persistent);
         _dataDisposed = false;
         _inReload = false;
+        _hasBeenInited = true;
     }
 
     
@@ -179,7 +181,7 @@ public class FactMatcherJobSystem : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (!_dataDisposed)
+        if (!_dataDisposed && _hasBeenInited)
         {
            DisposeData(); 
         }
@@ -193,6 +195,7 @@ public class FactMatcherJobSystem : MonoBehaviour
         _bestRule.Dispose();
         _bestRuleMatches.Dispose();
         _dataDisposed = true;
+        _hasBeenInited = false;
     }
 
 
