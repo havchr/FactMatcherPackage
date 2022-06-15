@@ -95,7 +95,6 @@ public class RulesDB : ScriptableObject
         FactIdsMap = CreateFactIds();
     }
     
-    
     public void CreateRulesFromRulescripts()
     {
         if (generateFrom != null)
@@ -193,6 +192,10 @@ public class RulesDB : ScriptableObject
                 dic[rule.payload] = id;
                 rule.payloadStringID = id;
                 id++;
+            }
+            else
+            {
+                rule.payloadStringID = dic[rule.payload];
             }
             foreach (var factWrite in rule.factWrites)
             {

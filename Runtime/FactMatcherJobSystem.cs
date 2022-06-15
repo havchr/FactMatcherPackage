@@ -31,6 +31,9 @@ public class FactMatcherJobSystem : MonoBehaviour
     private bool _dataDisposed = false;
     private bool _hasBeenInited = false;
     
+    #if ODIN_INSPECTOR
+    [Sirenix.OdinInspector.Button("Init")]
+    #endif
     public void Init()
     {
         ruleDB.InitRuleDB();
@@ -50,7 +53,10 @@ public class FactMatcherJobSystem : MonoBehaviour
     public void Reload()
     {
         _inReload = true;
-        DisposeData();
+        if (_hasBeenInited)
+        {
+            DisposeData();
+        }
         ruleDB.CreateRulesFromRulescripts();
         Init();
         
@@ -73,6 +79,9 @@ public class FactMatcherJobSystem : MonoBehaviour
     }
 
 
+    #if ODIN_INSPECTOR
+    [Sirenix.OdinInspector.Button("Pick Rule")]
+    #endif
     public RuleDBEntry PickBestRule()
     {
 
@@ -80,6 +89,10 @@ public class FactMatcherJobSystem : MonoBehaviour
 #if UNITY_EDITOR
         if (Application.isEditor && DebugWhileEditorRewriteEnable)
         {
+            if (!_hasBeenInited)
+            {
+                Init();
+            }
             HandleDebugRewriteFacts();
         }
 #endif
@@ -109,7 +122,7 @@ public class FactMatcherJobSystem : MonoBehaviour
             return null;
         }
         RuleDBEntry rule = ruleDB.RuleFromID(_bestRule[0].ruleFiredEventId);
-        Debug.Log($"The result of the best match is: {rule.payload} with {_bestRuleMatches[0]} matches and it took {sw.ElapsedMilliseconds} ms");
+        Debug.Log($"The result of the best match is: {rule.payload} with {_bestRuleMatches[0]} matches and it took {sw.ElapsedMilliseconds} ms and payloadID {rule.payloadStringID}");
         HandleFactWrites(rule);
         return rule;
     }
