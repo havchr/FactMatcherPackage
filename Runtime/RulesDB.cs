@@ -185,8 +185,9 @@ public class RulesDB : ScriptableObject
         Dictionary<string, int>  dic = new Dictionary<string, int>();
         
         int id = 0;
-        foreach (var rule in current.rules)
+        for (int i = 0; i < current.rules.Count; i++)
         {
+            var rule = current.rules[i];
             if (!dic.ContainsKey(rule.payload))
             {
                 dic[rule.payload] = id;
