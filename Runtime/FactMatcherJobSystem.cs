@@ -67,6 +67,16 @@ public class FactMatcherJobSystem : MonoBehaviour
         get { return _factValues[i]; }
         set { _factValues[i] = value; }
     }
+    
+    public bool SetFact(int factIndex,float value)
+    {
+        if (factIndex >= 0 && factIndex < _factValues.Length)
+        {
+            _factValues[factIndex] = value;
+            return true;
+        }
+        return false;
+    }
 
     public int StringID(string str)
     {
