@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text;
 using FactMatcher;
 using UnityEditor;
 using UnityEngine;
@@ -136,6 +137,11 @@ public class RulesDB : ScriptableObject
         if (!RuleStringMap.TryGetValue(str, out id))
         {
             id = -1;
+            Debug.Log($"did not find stringID {id} for string {str}");
+        }
+        else
+        {
+            //Debug.Log($"Found stringID {id} for string {str}");
         }
         return id;
     }
@@ -149,8 +155,52 @@ public class RulesDB : ScriptableObject
         if (!FactIdsMap.TryGetValue(str, out id))
         {
             id = -1;
+            Debug.Log($"did not find factID {id} for fact {str}");
+        }
+        else
+        {
+            //Debug.Log($"Found factID {id} for fact {str}");
         }
         return id;
+    }
+    
+    public string DumpFactID(int factID,float value)
+    {
+        StringBuilder strB = new StringBuilder();
+        foreach (var rule in rules)
+        {
+            foreach (var atom in rule.atoms)
+            {
+                atom.compareMethod.ToString();
+                //does these factID's match correctly!? 
+                if (atom.factID == factID )
+                {
+                    strB.Append($"---factID {factID} is {atom.factName}\n");
+                    if (atom.compareType == FactValueType.String)
+                    {
+                        strB.Append($"value is {GetStringFromStringID((int)value)}\n");
+                        strB.Append($"compareMethod is {atom.compareMethod} {atom.matchString}\n");
+                    }
+                    else
+                    {
+                        strB.Append($"value is {value}\n");
+                        strB.Append($"compareMethod is {atom.compareMethod} {atom.matchValue}\n");
+                    }
+                    return strB.ToString();
+                }
+            }
+        }
+        return value.ToString();
+    }
+    public string  GetStringFromStringID(int stringID)
+    {
+        foreach (var strVal in RuleStringMap)
+        {
+            if (strVal.Value == stringID)
+                return strVal.Key;
+        }
+
+        return "FactMatcher N/A String";
     }
     
     public RuleDBEntry RuleFromID(int id)

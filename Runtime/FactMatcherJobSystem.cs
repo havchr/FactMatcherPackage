@@ -32,6 +32,7 @@ public class FactMatcherJobSystem : MonoBehaviour
     private bool _inReload = false;
     private bool _dataDisposed = false;
     private bool _hasBeenInited = false;
+    public const int NotSetValue = -1;
     
     #if ODIN_INSPECTOR
     [Sirenix.OdinInspector.Button("Init")]
@@ -40,6 +41,10 @@ public class FactMatcherJobSystem : MonoBehaviour
     {
         ruleDB.InitRuleDB();
         _factValues = new NativeArray<float>(ruleDB.CountNumberOfFacts(),Allocator.Persistent);
+        for (int i = 0; i < _factValues.Length; i++)
+        {
+            _factValues[i] = NotSetValue;
+        }
         FactMatcher.Functions.CreateNativeRules(this.ruleDB, out _rules, out _ruleAtoms);
         _bestRule = new NativeArray<FMRule>(1,Allocator.Persistent);
         _bestRuleMatches = new NativeArray<int>(1,Allocator.Persistent);
@@ -79,6 +84,14 @@ public class FactMatcherJobSystem : MonoBehaviour
             return true;
         }
         return false;
+    }
+
+    public void DebugLogDump()
+    {
+        for (int i = 0; i < _factValues.Length; i++)
+        {
+            Debug.Log(ruleDB.DumpFactID(i, _factValues[i]));
+        }
     }
 
     public int StringID(string str)
