@@ -18,6 +18,8 @@ public class FactMatcherDebugRewriteEntry{
 public class FactMatcherJobSystem : MonoBehaviour
 {
 
+    //Use this to re-cache indices, stringID's when hotloading
+    public Action OnInited;
     public bool DebugWhileEditorRewriteEnable = false;
     public List<FactMatcherDebugRewriteEntry> DebugRewriteEntries;
 
@@ -44,6 +46,7 @@ public class FactMatcherJobSystem : MonoBehaviour
         _dataDisposed = false;
         _inReload = false;
         _hasBeenInited = true;
+        OnInited.Invoke();
     }
 
     
