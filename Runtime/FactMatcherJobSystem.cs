@@ -46,7 +46,7 @@ public class FactMatcherJobSystem : MonoBehaviour
         _dataDisposed = false;
         _inReload = false;
         _hasBeenInited = true;
-        OnInited.Invoke();
+        OnInited?.Invoke();
     }
 
     
