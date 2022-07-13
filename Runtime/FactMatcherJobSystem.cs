@@ -8,6 +8,7 @@ using Unity.Jobs;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 
+
 [Serializable]
 public class FactMatcherDebugRewriteEntry{
     public string key;
@@ -27,11 +28,16 @@ public class FactMatcherJobSystem : MonoBehaviour
     private NativeArray<float> _factValues;
     private NativeArray<FMRule> _rules;
     private NativeArray<RuleAtom> _ruleAtoms;
-    private NativeArray<FactMatcher.FMRule> _bestRule;
+    private NativeArray<int> _bestRule;
     private NativeArray<int> _bestRuleMatches;
+    private NativeArray<int> _allRuleIndices;
+    private NativeArray<int> _allRulesMatches;
+    private NativeArray<int> _noOfRulesWithBestMatch;
+    private NativeArray<Settings> _settings;
     private bool _inReload = false;
     private bool _dataDisposed = false;
     private bool _hasBeenInited = false;
+    public const int NotSetValue = -1;
     
     #if ODIN_INSPECTOR
     [Sirenix.OdinInspector.Button("Init")]
@@ -40,9 +46,26 @@ public class FactMatcherJobSystem : MonoBehaviour
     {
         ruleDB.InitRuleDB();
         _factValues = new NativeArray<float>(ruleDB.CountNumberOfFacts(),Allocator.Persistent);
+        for (int i = 0; i < _factValues.Length; i++)
+        {
+            _factValues[i] = NotSetValue;
+        }
         FactMatcher.Functions.CreateNativeRules(this.ruleDB, out _rules, out _ruleAtoms);
-        _bestRule = new NativeArray<FMRule>(1,Allocator.Persistent);
+        _bestRule = new NativeArray<int>(1,Allocator.Persistent);
+        
+        //if our setting is not in need of these - we could ditch/Skip allocating them, but optimize that later if you feel like it.
+        //We need them if we want to FactWrite to all Rules that has matches (irrespective of amount of matches) - see ruleDB.FactWriteToAllThatMatches
+        _allRuleIndices = new NativeArray<int>(_rules.Length,Allocator.Persistent);
+       
+        //if we have four rules that all match with 2 - and that is our best match - four is stored in _noOfRulesWithBestMatch
+        _noOfRulesWithBestMatch = new NativeArray<int>(1,Allocator.Persistent);
+        //folowing that same example - _bestRuleMatches is 2
         _bestRuleMatches = new NativeArray<int>(1,Allocator.Persistent);
+        //to read out these four rules from our example - expect to find their indices in _allRulesMatches[0 - 3]
+        _allRulesMatches = new NativeArray<int>(_rules.Length,Allocator.Persistent);
+        
+        _settings = new NativeArray<Settings>(1,Allocator.Persistent);
+        _settings[0] = new Settings(ruleDB.FactWriteToAllThatMatches);
         _dataDisposed = false;
         _inReload = false;
         _hasBeenInited = true;
@@ -81,6 +104,24 @@ public class FactMatcherJobSystem : MonoBehaviour
         return false;
     }
 
+    public void DebugLogDump()
+    {
+        for (int i = 0; i < _factValues.Length; i++)
+        {
+            var factName = ruleDB.GetFactVariabelNameFromFactID(i);
+            if (_factValues[i] < 0f)
+            {
+                Debug.Log($"fact {factName} is {_factValues[i]}");
+            }
+            else
+            {
+                var parsedValue = ruleDB.ParseFactValueFromFactID(i, _factValues[i]);
+                Debug.Log($"fact {factName} is {parsedValue} ");
+            }
+
+        }
+    }
+
     public int StringID(string str)
     {
         return ruleDB.StringId(str);
@@ -96,6 +137,31 @@ public class FactMatcherJobSystem : MonoBehaviour
     [Sirenix.OdinInspector.Button("Pick Rule")]
     #endif
     public RuleDBEntry PickBestRule()
+    {
+        var amountOfBestRules = PickRules();
+        if (amountOfBestRules > 0)
+        {
+            return GetRule(0);
+        }
+
+        return null;
+    }
+
+    public RuleDBEntry GetRule(int ruleIndex)
+    {
+        if (_inReload)
+        {
+            Debug.Log("In reload");
+            return null;
+        }
+        if (ruleIndex >= 0 && ruleIndex < _noOfRulesWithBestMatch[0])
+        {
+            return ruleDB.RuleFromID(_rules[_allRulesMatches[ruleIndex]].ruleFiredEventId);
+        }
+        return null;
+    }
+    
+    public int PickRules()
     {
 
     
@@ -113,7 +179,7 @@ public class FactMatcherJobSystem : MonoBehaviour
         if (_inReload)
         {
             Debug.Log("In reload");
-            return null;
+            return NotSetValue;
         }
         
         var job = new FactMatcherMatch() 
@@ -122,22 +188,39 @@ public class FactMatcherJobSystem : MonoBehaviour
             RuleAtoms = _ruleAtoms,
             Rules = _rules,
             BestRule = _bestRule,
-            BestRuleMatches = _bestRuleMatches
+            BestRuleMatches = _bestRuleMatches,
+            AllEmRulesIndices = _allRuleIndices,
+            AllEmRulesMatches =  _allRulesMatches,
+            NoOfRulesWithBestMatch =  _noOfRulesWithBestMatch,
+            Settings = _settings
+            
         };
         var sw = new Stopwatch();
         sw.Start();
         job.Schedule().Complete();
         sw.Stop();
-
-
-        if (_bestRule[0].ruleFiredEventId == -1)
+        
+        
+        if (ruleDB.FactWriteToAllThatMatches)
         {
-            return null;
+            for (int i = 0; i < _allRuleIndices.Length; i++)
+            {
+                if (_allRuleIndices[i] != NotSetValue)
+                {
+                    HandleFactWrites(ruleDB.RuleFromID(_rules[_allRuleIndices[i]].ruleFiredEventId));
+                }
+            }
         }
-        RuleDBEntry rule = ruleDB.RuleFromID(_bestRule[0].ruleFiredEventId);
-        Debug.Log($"The result of the best match is: {rule.payload} with {_bestRuleMatches[0]} matches and it took {sw.ElapsedMilliseconds} ms and payloadID {rule.payloadStringID}");
-        HandleFactWrites(rule);
-        return rule;
+        else
+        {
+            for (int i = 0; i < _noOfRulesWithBestMatch[0]; i++)
+            {
+                var rule = ruleDB.RuleFromID(_rules[_allRulesMatches[i]].ruleFiredEventId);
+                Debug.Log($"The result of the best match {i+1} of {_noOfRulesWithBestMatch[0]} is: {rule.payload} with {_bestRuleMatches[0]} matches and it took {sw.ElapsedMilliseconds} ms and payloadID {rule.payloadStringID}");
+                HandleFactWrites(ruleDB.RuleFromID(_rules[_allRulesMatches[i]].ruleFiredEventId));
+            }
+        }
+        return _noOfRulesWithBestMatch[0];
     }
 
     #if UNITY_EDITOR
@@ -146,7 +229,7 @@ public class FactMatcherJobSystem : MonoBehaviour
         for (int i = 0; i < DebugRewriteEntries.Count; i++)
         {
             var index = FactID(DebugRewriteEntries[i].key);
-            if (index != -1)
+            if (index != NotSetValue)
             {
                 if (DebugRewriteEntries[i].handleAsString)
                 {
@@ -220,6 +303,11 @@ public class FactMatcherJobSystem : MonoBehaviour
         _ruleAtoms.Dispose();
         _bestRule.Dispose();
         _bestRuleMatches.Dispose();
+        _allRuleIndices.Dispose();
+        _allRulesMatches.Dispose();
+        _noOfRulesWithBestMatch.Dispose();
+        _settings.Dispose();
+        
         _dataDisposed = true;
         _hasBeenInited = false;
     }
@@ -232,31 +320,31 @@ public class FactMatcherJobSystem : MonoBehaviour
     {
 
         [Unity.Collections.ReadOnly] public NativeArray<float> FactValues;
-
         [Unity.Collections.ReadOnly] public NativeArray<FactMatcher.FMRule> Rules;
-
         [Unity.Collections.ReadOnly] public NativeArray<FactMatcher.RuleAtom> RuleAtoms;
+        [Unity.Collections.ReadOnly] public NativeArray<FactMatcher.Settings> Settings;
 
-        [WriteOnly] public NativeArray<FactMatcher.FMRule> BestRule;
+        [WriteOnly] public NativeArray<int> BestRule;
         [WriteOnly] public NativeArray<int> BestRuleMatches;
-
+        [WriteOnly] public NativeArray<int> AllEmRulesIndices;
+        [WriteOnly] public NativeArray<int> AllEmRulesMatches;
+        [WriteOnly] public NativeArray<int> NoOfRulesWithBestMatch;
 
         public void Execute()
         {
 
             int ruleI = 0;
             int currentBestMatch = 0;
-            int bestRuleIndex = -1;
+            int bestRuleIndex = NotSetValue;
+            int allBestMatchesIndex = 0;
 
             //Debug.Log($"Natively! We have {Rules.Length} rules to loop");
             for (ruleI = 0; ruleI < Rules.Length; ruleI++)
             {
                 var rule = Rules[ruleI];
                 int howManyAtomsMatch = 0;
-                if (rule.numOfAtoms > currentBestMatch)
+                if (rule.numOfAtoms >= currentBestMatch || Settings[0].FactWriteToAllMatches)
                 {
-
-
                     LogMatchJob($"for rule {ruleI} with ruleFireID {rule.ruleFiredEventId} we are checking atoms from {rule.atomIndex} to {rule.atomIndex + rule.numOfAtoms} ");
                     for (int j = rule.atomIndex; j < (rule.atomIndex + rule.numOfAtoms); j++)
                     {
@@ -273,30 +361,39 @@ public class FactMatcherJobSystem : MonoBehaviour
                         }
 
                     }
-
-                    if (howManyAtomsMatch > currentBestMatch)
+                    AllEmRulesIndices[ruleI] = howManyAtomsMatch > 0 ? ruleI : NotSetValue;
+                    if (howManyAtomsMatch == currentBestMatch)
+                    {
+                        allBestMatchesIndex++;
+                        AllEmRulesMatches[allBestMatchesIndex] = ruleI;
+                    }
+                    else if (howManyAtomsMatch > currentBestMatch)
                     {
                         currentBestMatch = howManyAtomsMatch;
                         bestRuleIndex = ruleI;
+                        allBestMatchesIndex = 0;
+                        AllEmRulesMatches[allBestMatchesIndex] = ruleI;
                     }
                 }
             }
 
-            if (bestRuleIndex != -1)
+            if (bestRuleIndex != NotSetValue)
             {
                 BestRuleMatches[0] = currentBestMatch;
-                BestRule[0] = Rules[bestRuleIndex];
+                BestRule[0] = bestRuleIndex;
+                NoOfRulesWithBestMatch[0] = allBestMatchesIndex+1;
             }
             else
             {
-                BestRuleMatches[0] = -1;
-                BestRule[0] = emptyRule;
+                BestRuleMatches[0] = NotSetValue;
+                BestRule[0] = NotSetValue;
+                NoOfRulesWithBestMatch[0] = NotSetValue;
             }
         }
 
     }
 
-    static FactMatcher.FMRule emptyRule = new FactMatcher.FMRule(-1,0,0);
+    static FactMatcher.FMRule emptyRule = new FactMatcher.FMRule(NotSetValue,0,0);
     
     
     [Conditional("FACTMATCHER_LOG_MATCH_JOB")]

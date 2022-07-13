@@ -81,6 +81,8 @@ public class RuleDBEntry
 public class RulesDB : ScriptableObject
 {
 
+    public bool PickMultipleBestRules = false;
+    public bool FactWriteToAllThatMatches = false;
     public bool CompileToCSharp = false;
     private Dictionary<string, int> FactIdsMap;
     private Dictionary<string, int> RuleStringMap;
@@ -122,6 +124,10 @@ public class RulesDB : ScriptableObject
             {
                 result[atom.factName] = atom.factID;
             }
+			foreach (var factWrite in rule.factWrites)
+            {
+                result[factWrite.factName] = factWrite.factID;
+            }
 		}
         return result;
     }
@@ -151,6 +157,42 @@ public class RulesDB : ScriptableObject
             id = -1;
         }
         return id;
+    }
+    
+    public string  GetFactVariabelNameFromFactID(int factID)
+    {
+        foreach (var strVal in FactIdsMap)
+        {
+            if (strVal.Value == factID)
+                return strVal.Key;
+        }
+
+        return "";
+    }
+    
+    public string ParseFactValueFromFactID(int factID,float value)
+    {
+        foreach (var rule in rules)
+        {
+            foreach (var atom in rule.atoms)
+            {
+                if (atom.factID == factID && atom.compareType == FactValueType.String)
+                {
+                    return GetStringFromStringID((int)value);
+                }
+            }
+        }
+        return value.ToString();
+    }
+    public string  GetStringFromStringID(int stringID)
+    {
+        foreach (var strVal in RuleStringMap)
+        {
+            if (strVal.Value == stringID)
+                return strVal.Key;
+        }
+
+        return "";
     }
     
     public RuleDBEntry RuleFromID(int id)

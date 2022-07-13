@@ -7,6 +7,16 @@ using UnityEngine;
 namespace FactMatcher
 {
     
+        public struct Settings 
+        {
+
+            public Settings(bool factWriteToAllMatches)
+            {
+                this.FactWriteToAllMatches = factWriteToAllMatches;
+            }
+
+            public bool FactWriteToAllMatches;
+        }
     
         public struct RuleAtom
         {
