@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text;
 using FactMatcher;
 using UnityEditor;
 using UnityEngine;
@@ -142,6 +143,11 @@ public class RulesDB : ScriptableObject
         if (!RuleStringMap.TryGetValue(str, out id))
         {
             id = -1;
+            Debug.Log($"did not find stringID {id} for string {str}");
+        }
+        else
+        {
+            //Debug.Log($"Found stringID {id} for string {str}");
         }
         return id;
     }
@@ -155,6 +161,11 @@ public class RulesDB : ScriptableObject
         if (!FactIdsMap.TryGetValue(str, out id))
         {
             id = -1;
+            Debug.Log($"did not find factID {id} for fact {str}");
+        }
+        else
+        {
+            //Debug.Log($"Found factID {id} for fact {str}");
         }
         return id;
     }
