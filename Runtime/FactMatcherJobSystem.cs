@@ -362,7 +362,7 @@ public class FactMatcherJobSystem : MonoBehaviour
 
                     }
                     AllEmRulesIndices[ruleI] = howManyAtomsMatch > 0 ? ruleI : NotSetValue;
-                    if (howManyAtomsMatch == currentBestMatch)
+                    if (howManyAtomsMatch == currentBestMatch && howManyAtomsMatch >= 1)
                     {
                         allBestMatchesIndex++;
                         AllEmRulesMatches[allBestMatchesIndex] = ruleI;
