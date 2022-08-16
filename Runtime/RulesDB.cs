@@ -97,6 +97,24 @@ public class RulesDB : ScriptableObject
         RuleMap = CreateEntryFromIDDic(this);
         FactIdsMap = CreateFactIds();
     }
+
+    public List<RuleDBAtomEntry> CreateFlattenedRuleAtomList( Func<RuleDBAtomEntry,bool> filter=null)
+    {
+        List<RuleDBAtomEntry> ruleAtoms = new List<RuleDBAtomEntry>();
+        List<int> usedIDs = new List<int>();
+        foreach (var rule in rules)
+        {
+            foreach (var ruleAtom in rule.atoms)
+            {
+                if (!usedIDs.Contains(ruleAtom.factID) && filter!= null && filter(ruleAtom))
+                {
+                    usedIDs.Add(ruleAtom.factID); 
+                    ruleAtoms.Add(ruleAtom);
+                }
+            } 
+        }
+        return ruleAtoms;
+    }
     
     public void CreateRulesFromRulescripts()
     {
@@ -197,13 +215,17 @@ public class RulesDB : ScriptableObject
     }
     public string  GetStringFromStringID(int stringID)
     {
+        if (RuleStringMap == null)
+        {
+            return "Non-inited";
+        }
         foreach (var strVal in RuleStringMap)
         {
             if (strVal.Value == stringID)
                 return strVal.Key;
         }
 
-        return "";
+        return "StringID does not exist";
     }
     
     public RuleDBEntry RuleFromID(int id)
@@ -304,6 +326,4 @@ public class RulesDB : ScriptableObject
 		}
 		return topFactID + 1;
 	}
-    
-	
 }

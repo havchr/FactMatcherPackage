@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 6bc94d079fd584482839d38d32ddd41a
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - FactItemVisAss: {fileID: 9197481963319205126, guid: e0b5c45f1f3814fbeba9c0378b7ffeb9, type: 3}
+  - InspectorXML: {fileID: 9197481963319205126, guid: d0b3af08c6415433da221bfb2ddf902b, type: 3}
+  - InspectorStyle: {fileID: 7433441132597879392, guid: 2a98407806de3417da12610454237c14, type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

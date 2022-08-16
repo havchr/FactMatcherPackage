@@ -21,6 +21,7 @@ public class FactMatcherJobSystem : MonoBehaviour
 
     //Use this to re-cache indices, stringID's when hotloading
     public Action OnInited;
+    public Action<int> OnRulePicked;
     public bool DebugWhileEditorRewriteEnable = false;
     public List<FactMatcherDebugRewriteEntry> DebugRewriteEntries;
 
@@ -38,8 +39,9 @@ public class FactMatcherJobSystem : MonoBehaviour
     private bool _dataDisposed = false;
     private bool _hasBeenInited = false;
     public const int NotSetValue = -1;
-    
-    #if ODIN_INSPECTOR
+    public bool IsInited => _hasBeenInited; 
+
+#if ODIN_INSPECTOR
     [Sirenix.OdinInspector.Button("Init")]
     #endif
     public void Init()
@@ -91,7 +93,10 @@ public class FactMatcherJobSystem : MonoBehaviour
     public float this[int i]
     {
         get { return _factValues[i]; }
-        set { _factValues[i] = value; }
+        set
+        {
+            _factValues[i] = value;
+        }
     }
     
     public bool SetFact(int factIndex,float value)
@@ -219,6 +224,7 @@ public class FactMatcherJobSystem : MonoBehaviour
                 }
             }
         }
+        OnRulePicked?.Invoke(_noOfRulesWithBestMatch[0]);
         return _noOfRulesWithBestMatch[0];
     }
 
