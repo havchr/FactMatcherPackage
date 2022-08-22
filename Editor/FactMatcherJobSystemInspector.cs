@@ -32,6 +32,7 @@ public class FactMatcherJobSystemInspector : Editor
 
     private ListView _factListView;
     private TextField _factFilterField;
+    private Label _lastPickedRule;
     private FactMatcherJobSystem _facty;
     private List<RuleDBAtomEntry> _ruleAtoms;
 
@@ -50,6 +51,7 @@ public class FactMatcherJobSystemInspector : Editor
         
         _facty = (FactMatcherJobSystem) this.target;
 
+        _lastPickedRule = inspector.Q<Label>("LastPickedRuleLabel");
         _factListView = inspector.Q<ListView>("FactList");
         _factFilterField = inspector.Q<TextField>("FactFilter");
         _factFilterField.value = "";
@@ -69,8 +71,10 @@ public class FactMatcherJobSystemInspector : Editor
         return inspector;
     }
 
-    private void OnRulePicked(int obj)
+    private void OnRulePicked(int ruleId)
     {
+        var rule = _facty.ruleDB.RuleFromID(ruleId);
+        _lastPickedRule.text = $"Last Picked rule  {rule.ruleName} payload {rule.payload}";
         UpdateListView();
     }
 
@@ -78,7 +82,18 @@ public class FactMatcherJobSystemInspector : Editor
     {
         _ruleAtoms = _facty.ruleDB.CreateFlattenedRuleAtomList(entry =>
         {
-            return entry.factName.Contains(_factFilterField.text);
+            var splits = _factFilterField.text.Split("|");
+            bool include = false;
+            for (int i = 0; i < splits.Length; i++)
+            {
+                if (entry.factName.Contains(splits[i]))
+                {
+                    include = true;
+                    break;
+                }
+            }
+            
+            return include;
         });
         _factListView.itemsSource = _ruleAtoms;
         _factListView.RefreshItems();
