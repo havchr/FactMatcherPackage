@@ -74,7 +74,14 @@ public class FactMatcherJobSystemInspector : Editor
     private void OnRulePicked(int ruleId)
     {
         var rule = _facty.ruleDB.RuleFromID(ruleId);
-        _lastPickedRule.text = $"Last Picked rule  {rule.ruleName} payload {rule.payload}";
+        if (rule!=null)
+        {
+            _lastPickedRule.text = $"Last Picked rule  {rule.ruleName} payload {rule.payload}";
+        }
+        else
+        {
+            _lastPickedRule.text = $"found no Rule for ruleId={ruleId}";
+        }
         UpdateListView();
     }
 
