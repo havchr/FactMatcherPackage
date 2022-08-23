@@ -189,6 +189,17 @@ namespace FactMatcher
                             //adding all our atoms into the parsedAtoms array for deriving to work..
                             foreach (var atomEntry in currentRule.atoms)
                             {
+                                //Making sure orGroups are correct
+                                if (atomEntry.orGroupRuleID != -1)
+                                {
+                                    foreach (var atomEntryToOrGroup in currentRule.atoms)
+                                    {
+                                        if (atomEntry.factID == atomEntryToOrGroup.factID)
+                                        {
+                                            atomEntryToOrGroup.orGroupRuleID = atomEntry.factID;
+                                        }
+                                    }
+                                }
                                 //Debug.Log($"Adding atom {atomEntry.factName} to ParsedAtoms with key {currentRule.ruleName}");
                                 if (!parsedAtoms.ContainsKey(currentRule.ruleName))
                                 {
@@ -205,6 +216,12 @@ namespace FactMatcher
                     }
 
                 }
+            }
+
+            foreach (var rule in rules)
+            {
+                rule.atoms.Sort((atom1, atom2) => atom1.orGroupRuleID - atom2.orGroupRuleID);
+                
             }
         }
 
@@ -296,13 +313,13 @@ namespace FactMatcher
                     break;
                 }
             }
+            
         }
         
         private static void ParseRuleAtoms(string line, RuleDBEntry currentRule)
         {
             if (line.Contains("Range"))
             {
-                    
                 var splits = line.Split(new[] {"Range"}, StringSplitOptions.RemoveEmptyEntries);
             }
             
@@ -333,12 +350,24 @@ namespace FactMatcher
                         //Todo add support for strict
                         RuleDBAtomEntry atomEntry = new RuleDBAtomEntry();
                         atomEntry.compareMethod = operand.Item2;
-                        atomEntry.factName = splits[0].Trim();
+                        var factNameCandidate = splits[0].Trim();
+                        var isOrRule = false;
+                        if (factNameCandidate.StartsWith("OR"))
+                        {
+                            atomEntry.factName = splits[0].Remove(0,2).Trim();
+                            atomEntry.orGroupRuleID = atomEntry.factID;
+                            isOrRule = true;
+                        }
+                        else
+                        {
+                            atomEntry.factName = splits[0].Trim();
+                            atomEntry.orGroupRuleID = -1;
+                        }
                         var valueMatch = splits[1].Trim();
                         
                         //If we have added a rule - from derived - but are overwriting that fact-query , then delete the 
                         //derived rule , or else we would get two conflicting rule atoms in our rule...
-                        if (currentRule.atoms.Any(entry => entry.factName.Equals(atomEntry.factName)))
+                        if (!isOrRule && currentRule.atoms.Any(entry => entry.factName.Equals(atomEntry.factName)))
                         {
                             currentRule.atoms.Remove(currentRule.atoms.Find(entry =>
                                 entry.factName.Equals(atomEntry.factName)));

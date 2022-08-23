@@ -30,6 +30,8 @@ public class RuleDBFactWrite
 [Serializable]
 public class RuleDBAtomEntry
 {
+    
+    public int orGroupRuleID;
     public int factID;
     public string factName;
     public string matchString;

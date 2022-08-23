@@ -359,22 +359,73 @@ public class FactMatcherJobSystem : MonoBehaviour
                 if (rule.numOfAtoms >= currentBestMatch || Settings[0].FactWriteToAllMatches)
                 {
                     LogMatchJob($"for rule {ruleI} with ruleFireID {rule.ruleFiredEventId} we are checking atoms from {rule.atomIndex} to {rule.atomIndex + rule.numOfAtoms} ");
-                    for (int j = rule.atomIndex; j < (rule.atomIndex + rule.numOfAtoms); j++)
+                    
+                    //assuming sorted on atom.factID, means that any orGroup can be checked sequentially.
+                    int orGroupHits = 0;
+                    int orGroupMisses= 0;
+                    int lastOrGroup = -1;
+                    int lastIndex = rule.atomIndex + rule.numOfAtoms;
+                    
+                    for (int j = rule.atomIndex; j < (lastIndex); j++)
                     {
                         var atom = RuleAtoms[j];
                         LogMatchJob($"for rule {ruleI} with ruleFireID {rule.ruleFiredEventId} , comparing factID {atom.factID} with value {FactValues[atom.factID]} with atom.compare.lowerBound {atom.compare.lowerBound} and upperBound {atom.compare.upperBound} ");
+                        if(lastOrGroup != atom.orGroupRuleID)
+                        {
+                            if (lastOrGroup != -1 && orGroupHits==0)
+                            {
+                                howManyAtomsMatch = 0;
+                                break;
+                            }
+                            orGroupHits = 0;
+                        }
+
                         if (FactMatcher.Functions.predicate(in atom.compare, FactValues[atom.factID]))
                         {
-                            howManyAtomsMatch++;
+                            if (atom.orGroupRuleID != -1)
+                            {
+                                orGroupHits++;
+                                if (orGroupHits == 1)
+                                {
+                                    howManyAtomsMatch++;
+                                }
+                            }
+                            else
+                            {
+                                orGroupHits = 0;
+                                howManyAtomsMatch++;
+                            }
                         }
                         else if (atom.strict)
                         {
-                            howManyAtomsMatch = 0;
-                            break;
+                            //missing - in a group.
+                            if (atom.orGroupRuleID != -1)
+                            {
+                                orGroupMisses++;
+                                if (j == lastIndex - 1 && orGroupHits==0)
+                                {
+                                    howManyAtomsMatch = 0;
+                                    orGroupHits = 0;
+                                    break;
+                                }
+                            }
+                            //missing - not in a group.
+                            else
+                            {
+                                //missing not in a group but last was group
+                                if (lastOrGroup != -1 && orGroupHits==0)
+                                {
+                                    howManyAtomsMatch = 0;
+                                }
+                                howManyAtomsMatch = 0;
+                                orGroupHits = 0;
+                                break;
+                            }
                         }
 
+                        lastOrGroup = atom.orGroupRuleID;
+
                     }
-                    AllEmRulesIndices[ruleI] = howManyAtomsMatch > 0 ? ruleI : NotSetValue;
                     if (howManyAtomsMatch == currentBestMatch && howManyAtomsMatch >= 1)
                     {
                         allBestMatchesIndex++;

@@ -58,6 +58,14 @@ public class FactMatcherJobSystemInspector : Editor
         _factListView.makeItem = MakeItem;
         _factListView.bindItem = BindItem;
         
+        inspector.Q<Button>("PickRuleButton").RegisterCallback<ClickEvent>(evt =>
+        {
+            if (!_facty.IsInited)
+            {
+               _facty.Init(); 
+            }
+            _facty.PickRules();
+        });
         _factFilterField.RegisterCallback<ChangeEvent<string> >(evt =>
         {
             UpdateListView();

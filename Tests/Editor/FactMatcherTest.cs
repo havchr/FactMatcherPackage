@@ -125,16 +125,70 @@ public class FactMatcherTest
             //if (rule.atoms.Length > currentBestMatch)
             if (true)
             {
-                for (int j = rule.atomIndex; j < (rule.atomIndex + rule.numOfAtoms); j++)
-                {
-                    var atom = atoms[j];
-                    if (FactMatcher.Functions.predicate(in atom.compare,facts[atom.factID] ))
+                    int orGroupHits = 0;
+                    int orGroupMisses= 0;
+                    int lastOrGroup = -1;
+                    int lastIndex = rule.atomIndex + rule.numOfAtoms;
+                    
+                    for (int j = rule.atomIndex; j < (lastIndex); j++)
                     {
-                        howManyAtomsMatch++;
+                        var atom = atoms[j];
+                        if(lastOrGroup != atom.orGroupRuleID)
+                        {
+                            if (lastOrGroup != -1 && orGroupHits==0)
+                            {
+                                howManyAtomsMatch = 0;
+                                break;
+                            }
+                            orGroupHits = 0;
+                        }
+
+                        if (FactMatcher.Functions.predicate(in atom.compare, facts[atom.factID]))
+                        {
+                            if (atom.orGroupRuleID != -1)
+                            {
+                                orGroupHits++;
+                                if (orGroupHits == 1)
+                                {
+                                    howManyAtomsMatch++;
+                                }
+                            }
+                            else
+                            {
+                                orGroupHits = 0;
+                                howManyAtomsMatch++;
+                            }
+                        }
+                        else if (atom.strict)
+                        {
+                            //missing - in a group.
+                            if (atom.orGroupRuleID != -1)
+                            {
+                                orGroupMisses++;
+                                if (j == lastIndex - 1 && orGroupHits==0)
+                                {
+                                    howManyAtomsMatch = 0;
+                                    orGroupHits = 0;
+                                    break;
+                                }
+                            }
+                            //missing - not in a group.
+                            else
+                            {
+                                //missing not in a group but last was group
+                                if (lastOrGroup != -1 && orGroupHits==0)
+                                {
+                                    howManyAtomsMatch = 0;
+                                }
+                                howManyAtomsMatch = 0;
+                                orGroupHits = 0;
+                                break;
+                            }
+                        }
+
+                        lastOrGroup = atom.orGroupRuleID;
+
                     }
-                    int localIndex = j - rule.atomIndex;
-                    //Debug.Log($"Checking Native rule {ruleI} with atom local index {localIndex} and atomIndex is {j} , factID {atom.factID} with factValue {facts[atom.factID]} and found {howManyAtomsMatch}");
-                }
 
                 if (howManyAtomsMatch > currentBestMatch)
                 {

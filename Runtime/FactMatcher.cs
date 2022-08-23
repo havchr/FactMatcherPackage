@@ -21,13 +21,16 @@ namespace FactMatcher
         public struct RuleAtom
         {
 
-            public RuleAtom(int factID,int ruleID,RuleCompare cmp,bool isStrict=true)
+            public RuleAtom(int factID,int ruleID,RuleCompare cmp,int orGroupRuleID,bool isStrict=true)
             {
                 this.factID = factID;
                 this.compare = cmp;
                 this.ruleID = ruleID;
                 this.strict = isStrict;
+                this.orGroupRuleID = orGroupRuleID;
             }
+            
+            public int orGroupRuleID;
             public int factID;
             public int ruleID;
             public bool strict;
@@ -130,7 +133,7 @@ namespace FactMatcher
             rules[i] = new FactMatcher.FMRule(ruleFiredEventID, atomIndex, db.rules[i].atoms.Count);
             foreach (var atom in db.rules[i].atoms)
             {
-                ruleAtoms[atomIndex] = new FactMatcher.RuleAtom(atom.factID, i, atom.CreateCompare(db));
+                ruleAtoms[atomIndex] = new FactMatcher.RuleAtom(atom.factID, i, atom.CreateCompare(db),atom.orGroupRuleID);
                 atomIndex++;
             }
         }
@@ -180,7 +183,7 @@ namespace FactMatcher
                        break;
                }
                var vFactIndex = UnityEngine.Random.Range(0, worldFacts);
-               atoms.Add(new RuleAtom(vFactIndex,i,compare));
+               atoms.Add(new RuleAtom(vFactIndex,i,compare,-1));
            }
 
        }
