@@ -326,4 +326,20 @@ public class RulesDB : ScriptableObject
 		}
 		return topFactID + 1;
 	}
+
+    public RuleDBAtomEntry GetAtomFromFactID(int i)
+    {
+        foreach (var rule in rules)
+        {
+            foreach (var atom in rule.atoms)
+            {
+                if (atom.factID == i)
+                {
+                    return atom;
+                }
+            } 
+        }
+
+        return null;
+    }
 }

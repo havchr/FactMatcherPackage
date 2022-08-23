@@ -50,7 +50,15 @@ public class FactMatcherJobSystem : MonoBehaviour
         _factValues = new NativeArray<float>(ruleDB.CountNumberOfFacts(),Allocator.Persistent);
         for (int i = 0; i < _factValues.Length; i++)
         {
-            _factValues[i] = NotSetValue;
+            var atom = ruleDB.GetAtomFromFactID(i);
+            if (atom!=null && atom.compareType == FactValueType.String)
+            {
+                _factValues[i] = NotSetValue;
+            }
+            else
+            {
+                _factValues[i] = 0;
+            }
         }
         FactMatcher.Functions.CreateNativeRules(this.ruleDB, out _rules, out _ruleAtoms);
         _bestRule = new NativeArray<int>(1,Allocator.Persistent);
