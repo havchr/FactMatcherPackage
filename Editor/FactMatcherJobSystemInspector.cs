@@ -71,16 +71,16 @@ public class FactMatcherJobSystemInspector : Editor
         return inspector;
     }
 
-    private void OnRulePicked(int ruleId)
+    private void OnRulePicked(int noOfBestRules)
     {
-        var rule = _facty.ruleDB.RuleFromID(ruleId);
+        var rule = noOfBestRules >= 1 ? _facty.GetRule(0) : null;
         if (rule!=null)
         {
-            _lastPickedRule.text = $"Last Picked rule  {rule.ruleName} payload {rule.payload}";
+            _lastPickedRule.text = $"Last Picked rule  {rule.ruleName} payload {rule.payload} and ruleID {rule.RuleID}";
         }
         else
         {
-            _lastPickedRule.text = $"found no Rule for ruleId={ruleId}";
+            _lastPickedRule.text = $"found no Rule for noBestRules={noOfBestRules}";
         }
         UpdateListView();
     }
