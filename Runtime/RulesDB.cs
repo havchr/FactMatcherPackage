@@ -261,6 +261,9 @@ public class RulesDB : ScriptableObject
         Dictionary<string, int>  dic = new Dictionary<string, int>();
         
         int id = 0;
+        dic.Add("false",FactMatcher.Consts.False);
+        dic.Add("true",FactMatcher.Consts.True);
+        id = FactMatcher.Consts.True +1;
         for (int i = 0; i < current.rules.Count; i++)
         {
             var rule = current.rules[i];

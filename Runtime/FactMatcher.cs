@@ -6,6 +6,11 @@ using UnityEngine;
 
 namespace FactMatcher
 {
+        public struct Consts
+        {
+            public const int False = 0;
+            public const int True = 1;
+        }
     
         public struct Settings 
         {
