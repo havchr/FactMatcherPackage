@@ -24,6 +24,7 @@ namespace FactMatcher
             using (System.IO.StringReader reader = new System.IO.StringReader(text))
             {
                 string line;
+                int orGroupID = 0;
                 while ( (line = reader.ReadLine()) !=null)
                 {
                     //-- in ruleScript is a comment , except if we are parsing a response..
@@ -110,7 +111,7 @@ namespace FactMatcher
 
                     if (state == RuleScriptParserEnum.ParsingRule)
                     {
-                        ParseRuleAtoms(line, currentRule);
+                        ParseRuleAtoms(line, currentRule,ref orGroupID);
                         if (line.Trim().Contains(":FactWrite:"))
                         {
                             state = RuleScriptParserEnum.ParsingFactWrite;
@@ -189,17 +190,6 @@ namespace FactMatcher
                             //adding all our atoms into the parsedAtoms array for deriving to work..
                             foreach (var atomEntry in currentRule.atoms)
                             {
-                                //Making sure orGroups are correct
-                                if (atomEntry.orGroupRuleID != -1)
-                                {
-                                    foreach (var atomEntryToOrGroup in currentRule.atoms)
-                                    {
-                                        if (atomEntry.factID == atomEntryToOrGroup.factID)
-                                        {
-                                            atomEntryToOrGroup.orGroupRuleID = atomEntry.factID;
-                                        }
-                                    }
-                                }
                                 //Debug.Log($"Adding atom {atomEntry.factName} to ParsedAtoms with key {currentRule.ruleName}");
                                 if (!parsedAtoms.ContainsKey(currentRule.ruleName))
                                 {
@@ -315,8 +305,9 @@ namespace FactMatcher
             }
             
         }
-        
-        private static void ParseRuleAtoms(string line, RuleDBEntry currentRule)
+
+        private static bool previousAtomWasORRule = false;
+        private static void ParseRuleAtoms(string line, RuleDBEntry currentRule, ref int orGroupID)
         {
             if (line.Contains("Range"))
             {
@@ -350,20 +341,25 @@ namespace FactMatcher
                         //Todo add support for strict
                         RuleDBAtomEntry atomEntry = new RuleDBAtomEntry();
                         atomEntry.compareMethod = operand.Item2;
-                        var factNameCandidate = splits[0].Trim();
+                        var factNameOrLogicCandidate = splits[0].Trim();
                         var isOrRule = false;
-                        if (factNameCandidate.StartsWith("OR"))
+                        if (factNameOrLogicCandidate.StartsWith("OR") || factNameOrLogicCandidate.StartsWith("IF"))
                         {
                             atomEntry.factName = splits[0].Remove(0,2).Trim();
-                            atomEntry.orGroupRuleID = atomEntry.factID;
+                            atomEntry.orGroupRuleID = orGroupID;
                             isOrRule = true;
                         }
                         else
                         {
+                            if (previousAtomWasORRule)
+                            {
+                                orGroupID++;
+                            }
                             atomEntry.factName = splits[0].Trim();
                             atomEntry.orGroupRuleID = -1;
                         }
                         var valueMatch = splits[1].Trim();
+                        previousAtomWasORRule = isOrRule;
                         
                         //If we have added a rule - from derived - but are overwriting that fact-query , then delete the 
                         //derived rule , or else we would get two conflicting rule atoms in our rule...
