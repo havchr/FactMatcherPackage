@@ -8,17 +8,45 @@ using UnityEngine.UIElements;
 
 public class FactEntryController
 {
-    private Label _label;
+    private TextField _label;
 
     public float SetVisualElement(TemplateContainer item)
     {
-        _label = item.Q<Label>("Label");
+        _label = item.Q<TextField>("TextField");
         return _label.layout.height;
     }
 
-    public void Publish(RuleDBAtomEntry atom,string value)
+    public void Publish(FactMatcherJobSystem Facty,RuleDBAtomEntry atom,string value)
     {
-        _label.text = atom.factName + " " + value;
+        _label.label = atom.factName;
+        _label.value = value;
+        var callback = (EventCallback<ChangeEvent<string>>) _label.userData;
+        if (callback != null)
+        {
+            _label.UnregisterCallback(callback);
+        }
+        callback = CreateCallback(Facty, atom);
+        _label.RegisterValueChangedCallback(callback);
+        _label.userData = callback;
+    }
+
+    private static EventCallback<ChangeEvent<string>> CreateCallback(FactMatcherJobSystem Facty, RuleDBAtomEntry atom)
+    {
+        return evt =>
+        {
+            if (Facty.IsInited)
+            {
+                Debug.Log($"Hello man we are called with {evt.newValue}");
+                if (float.TryParse(evt.newValue, out float result))
+                {
+                    Facty[atom.factID] = result;
+                }
+                else
+                {
+                    Facty[atom.factID] = Facty.StringID(evt.newValue);
+                }
+            }
+        };
     }
 }
 
@@ -123,7 +151,7 @@ public class FactMatcherJobSystemInspector : Editor
         {
             factValue = atom.compareType == FactValueType.String ? _facty.ruleDB.GetStringFromStringID((int)_facty[atom.factID]) : $"{_facty[atom.factID]}";
         }
-        controlla.Publish(_ruleAtoms[index],factValue);
+        controlla.Publish(_facty,_ruleAtoms[index],factValue);
     }
 
 
