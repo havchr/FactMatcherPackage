@@ -343,18 +343,20 @@ namespace FactMatcher
                         atomEntry.compareMethod = operand.Item2;
                         var factNameOrLogicCandidate = splits[0].Trim();
                         var isOrRule = false;
-                        if (factNameOrLogicCandidate.StartsWith("OR") || factNameOrLogicCandidate.StartsWith("IF"))
+                        var startsWithIF = factNameOrLogicCandidate.StartsWith("IF");
+                        var startsWithOR = factNameOrLogicCandidate.StartsWith("OR");
+                        if (startsWithOR || startsWithIF)
                         {
+                            if (startsWithIF)
+                            {
+                                orGroupID++;
+                            }
                             atomEntry.factName = splits[0].Remove(0,2).Trim();
                             atomEntry.orGroupRuleID = orGroupID;
                             isOrRule = true;
                         }
                         else
                         {
-                            if (previousAtomWasORRule)
-                            {
-                                orGroupID++;
-                            }
                             atomEntry.factName = splits[0].Trim();
                             atomEntry.orGroupRuleID = -1;
                         }
