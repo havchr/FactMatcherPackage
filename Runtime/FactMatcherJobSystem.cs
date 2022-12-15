@@ -18,7 +18,7 @@ public class FactMatcherDebugRewriteEntry{
 
 public class FactMatcherJobSystem : MonoBehaviour
 {
-
+    public bool AutoInitOnStart = false;
     //Use this to re-cache indices, stringID's when hotloading
     public Action OnInited;
     public Action<int> OnRulePicked;
@@ -39,7 +39,15 @@ public class FactMatcherJobSystem : MonoBehaviour
     private bool _dataDisposed = false;
     private bool _hasBeenInited = false;
     public const int NotSetValue = -1;
-    public bool IsInited => _hasBeenInited; 
+    public bool IsInited => _hasBeenInited;
+
+    private void Start()
+    {
+        if (AutoInitOnStart)
+        {
+            Init();
+        }
+    }
 
 #if ODIN_INSPECTOR
     [Sirenix.OdinInspector.Button("Init")]
