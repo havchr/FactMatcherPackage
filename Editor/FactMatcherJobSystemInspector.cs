@@ -123,23 +123,26 @@ public class FactMatcherJobSystemInspector : Editor
 
     void UpdateListView()
     {
-        _ruleAtoms = _facty.ruleDB.CreateFlattenedRuleAtomList(entry =>
+        if (_facty != null && _facty.ruleDB != null)
         {
-            var splits = _factFilterField.text.Split("|");
-            bool include = false;
-            for (int i = 0; i < splits.Length; i++)
+            _ruleAtoms = _facty.ruleDB.CreateFlattenedRuleAtomList(entry =>
             {
-                if (entry.factName.Contains(splits[i]))
+                var splits = _factFilterField.text.Split("|");
+                bool include = false;
+                for (int i = 0; i < splits.Length; i++)
                 {
-                    include = true;
-                    break;
+                    if (entry.factName.Contains(splits[i]))
+                    {
+                        include = true;
+                        break;
+                    }
                 }
-            }
-            
-            return include;
-        });
-        _factListView.itemsSource = _ruleAtoms;
-        _factListView.RefreshItems();
+                
+                return include;
+            });
+            _factListView.itemsSource = _ruleAtoms;
+            _factListView.RefreshItems();
+        }
     }
 
     private void BindItem(VisualElement visElement, int index)
