@@ -4,9 +4,10 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using FactMatcher;
+using FactMatching;
 using UnityEditor;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 
 [CustomEditor(typeof(RulesDB))]
@@ -25,14 +26,112 @@ public class RuleDBEditor : Editor
         if(GUILayout.Button("Generate From Rulescripts")) 
         {
             GenerateFromText();
+            EditorUtility.SetDirty(this);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            
         }    
     }
     
     [MenuItem("Assets/Create/FactMatcher/RuleScript")]
     private static void CreateRuleScript(MenuCommand command)
     {
-
         var fileName = "ruleScript_";
+        File.WriteAllText(GetCreateAssetPathWithVersioningCounter(fileName), GetDefaultRuleScriptContent());
+        AssetDatabase.Refresh();
+		
+    }
+    
+    [MenuItem("Assets/Create/FactMatcher/Massive RuleScript Test (1000)")]
+    private static void CreateRuleScriptMassiveTest1000(MenuCommand command)
+    {
+        var fileName = "ruleScript_massive_test";
+        File.WriteAllText(GetCreateAssetPathWithVersioningCounter(fileName), GetMassiveTestRuleScriptContent(1000,10,20));
+        AssetDatabase.Refresh();
+		
+    }
+    
+    [MenuItem("Assets/Create/FactMatcher/Massive RuleScript Test (10 000)")]
+    private static void CreateRuleScriptMassiveTest10000(MenuCommand command)
+    {
+        var fileName = "ruleScript_massive_test";
+        File.WriteAllText(GetCreateAssetPathWithVersioningCounter(fileName), GetMassiveTestRuleScriptContent(10000,10,30));
+        AssetDatabase.Refresh();
+		
+    }
+
+    private static string GetMassiveTestRuleScriptContent(int numRules,int factRangeLow,int factRangeUpper)
+    {
+        var stringnames = new string[]{"test","name","personality","favourite_food"};
+        var stringvals = new string[]{"peter",
+            "frog",
+            "oslo",
+            "los angeles",
+            "cat","dog","horse",
+            "mouse","video","perfect",
+            "true","false",
+            "videogame","joystick","mario",
+            "milkfroth" ,"single","married","lonely","bachelor"
+        };
+        var floatnames = new string[]{"milk_amount","water_amount","beer_amount","player.health","player.age","item_strength"};
+        
+        var floatTest = new string[]{"<",">","=","<=",">="};
+        var stringTest= new string[]{"="};
+        StringWriter writer = new StringWriter();
+        for (int i = 0; i < numRules; i++)
+        {
+            writer.WriteLine($".test_rule_{i}");
+            var stringnamesIndices = new int[stringnames.Length];
+            var stringnamesAvailable = stringnamesIndices.Length;
+            for (int j = 0; j < stringnamesIndices.Length; j++)
+            {
+                stringnamesIndices[j] = j;
+            }
+            var floatnamesIndices = new int[floatnames.Length];
+            var floatNamesAvailable = floatnamesIndices.Length;
+            for (int j = 0; j < floatnamesIndices.Length; j++)
+            {
+                floatnamesIndices[j] = j;
+            }
+
+            var numFacts = Random.Range(factRangeLow, factRangeUpper);
+            for (int j = 0; j < numFacts; j++)
+            {
+                if (Random.Range(0, 100) > 50)
+                {
+                    var name = $"string_test_{j}";
+                    if (stringnamesAvailable > 0)
+                    {
+                        var index= Random.Range(0,stringnamesAvailable);
+                        stringnamesAvailable--;
+                        stringnamesIndices[index] = stringnamesIndices[stringnamesAvailable];
+                        name = stringnames[stringnamesIndices[index]];
+                    }
+                    writer.WriteLine($"    {name} {stringTest[Random.Range(0,stringTest.Length)]} {stringvals[Random.Range(0,stringvals.Length)]}");
+                }
+                else
+                {
+                    var name = $"float_test_{j}";
+                    if (floatNamesAvailable> 0)
+                    {
+                        var index= Random.Range(0,floatNamesAvailable);
+                        floatNamesAvailable--;
+                        floatnamesIndices[index] = floatnamesIndices[floatNamesAvailable];
+                        name = floatnames[floatnamesIndices[index]];
+                    }
+                    writer.WriteLine($"    {name} {floatTest[Random.Range(0,floatTest.Length)]} {Random.Range(-500.0f,500.0f)}");
+                }
+            }
+            writer.WriteLine($".THEN RESPONSE");
+            writer.WriteLine($".Response is rule {i}");
+            writer.WriteLine($".END");
+        }
+
+        return writer.ToString();
+    }
+
+    private static string GetCreateAssetPathWithVersioningCounter(string fileName)
+    {
         var dirPath = AssetDatabase.GetAssetPath(Selection.activeObject);
         var path = dirPath +"/" + fileName ;
         var assets = AssetDatabase.FindAssets(fileName,new []{dirPath});
@@ -65,19 +164,20 @@ public class RuleDBEditor : Editor
         }
         fileNumber++;
         var finalPath = path + $"{fileNumber}.txt";
-        File.WriteAllText(Application.dataPath + finalPath.Split(new []{"Assets"},StringSplitOptions.RemoveEmptyEntries)[0] , GetDefaultRuleScriptContent());
-        AssetDatabase.Refresh();
-		
+        return Application.dataPath + finalPath.Split(new[] {"Assets"}, StringSplitOptions.RemoveEmptyEntries)[0];
     }
 
     static string GetDefaultRuleScriptContent()
     {
-        var rule1 = ".RuleName\n" +
-                    "player.age > 10\n" +
-                    "player.name = Johnny Lemon\n" +
-                    ":Response:\n" +
+        var rule1 = ".rule_name IF\n" +
+                    "    player.age > 10\n" +
+                    "    player.name = Johnny Lemon\n" +
+                    ".THEN WRITE\n" +
+                    "    --exmple of writing back to the fact system\n" +
+                    "    player.age = 9\n" +
+                    ".THEN RESPONSE\n" +
                     "rule matches if age is bigger than 10 and name is Johnny Lemon\n" +
-                    ":End:\n\n\n";
+                    ".END\n\n\n";
 
         var comment = "-- A comment starts with -- , but, remark,it is not handled within the response block..\n" +
                       "-- Variables start with a namespace. If none is given, it will be automatically be given global as the namespace\n" +
@@ -85,24 +185,72 @@ public class RuleDBEditor : Editor
                       "-- Everything is case-sensitive..\n" +
                       "-- Deriving another rule allows you to copy all the checks of that rule. See rule below for an example\n\n\n"; 
         
-        var rule2 = ".RuleName.Derived\n" +
-                    "player.height > 180\n" +
+        var comment_convections = "-- the prefered naming convection is snake_case , divide by under_score\n" +
+                                  "-- Keywords are preferably written in upper caps\n" +
+                                  "-- .THEN WRITE\n" +
+                                  "-- .THEN RESPONSE\n" +
+                                  "-- .THEN PAYLOAD\n" +
+                                  "-- .IF\n" +
+                                  "-- .OR\n" +
+                                  "-- Deriving another rule allows you to copy all the checks of that rule. See rule below for an example\n\n\n"; 
+        
+        var rule2 = ".rule_name.derived IF\n" +
+                    "   player.height > 180\n" +
                     "--You can also use Range which expands into to checks when the rulescript is parsed ( for exclusive [ for inclusive ..\n" +
-                    "player.health Range(5,25]\n" +
-                    ":Response:\n" +
+                    "   player.health Range(5,25]\n" +
+                    ".THEN RESPONSE\n" +
                     "rule matches if base rule .RuleName matches and height is bigger than 180\n" +
-                    ":End:\n\n\n";
+                    ".END\n\n\n";
+        
+        var commentOrGroups = "-- You can use OR by starting a test with IF and including OR statements further down\n" +
+                              "-- a group of IF OR, is evaluated as matching if one of the elements in the OR group is true.\n" +
+                              "-- for judging which rule has the most matches, a match in an OR group counts as 1, even though multiple ORS match\n" +
+                              "-- \n\n\n"; 
+        
+        var rule3 = ".rule_or_group_example IF\n" +
+                    "   IF player.height > 180\n" +
+                    "      OR player.street_smart > 15\n" +
+                    ".THEN RESPONSE\n" +
+                    "you matched the rule , player.height is above 150 and/or street_smart is above 15\n" +
+                    ".END\n\n\n";
+        
+        var commentPayloads= "-- You can use the .THEN PAYLOAD keyword to list locations of Scriptable object resources\n" +
+                             "-- Unity will then parse and make accessible that payload as a scriptable object when a rule is picked\n" +
+                             "-- \n\n\n"; 
+        
+        var rule4 = ".rule_payload_example IF\n" +
+                    "   player.height > 180\n" +
+                    "   player.intelligence_level >= 10\n" +
+                    ".THEN PAYLOAD\n" +
+                    "    payload_example.asset\n" +
+                    ".THEN RESPONSE\n" +
+                    "Rule with payload example\n" +
+                    ".END\n\n\n";
 
-        return rule1 + comment + rule2;
+        return rule1 + comment + rule2 + commentOrGroups + rule3 + comment_convections + rule4;
     }
 
 	
     private void GenerateFromText()
     {
+        var rulesProperty = serializedObject.FindProperty("rules");
+        rulesProperty.ClearArray();
+        
         _rulesDB.CreateRulesFromRulescripts();
         if (_rulesDB.CompileToCSharp && _rulesDB.generateFrom!=null)
         {
             GenerateFactIDS();
+        }
+
+        EditorUtility.SetDirty(_rulesDB);
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+        foreach (var rule in _rulesDB.rules)
+        {
+            foreach (var factTest in rule.factTests)
+            {
+                factTest.ruleOwnerID = rule.RuleID;
+            }
         }
     }
 

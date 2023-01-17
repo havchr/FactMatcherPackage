@@ -11,7 +11,7 @@ using UnityEngine.TestTools;
 using Assert = UnityEngine.Assertions.Assert;
 using Debug = UnityEngine.Debug;
 using Random = System.Random;
-using FactMatcher;
+using FactMatching;
 
 public class FactMatcherTest  
 {
@@ -69,8 +69,8 @@ public class FactMatcherTest
         sw.Start();
         
         Functions.CreateMockRules(worldFacts,numORules,out var rules,out var atoms,out var facts);
-        var nativeRules = new NativeArray<FactMatcher.FMRule>(rules.Count, Allocator.Persistent);
-        var nativeAtoms= new NativeArray<FactMatcher.RuleAtom>(atoms.Count, Allocator.Persistent);
+        var nativeRules = new NativeArray<FactMatching.Rule>(rules.Count, Allocator.Persistent);
+        var nativeAtoms= new NativeArray<FactMatching.FactTest>(atoms.Count, Allocator.Persistent);
         var nativeFacts = new NativeArray<float>(facts.Count, Allocator.Persistent);
         for (int i=0; i < nativeRules.Length; i++)
         {
@@ -87,7 +87,7 @@ public class FactMatcherTest
         
         sw.Stop();
         Debug.Log($"took {sw.ElapsedMilliseconds} ms to add {numORules} rules");
-        FactMatcher.FMRule bestFmRule = new FactMatcher.FMRule(-1,0,0);
+        FactMatching.Rule bestRule = new FactMatching.Rule(-1,0,0);
 
 
         int howManyRulesToPick = 50;
@@ -96,7 +96,7 @@ public class FactMatcherTest
         int matches = -1;
         for (int i = 0; i < howManyRulesToPick; i++)
         {
-            matches = PickBestRule(nativeRules,nativeAtoms,nativeFacts, ref bestFmRule);
+            matches = PickBestRule(nativeRules,nativeAtoms,nativeFacts, ref bestRule);
         }
 
         sw.Stop();
@@ -105,14 +105,14 @@ public class FactMatcherTest
         nativeRules.Dispose();
         Debug.Log(
             $"Picking {howManyRulesToPick} bestMatch rules in {worldFacts} facts with {numORules} rules , took {sw.ElapsedMilliseconds} milliseconds");
-        Debug.Log($"Our best rule is {bestFmRule.ruleFiredEventId} with {matches} matches");
+        Debug.Log($"Our best rule is {bestRule.ruleFiredEventId} with {matches} matches");
     }
 
 
-    int PickBestRule(NativeArray<FactMatcher.FMRule> rules,
-        NativeArray<FactMatcher.RuleAtom> atoms,
+    int PickBestRule(NativeArray<FactMatching.Rule> rules,
+        NativeArray<FactMatching.FactTest> atoms,
         NativeArray<float> facts,
-        ref FactMatcher.FMRule bestMatch)
+        ref FactMatching.Rule bestMatch)
     {
        
         int ruleI = 0;
@@ -128,9 +128,9 @@ public class FactMatcherTest
                     int orGroupHits = 0;
                     int orGroupMisses= 0;
                     int lastOrGroup = -1;
-                    int lastIndex = rule.atomIndex + rule.numOfAtoms;
+                    int lastIndex = rule.factTestIndex + rule.numOfFactTests;
                     
-                    for (int j = rule.atomIndex; j < (lastIndex); j++)
+                    for (int j = rule.factTestIndex; j < (lastIndex); j++)
                     {
                         var atom = atoms[j];
                         if(lastOrGroup != atom.orGroupRuleID)
@@ -143,7 +143,7 @@ public class FactMatcherTest
                             orGroupHits = 0;
                         }
 
-                        if (FactMatcher.Functions.predicate(in atom.compare, facts[atom.factID]))
+                        if (FactMatching.Functions.Predicate(in atom.compare, facts[atom.factID]))
                         {
                             if (atom.orGroupRuleID != -1)
                             {
@@ -213,28 +213,28 @@ public class FactMatcherTest
         //Equals
         var text = "nick";
         var x = text.GetHashCode();
-        Assert.IsTrue(Functions.predicate(FactMatcher.RuleCompare.Equals(text.GetHashCode()),x));
+        Assert.IsTrue(Functions.Predicate(FactMatching.FactCompare.Equals(text.GetHashCode()),x));
         x = "nack".GetHashCode();
-        Assert.IsFalse(Functions.predicate(FactMatcher.RuleCompare.Equals(text.GetHashCode()),x));
+        Assert.IsFalse(Functions.Predicate(FactMatching.FactCompare.Equals(text.GetHashCode()),x));
 
     }
     
     [Test]
     public void TestNotEquals()
     {
-        var compare = FactMatcher.RuleCompare.NotEquals(1.0f);
-        Assert.IsFalse(Functions.predicate(in compare,1.0f));
-        Assert.IsTrue(Functions.predicate(in compare,2.0f));
+        var compare = FactMatching.FactCompare.NotEquals(1.0f);
+        Assert.IsFalse(Functions.Predicate(in compare,1.0f));
+        Assert.IsTrue(Functions.Predicate(in compare,2.0f));
     }
     [Test]
     public void TestEquals()
     {
         //Equals
         float x = 1.0f;
-        Assert.IsTrue(Functions.predicate(FactMatcher.RuleCompare.Equals(1.0f),x));
+        Assert.IsTrue(Functions.Predicate(FactMatching.FactCompare.Equals(1.0f),x));
         x = 10.0f;
-        Assert.IsFalse(Functions.predicate(FactMatcher.RuleCompare.Equals(1.0f),x));
-        Assert.IsFalse(Functions.predicate(FactMatcher.RuleCompare.Equals(10.001f),x));
+        Assert.IsFalse(Functions.Predicate(FactMatching.FactCompare.Equals(1.0f),x));
+        Assert.IsFalse(Functions.Predicate(FactMatching.FactCompare.Equals(10.001f),x));
 
     }
     [Test]
@@ -242,11 +242,11 @@ public class FactMatcherTest
     {
         //MORE THAN
         var x = 1.0f;
-        Assert.IsFalse(Functions.predicate(FactMatcher.RuleCompare.MoreThan(1.0f),x));
+        Assert.IsFalse(Functions.Predicate(FactMatching.FactCompare.MoreThan(1.0f),x));
         x = 2.0f;
-        Assert.IsTrue(Functions.predicate(FactMatcher.RuleCompare.MoreThan(1.0f),x));
+        Assert.IsTrue(Functions.Predicate(FactMatching.FactCompare.MoreThan(1.0f),x));
         x = 0.0f;
-        Assert.IsFalse(Functions.predicate(FactMatcher.RuleCompare.MoreThan(1.0f),x));
+        Assert.IsFalse(Functions.Predicate(FactMatching.FactCompare.MoreThan(1.0f),x));
 
     }
     
@@ -255,11 +255,11 @@ public class FactMatcherTest
     {
         //MORE THAN
         var x = 1.0f;
-        Assert.IsTrue(Functions.predicate(FactMatcher.RuleCompare.MoreThanEquals(1.0f),x));
+        Assert.IsTrue(Functions.Predicate(FactMatching.FactCompare.MoreThanEquals(1.0f),x));
         x = 2.0f;
-        Assert.IsTrue(Functions.predicate(FactMatcher.RuleCompare.MoreThanEquals(1.0f),x));
+        Assert.IsTrue(Functions.Predicate(FactMatching.FactCompare.MoreThanEquals(1.0f),x));
         x = 0.0f;
-        Assert.IsFalse(Functions.predicate(FactMatcher.RuleCompare.MoreThanEquals(1.0f),x));
+        Assert.IsFalse(Functions.Predicate(FactMatching.FactCompare.MoreThanEquals(1.0f),x));
 
     }
     [Test]
@@ -267,9 +267,9 @@ public class FactMatcherTest
     {
         //Less THAN
         var x = 1.0f;
-        Assert.IsFalse(Functions.predicate(FactMatcher.RuleCompare.LessThan(1.0f),x));
+        Assert.IsFalse(Functions.Predicate(FactMatching.FactCompare.LessThan(1.0f),x));
         x = 1.0f;
-        Assert.IsTrue(Functions.predicate(FactMatcher.RuleCompare.LessThan(2.0f),x));
+        Assert.IsTrue(Functions.Predicate(FactMatching.FactCompare.LessThan(2.0f),x));
 
     }
     
@@ -277,11 +277,11 @@ public class FactMatcherTest
     public void TestLessEquals()
     {
         var x = 1.0f;
-        Assert.IsTrue(Functions.predicate(FactMatcher.RuleCompare.LessThanEquals(1.0f),x));
+        Assert.IsTrue(Functions.Predicate(FactMatching.FactCompare.LessThanEquals(1.0f),x));
         x = 1.0f;
-        Assert.IsTrue(Functions.predicate(FactMatcher.RuleCompare.LessThanEquals(2.0f),x));
+        Assert.IsTrue(Functions.Predicate(FactMatching.FactCompare.LessThanEquals(2.0f),x));
         x = 3.0f;
-        Assert.IsFalse(Functions.predicate(FactMatcher.RuleCompare.LessThanEquals(2.0f),x));
+        Assert.IsFalse(Functions.Predicate(FactMatching.FactCompare.LessThanEquals(2.0f),x));
 
     }
 

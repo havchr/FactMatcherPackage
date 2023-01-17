@@ -1,211 +1,355 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using FactMatching;
 using Unity.Collections;
+using Debug = UnityEngine.Debug;
+using Unity.Jobs;
 using UnityEngine;
 
-namespace FactMatcher
+public class FactMatcher 
 {
-        public struct Consts
-        {
-            public const int False = 0;
-            public const int True = 1;
-        }
     
-        public struct Settings 
-        {
-
-            public Settings(bool factWriteToAllMatches)
-            {
-                this.FactWriteToAllMatches = factWriteToAllMatches;
-            }
-
-            public bool FactWriteToAllMatches;
-        }
     
-        public struct RuleAtom
-        {
-
-            public RuleAtom(int factID,int ruleID,RuleCompare cmp,int orGroupRuleID,bool isStrict=true)
-            {
-                this.factID = factID;
-                this.compare = cmp;
-                this.ruleID = ruleID;
-                this.strict = isStrict;
-                this.orGroupRuleID = orGroupRuleID;
-            }
-            
-            public int orGroupRuleID;
-            public int factID;
-            public int ruleID;
-            public bool strict;
-            public RuleCompare compare;
-        }
-        
-        public struct FMRule
-        {
-
-            public FMRule(int eventId,int atomIndex,int numOfAtoms)
-            {
-                ruleFiredEventId = eventId;
-                this.atomIndex = atomIndex;
-                this.numOfAtoms = numOfAtoms;
-            }
-
-            public int ruleFiredEventId;
-            public int atomIndex;
-            public int numOfAtoms;
-        }
-        
-        public readonly struct RuleCompare
-        {
-            
-            private const float epsiFact = 0.0001f;
-            public RuleCompare(float lowerBound, float upperBound, float epsilon = 0f,bool negation=false)
-            {
-                this.lowerBound = lowerBound;
-                this.upperBound = upperBound;
-                this.epsilon = epsilon;
-                this.negation = negation;
-            }
-
-            public static RuleCompare Equals(float a)
-            {
-                return new RuleCompare(a,a,epsiFact);
-            }
-            public static RuleCompare NotEquals(float a)
-            {
-                return new RuleCompare(a,a,epsiFact,true);
-            }
-            public static RuleCompare LessThan(float a)
-            {
-                return new RuleCompare(float.MinValue,a);
-            }
-            public static RuleCompare LessThanEquals(float a)
-            {
-                return new RuleCompare(float.MinValue,a,epsiFact);
-            }
-            public static RuleCompare MoreThan(float a)
-            {
-                return new RuleCompare(a,float.MaxValue);
-            }
-            public static RuleCompare MoreThanEquals(float a)
-            {
-                return new RuleCompare(a,float.MaxValue,epsiFact);
-            }
-            public static RuleCompare RangeEquals(float a,float b)
-            {
-                return new RuleCompare(a,b,epsiFact);
-            }
-            public static RuleCompare Range(float a,float b)
-            {
-                return new RuleCompare(a,b);
-            }
-            public readonly float lowerBound;
-            public readonly float upperBound;
-            public readonly float epsilon;
-            public readonly bool negation;
-        }
+    public Action OnInited;
+    public Action<int> OnRulePicked;
+    public const int NotSetValue = -1;
+    public RulesDB ruleDB;
+    private NativeArray<float> _factValues;
+    private NativeArray<Rule> _rules;
+    private NativeArray<FactTest> _factTests;
+    private NativeArray<int> _bestRule;
+    private NativeArray<int> _bestRuleMatches;
+    private NativeArray<int> _allRuleIndices;
+    private NativeArray<int> _allRulesMatches;
+    private NativeArray<int> _allMatchesForAllRules;
+    private NativeArray<int> _noOfRulesWithBestMatch;
+    private NativeArray<Settings> _settings;
     
-        public class  Functions
+    public bool _dataDisposed = false;
+    public bool _hasBeenInited = false;
+    public bool _inReload = false;
+    
+   public bool IsInited => _hasBeenInited;
+
+    public FactMatcher(RulesDB ruleDB)
     {
-        
-        
-        
-    public static void CreateNativeRules(RulesDB db, out NativeArray<FactMatcher.FMRule> rules, out NativeArray<FactMatcher.RuleAtom> ruleAtoms)
-    {
-        rules = new NativeArray<FactMatcher.FMRule>(db.rules.Count, Allocator.Persistent);
-
-        int numOfAtoms = 0;
-        foreach (var ruleDBEntry in db.rules)
-        {
-            foreach (var atom in ruleDBEntry.atoms)
-            {
-                numOfAtoms++;
-            }
-        }
-
-        ruleAtoms = new NativeArray<FactMatcher.RuleAtom>(numOfAtoms, Allocator.Persistent);
-        int atomIndex = 0;
-        
-            
-        //Debug.Log($"Creating native version of this many rules {db.rules.Count}");
-        for (int i = 0; i < db.rules.Count; i++)
-        {
-
-            //Debug.Log($"Creating native version of rule {db.rules[i].ruleName} with {db.rules[i].atoms} atoms");
-            var ruleFiredEventID = db.rules[i].RuleID;
-            rules[i] = new FactMatcher.FMRule(ruleFiredEventID, atomIndex, db.rules[i].atoms.Count);
-            foreach (var atom in db.rules[i].atoms)
-            {
-                ruleAtoms[atomIndex] = new FactMatcher.RuleAtom(atom.factID, i, atom.CreateCompare(db),atom.orGroupRuleID);
-                atomIndex++;
-            }
-        }
+        this.ruleDB = ruleDB;
     }
-        
-   public static void CreateMockRules(int worldFacts, int numORules,
-       out List<FMRule> rules,out List<RuleAtom> atoms,
-       out List<float> factValues)
-   {
-       rules = new List<FMRule>();
-       atoms = new List<RuleAtom>();
-       factValues = new List<float>();
-       for (int i = 0; i < worldFacts; i++)
-       {
-           factValues.Add(i);
-       }
 
-       int totalAtoms = 0;
-       for (int i = 0; i < numORules; i++)
+    public void SaveToCSV(string filename)
+    {
+       using (StreamWriter writer = new StreamWriter(filename))  
        {
-           int numAtoms = UnityEngine.Random.Range(1, 20);
-           rules.Add(new FMRule(i,totalAtoms,numAtoms));
-           totalAtoms += numAtoms;
-           for (int j = 0; j < numAtoms; j++)
+               
+           writer.WriteLine($"Type,  Name,  Value");
+           var factTests = ruleDB.CreateFlattenedFactTestListWithNoDuplicateFactIDS();
+           for (int i = 0; i < factTests.Count; i++)
            {
-               int compary = UnityEngine.Random.Range(0, 6);
-               var compare = RuleCompare.Equals(1.0f); 
-               switch (compary)
-               {
-                   case 0:
-                        compare = RuleCompare.Equals(UnityEngine.Random.Range(0, worldFacts));
-                       break;
-                   case 1:
-                       compare = RuleCompare.LessThan(UnityEngine.Random.Range(0, worldFacts));
-                       break;
-                   case 2:
-                       compare = RuleCompare.LessThanEquals(UnityEngine.Random.Range(0, worldFacts));
-                       break;
-                   case 3:
-                       compare = RuleCompare.MoreThan(UnityEngine.Random.Range(0, worldFacts));
-                       break;
-                   case 4:
-                       compare = RuleCompare.MoreThanEquals(UnityEngine.Random.Range(0, worldFacts));
-                       break;
-                   case 5:
-                       compare = RuleCompare.NotEquals(UnityEngine.Random.Range(0, worldFacts));
-                       break;
-               }
-               var vFactIndex = UnityEngine.Random.Range(0, worldFacts);
-               atoms.Add(new RuleAtom(vFactIndex,i,compare,-1));
+               var factTest = factTests[i];
+               var rawValue = _factValues[factTest.factID];
+               var value = factTest.compareType == FactValueType.String ? ruleDB.GetStringFromStringID((int)rawValue) : $"{rawValue}";
+               writer.WriteLine($"{factTest.compareType},  {factTest.factName},  {value}");  
            }
-
-       }
-
-   }
-        
-        public static bool predicate(in RuleCompare comp,float x)
+       }   
+    }
+    
+    public void LoadFromCSV(string filename)
+    {
+        var lines = File.ReadAllLines(filename).Skip(1);
+        foreach (var csvLine in lines)
         {
-            
-            //Debug.Log($"Epsilon is {comp.epsilon}");
-            var aPart = comp.lowerBound < (x + comp.epsilon); 
-            var bPart = x < (comp.upperBound + comp.epsilon); 
-            //Debug.Log($"Testing Predicate aPart {aPart} vs bPart {bPart}");
-            //Debug.Log($"lowerCheck {comp.lowerBound} <? ({x + comp.epsilon}");
-            //Debug.Log($"upperCheck  x {x} <? {comp.lowerBound + comp.epsilon}");
-            return  comp.negation ? !(aPart && bPart) :(aPart && bPart);
+            var keyValType = csvLine.Split(",");
+            for (int i = 0; i < keyValType.Length; i++)
+            {
+                keyValType[i] = keyValType[i].Trim();
+            }
+            var factID = FactID(keyValType[1]);
+            if (factID != -1)
+            {
+                FactValueType.TryParse(keyValType[0], out FactValueType compareType);
+                if (compareType == FactValueType.String)
+                {
+                    SetFact(factID, StringID(keyValType[2]));
+                }
+                else
+                {
+                    SetFact(factID, float.Parse(keyValType[2]));
+                }
+            }
         }
     }
     
+    public string PrintableFactValueFromFactTest(RuleDBFactTestEntry factTest)
+    {
+        if (factTest.compareType == FactValueType.String)
+        {
+            return ruleDB.GetStringFromStringID((int)_factValues[factTest.factID]);
+        }
+
+        return _factValues[factTest.factID].ToString();
+    }
+
+    public void Init(bool countAllMatches=false)
+    {
+        ruleDB.InitRuleDB();
+        _factValues = new NativeArray<float>(ruleDB.CountNumberOfFacts(),Allocator.Persistent);
+        for (int i = 0; i < _factValues.Length; i++)
+        {
+            var factTest = ruleDB.GetFactTestFromFactID(i);
+            if (factTest!=null && factTest.compareType == FactValueType.String)
+            {
+                _factValues[i] = NotSetValue;
+            }
+            else
+            {
+                _factValues[i] = 0;
+            }
+        }
+        FactMatching.Functions.CreateNativeRules(this.ruleDB, out _rules, out _factTests);
+        _bestRule = new NativeArray<int>(1,Allocator.Persistent);
+        
+        //if our setting is not in need of these - we could ditch/Skip allocating them, but optimize that later if you feel like it.
+        //We need them if we want to FactWrite to all Rules that has matches (irrespective of amount of matches) - see ruleDB.FactWriteToAllThatMatches
+        _allRuleIndices = new NativeArray<int>(_rules.Length,Allocator.Persistent);
+       
+        //if we have four rules that all match with 2 - and that is our best match - four is stored in _noOfRulesWithBestMatch
+        _noOfRulesWithBestMatch = new NativeArray<int>(1,Allocator.Persistent);
+        //folowing that same example - _bestRuleMatches is 2
+        _bestRuleMatches = new NativeArray<int>(1,Allocator.Persistent);
+        //to read out these four rules from our example - expect to find their indices in _allRulesMatches[0 - 3]
+        _allRulesMatches = new NativeArray<int>(_rules.Length,Allocator.Persistent);
+        
+        //counts amount of facts that matches for a given rule-index, encoded such that negative values
+        //indicates that at least one rule did not match.
+        _allMatchesForAllRules= new NativeArray<int>(_rules.Length,Allocator.Persistent);
+        
+        _settings = new NativeArray<Settings>(1,Allocator.Persistent);
+        _settings[0] = new Settings(ruleDB.FactWriteToAllThatMatches,countAllMatches);
+        
+        _dataDisposed = false;
+        _inReload = false;
+        _hasBeenInited = true;
+        OnInited?.Invoke();
+    }
+
+    public int GetNumberOfMatchesForRuleID(int ruleID, out bool ruleValid)
+    {
+        PickRules(false, false);
+        ruleValid = _allMatchesForAllRules[ruleID] <= 0;
+        return Mathf.Abs(_allMatchesForAllRules[ruleID]);
+    }
+
+    public int PickRules(bool factWrites=true,bool fireListener=true)
+    {
+    
+        var job = new FactMatcherMatch() 
+        {
+            FactValues = _factValues,
+            FactTests = _factTests,
+            Rules = _rules,
+            BestRule = _bestRule,
+            BestRuleMatches = _bestRuleMatches,
+            AllEmRulesIndices = _allRuleIndices,
+            AllEmRulesMatches =  _allRulesMatches,
+            AllMatchesForAllRules = _allMatchesForAllRules,
+            NoOfRulesWithBestMatch =  _noOfRulesWithBestMatch,
+            Settings = _settings
+            
+        };
+        var sw = new Stopwatch();
+        sw.Start();
+        job.Schedule().Complete();
+        sw.Stop();
+        if (factWrites)
+        {
+            HandleFactWrites(sw);
+        }
+
+        if (fireListener)
+        {
+            OnRulePicked?.Invoke(_noOfRulesWithBestMatch[0]);
+        }
+        return _noOfRulesWithBestMatch[0];
+    }
+
+    private void HandleFactWrites(Stopwatch sw)
+    {
+        for (int i = 0; i < _noOfRulesWithBestMatch[0]; i++)
+        {
+            var rule = ruleDB.RuleFromID(_rules[_allRulesMatches[i]].ruleFiredEventId);
+            Debug.Log(
+                $"The result of the best match {i + 1} of {_noOfRulesWithBestMatch[0]} is: {rule.payload} with {_bestRuleMatches[0]} matches and it took {sw.ElapsedMilliseconds} ms and payloadID {rule.payloadStringID}");
+            if (!ruleDB.FactWriteToAllThatMatches)
+            {
+                HandleFactWrites(ruleDB.RuleFromID(_rules[_allRulesMatches[i]].ruleFiredEventId));
+            }
+        }
+
+        if (ruleDB.FactWriteToAllThatMatches)
+        {
+            for (int i = 0; i < _allRuleIndices.Length; i++)
+            {
+                if (_allRuleIndices[i] != NotSetValue)
+                {
+                    HandleFactWrites(ruleDB.RuleFromID(_rules[_allRuleIndices[i]].ruleFiredEventId));
+                }
+            }
+        }
+    }
+
+    private void HandleFactWrites(RuleDBEntry rule)
+    {
+        //Handle fact writes.
+        foreach (var factWrite in rule.factWrites)
+        {
+            switch (factWrite.writeMode)
+            {
+                case RuleDBFactWrite.WriteMode.IncrementValue:
+                    LogWritebacks(
+                        $"increment value {factWrite.writeValue} to fact {factWrite.factName} with factID {factWrite.factID} , was {_factValues[factWrite.factID]}");
+                    _factValues[factWrite.factID] += factWrite.writeValue;
+                    LogWritebacks(
+                        $"increment value {factWrite.writeValue} to fact {factWrite.factName} with factID {factWrite.factID} , was {_factValues[factWrite.factID]}");
+                    break;
+                case RuleDBFactWrite.WriteMode.SubtractValue:
+                    LogWritebacks(
+                        $"subtracting value {factWrite.writeValue} from fact {factWrite.factName} with factID {factWrite.factID} , was {_factValues[factWrite.factID]}");
+                    _factValues[factWrite.factID] -= factWrite.writeValue;
+                    LogWritebacks(
+                        $"subtracting value {factWrite.writeValue} from fact {factWrite.factName} with factID {factWrite.factID} , became {_factValues[factWrite.factID]}");
+                    break;
+                case RuleDBFactWrite.WriteMode.SetValue:
+                    LogWritebacks(
+                        $"Writing value {factWrite.writeValue} into fact {factWrite.factName} with factID {factWrite.factID}");
+                    _factValues[factWrite.factID] = factWrite.writeValue;
+                    break;
+                case RuleDBFactWrite.WriteMode.SetString:
+                    LogWritebacks(
+                        $"Writing String {factWrite.writeString} into fact {factWrite.factName} with factID {factWrite.factID}");
+                    _factValues[factWrite.factID] = ruleDB.StringId(factWrite.writeString);
+                    break;
+            }
+        }
+    }
+    
+    [Conditional("FACTMATCHER_LOG_WRITEBACKS")]
+    static void LogWritebacks(object msg)
+    {
+        Debug.Log(msg);
+    }
+    
+    public void Reload()
+    {
+        _inReload = true;
+        if (_hasBeenInited)
+        {
+            DisposeData();
+        }
+        ruleDB.CreateRulesFromRulescripts();
+        Init();
+        
+    }
+    
+    public float this[int i]
+    {
+        get { return _factValues[i]; }
+        set
+        {
+            _factValues[i] = value;
+        }
+    }
+    
+    public bool SetFact(int factIndex,float value)
+    {
+        if (factIndex >= 0 && factIndex < _factValues.Length)
+        {
+            _factValues[factIndex] = value;
+            return true;
+        }
+        return false;
+    }
+    
+    public void DebugLogDump()
+    {
+        for (int i = 0; i < _factValues.Length; i++)
+        {
+            var factName = ruleDB.GetFactVariabelNameFromFactID(i);
+            if (_factValues[i] < 0f)
+            {
+                Debug.Log($"fact {factName} is {_factValues[i]}");
+            }
+            else
+            {
+                var parsedValue = ruleDB.ParseFactValueFromFactID(i, _factValues[i]);
+                Debug.Log($"fact {factName} is {parsedValue} ");
+            }
+
+        }
+    }
+    
+    public RuleDBEntry PickBestRule()
+    {
+        var amountOfBestRules = PickRules();
+        if (amountOfBestRules > 0)
+        {
+            return GetRuleFromMatches(0);
+        }
+
+        return null;
+    }
+    
+    public RuleDBEntry GetRuleFromMatches(int matchIndex)
+    {
+        if (_inReload)
+        {
+            Debug.Log("In reload");
+            return null;
+        }
+        if (matchIndex >= 0 && matchIndex < _noOfRulesWithBestMatch[0])
+        {
+            return ruleDB.RuleFromID(_rules[_allRulesMatches[matchIndex]].ruleFiredEventId);
+        }
+        return null;
+    }
+
+    public int StringID(string str)
+    {
+        return ruleDB.StringId(str);
+    }
+    
+    public int FactID(string str)
+    {
+        return ruleDB.FactId(str);
+    }
+    
+    public RuleDBEntry GetRuleFromRuleID(int ruleID)
+    {
+        return ruleDB.RuleFromID(ruleID);
+    }
+
+    public bool HasDataToDispose()
+    {
+        return (!_dataDisposed && _hasBeenInited);
+    }
+    
+    public void DisposeData()
+    {
+        _factValues.Dispose();
+        _rules.Dispose();
+        _factTests.Dispose();
+        _bestRule.Dispose();
+        _bestRuleMatches.Dispose();
+        _allRuleIndices.Dispose();
+        _allRulesMatches.Dispose();
+        _allMatchesForAllRules.Dispose();
+        _noOfRulesWithBestMatch.Dispose();
+        _settings.Dispose();
+        
+        _dataDisposed = true;
+        _hasBeenInited = false;
+    }
 }

@@ -4,20 +4,47 @@ using System.Linq;
 using System.Text;
 using UnityEngine;
 
-namespace FactMatcher
+namespace FactMatching
 {
     public class RuleScriptParser  
     {
         
         public enum RuleScriptParserEnum
         {
-            ParsingRule,ParsingResponse,ParsingFactWrite,LookingForRule,ParsingPayloadObject
+            ParsingRule,ParsingResponse,ParsingFactWrite,LookingForRule,ParsingPayloadObject,
         }
+        
+        public enum RuleScriptParserKeywordEnum
+        {
+            KeywordEND,KeywordRESPONSE,KeywordWRITE,KeywordPAYLOAD,NoKeyword
+        }
+
+        static private Dictionary<string, RuleScriptParserKeywordEnum> _keywordEnums;
+
+        static RuleScriptParser()
+        {
+            _keywordEnums = new Dictionary<string, RuleScriptParserKeywordEnum>();
+            _keywordEnums[".then write"] = RuleScriptParserKeywordEnum.KeywordWRITE;
+            _keywordEnums[".end"] = RuleScriptParserKeywordEnum.KeywordEND;
+            _keywordEnums[".then response"] = RuleScriptParserKeywordEnum.KeywordRESPONSE;
+            _keywordEnums[".then payload"] = RuleScriptParserKeywordEnum.KeywordPAYLOAD;
+        }
+        RuleScriptParserKeywordEnum LookForKeywordInLine(string line)
+        {
+            var key = line.Trim().ToLower();
+            if (_keywordEnums.ContainsKey(key))
+            {
+                return _keywordEnums[key];
+            }
+            return RuleScriptParserKeywordEnum.NoKeyword;
+        }
+        
+        
         public void GenerateFromText(string text,List<RuleDBEntry> rules,ref int factID,ref Dictionary<string,int> addedFactIDNames,ref int ruleID)
         {
 
             RuleScriptParserEnum state = RuleScriptParserEnum.LookingForRule;
-            Dictionary<string,List<RuleDBAtomEntry>> parsedAtoms = new Dictionary<string, List<RuleDBAtomEntry>>();
+            Dictionary<string,List<RuleDBFactTestEntry>> parsedFactTests = new Dictionary<string, List<RuleDBFactTestEntry>>();
             RuleDBEntry currentRule = null;
             StringBuilder payload = new StringBuilder();
             ScriptableObject payloadObject = null;
@@ -38,11 +65,13 @@ namespace FactMatcher
 	            
                     if (state == RuleScriptParserEnum.LookingForRule)
                     {
-                        if (line.Length > 0 && line[0] == '.')
+                        var noKeyword = LookForKeywordInLine(line) == RuleScriptParserKeywordEnum.NoKeyword;
+                        if (noKeyword && line.Length > 0 && line[0] == '.')
                         {
                             //Todo - Rules should start with .
                             //Should give error if not the case... 
                             state = RuleScriptParserEnum.ParsingRule;
+                            line = line.Trim().Split(' ')[0];
                             var ruleNames = line.Split( '.');
                             var finalName = new StringBuilder();
                             var derived = new StringBuilder("");
@@ -74,7 +103,7 @@ namespace FactMatcher
 
                                 if (derived.Length > 0)
                                 {
-                                    if (parsedAtoms.ContainsKey(derived.ToString()))
+                                    if (parsedFactTests.ContainsKey(derived.ToString()))
                                     {
                                         foundDerived = true;
                                     }
@@ -83,23 +112,21 @@ namespace FactMatcher
                                 //Debug.Log($"derived is {derived} and foundDerived is {foundDerived} and lastIndex {lastIndex} and finalName is {finalName}");
                             }
 
-                            currentRule = new RuleDBEntry();
-                            currentRule.atoms = new List<RuleDBAtomEntry>(); 
-                            currentRule.factWrites = new List<RuleDBFactWrite>();
-                            currentRule.ruleName = finalName.ToString();
-                            //Debug.Log($"Adding atoms from derived {derived}");
-                            //Grab atoms from derived
+                            currentRule = new RuleDBEntry {factTests = new List<RuleDBFactTestEntry>(), factWrites = new List<RuleDBFactWrite>(), ruleName = finalName.ToString()};
+
+                            //Debug.Log($"Adding factTests from derived {derived}");
+                            //Grab factTests from derived
                             if (derived.Length > 0)
                             {
-                                if (parsedAtoms.ContainsKey(derived.ToString()))
+                                if (parsedFactTests.ContainsKey(derived.ToString()))
                                 {
-                                
-                        
-                                    foreach (var atom in parsedAtoms[derived.ToString()])
+                                    foreach (var factTest in parsedFactTests[derived.ToString()])
                                     {
                                 
-                                        //Debug.Log($"for rule {currentRule.ruleName} - Adding atom {atom.factName} from derived {derived}");
-                                        currentRule.atoms.Add(atom); 
+                                        //Debug.Log($"for rule {currentRule.ruleName} - Adding factTest {factTest.factName} from derived {derived}");
+                                        //To ensure proper serialization and avoid bugs, we make a new copy of factTest
+                                        RuleDBFactTestEntry copyFactTest = new RuleDBFactTestEntry(factTest);
+                                        currentRule.factTests.Add(copyFactTest); 
                                     }
                                 }
                             }
@@ -111,22 +138,20 @@ namespace FactMatcher
 
                     if (state == RuleScriptParserEnum.ParsingRule)
                     {
-                        ParseRuleAtoms(line, currentRule,ref orGroupID);
-                        if (line.Trim().Contains(":FactWrite:"))
+                        ParseFactTests(line, currentRule,ref orGroupID);
+                        switch (LookForKeywordInLine(line))
                         {
-                            state = RuleScriptParserEnum.ParsingFactWrite;
-                        }
-                        if (line.Trim().Contains(":Response:"))
-                        {
-                            state = RuleScriptParserEnum.ParsingResponse;
-                            payload.Clear();
-                        }
-                        if (line.Trim().Contains(":PayloadObject:"))
-                        {
-                            
-                            Debug.Log($"Getting ready to look for Payload object");
-                            state = RuleScriptParserEnum.ParsingPayloadObject;
-                            payload.Clear();
+                           case RuleScriptParserKeywordEnum.KeywordWRITE: 
+                               state = RuleScriptParserEnum.ParsingFactWrite;
+                            break;
+                           case RuleScriptParserKeywordEnum.KeywordRESPONSE:
+                               state = RuleScriptParserEnum.ParsingResponse;
+                               payload.Clear();
+                            break;
+                           case RuleScriptParserKeywordEnum.KeywordPAYLOAD:
+                               state = RuleScriptParserEnum.ParsingPayloadObject;
+                               payload.Clear();
+                            break;
                         }
                     
                     }
@@ -134,40 +159,49 @@ namespace FactMatcher
                     {
 
                         ParseFactWrites(line, currentRule);
-                        if (line.Trim().Contains(":PayloadObject:"))
+                        switch (LookForKeywordInLine(line))
                         {
-                            
-                            Debug.Log($"Getting ready to look for Payload object");
-                            state = RuleScriptParserEnum.ParsingPayloadObject;
-                            payload.Clear();
-                        }
-                        if (line.Trim().Contains(":Response:"))
-                        {
-                            state = RuleScriptParserEnum.ParsingResponse;
-                            payload.Clear();
+                           case RuleScriptParserKeywordEnum.KeywordRESPONSE:
+                               state = RuleScriptParserEnum.ParsingResponse;
+                               payload.Clear();
+                            break;
+                           case RuleScriptParserKeywordEnum.KeywordPAYLOAD:
+                               state = RuleScriptParserEnum.ParsingPayloadObject;
+                               payload.Clear();
+                            break;
                         }
                     }
                     else if (state == RuleScriptParserEnum.ParsingPayloadObject)
                     {
-                        if (line.Trim().Contains(":End:"))
+                        var keyword = LookForKeywordInLine(line);
+                        if (keyword != RuleScriptParserKeywordEnum.NoKeyword)
                         {
                             Debug.Log($"payload is {payload} trying to parse that as payload object");
                             //Try to load resource from payload into payloadObject
                             payloadObject = Resources.Load<ScriptableObject>(payload.ToString());
+                            payload.Clear();
+
+                            switch (keyword)
+                            {
+                                case RuleScriptParserKeywordEnum.KeywordWRITE:
+                                    state = RuleScriptParserEnum.ParsingFactWrite;
+                                    break;
+                                case RuleScriptParserKeywordEnum.KeywordRESPONSE:
+                                    state = RuleScriptParserEnum.ParsingResponse;
+                               break;
+                            }
                         }
                         else
                         {
-                            payload.Append(line);
-                        }
-                        if (line.Trim().Contains(":Response:"))
-                        {
-                            state = RuleScriptParserEnum.ParsingResponse;
-                            payload.Clear();
+                            payload.Append(line.Trim());
                         }
                     }
                     else if (state == RuleScriptParserEnum.ParsingResponse)
                     {
-                        if (line.Trim().Contains(":End:"))
+                        
+                        
+                        var keyword = LookForKeywordInLine(line);
+                        if (keyword == RuleScriptParserKeywordEnum.KeywordEND)
                         {
                             //Store rule...
                             state = RuleScriptParserEnum.LookingForRule;
@@ -181,23 +215,22 @@ namespace FactMatcher
                             else
                             {
                                 //Assigns an unique (to the RuleDB) ID to each fact
-                                SetFactID(currentRule, ref addedFactIDNames,ref factID);
+                                SetFactID(currentRule, ref addedFactIDNames,ref factID,ruleID);
                                 currentRule.RuleID = ruleID;
                                 ruleID++;
                                 rules.Add(currentRule);
                             }
                         
-                            //adding all our atoms into the parsedAtoms array for deriving to work..
-                            foreach (var atomEntry in currentRule.atoms)
+                            //adding all our factTests into the factTest array for deriving to work..
+                            foreach (var factTest in currentRule.factTests)
                             {
-                                //Debug.Log($"Adding atom {atomEntry.factName} to ParsedAtoms with key {currentRule.ruleName}");
-                                if (!parsedAtoms.ContainsKey(currentRule.ruleName))
+                                //Debug.Log($"Adding factTest {factTest.factName} to ParsedFactTests with key {currentRule.ruleName}");
+                                if (!parsedFactTests.ContainsKey(currentRule.ruleName))
                                 {
-                                    parsedAtoms[currentRule.ruleName] = new List<RuleDBAtomEntry>();
+                                    parsedFactTests[currentRule.ruleName] = new List<RuleDBFactTestEntry>();
                                 }
-                                parsedAtoms[currentRule.ruleName].Add(atomEntry);
+                                parsedFactTests[currentRule.ruleName].Add(factTest);
                             }
-                        
                         }
                         else
                         {
@@ -208,29 +241,32 @@ namespace FactMatcher
                 }
             }
 
+            //Sort rules on orGroupRuleID so we can check orGroups sequentially.
             foreach (var rule in rules)
             {
-                rule.atoms.Sort((atom1, atom2) => atom1.orGroupRuleID - atom2.orGroupRuleID);
+                rule.factTests.Sort((factTest1, factTest2) => factTest1.orGroupRuleID - factTest2.orGroupRuleID);
                 
             }
         }
 
-        private static void SetFactID(RuleDBEntry currentRule, ref Dictionary<string,int> addedFactIDNames, ref int factID)
+        private static void SetFactID(RuleDBEntry currentRule, ref Dictionary<string,int> addedFactIDNames, ref int factID, int ruleID)
         {
             
-            if(currentRule.atoms!=null)
-            foreach (var atomEntry in currentRule.atoms)
+            if(currentRule.factTests!=null)
+            foreach (var factTest in currentRule.factTests)
             {
-                if (!addedFactIDNames.ContainsKey(atomEntry.factName))
+                if (!addedFactIDNames.ContainsKey(factTest.factName))
                 {
-                    atomEntry.factID = factID;
-                    addedFactIDNames[atomEntry.factName] = factID;
+                    factTest.factID = factID;
+                    addedFactIDNames[factTest.factName] = factID;
                     factID++;
                 }
                 else
                 {
-                    atomEntry.factID = addedFactIDNames[atomEntry.factName];
+                    factTest.factID = addedFactIDNames[factTest.factName];
                 }
+                //Debug.Log($"for fact {factTest.factName} for rule {currentRule.ruleName} we set ruleOwnerID {ruleID}");
+                factTest.ruleOwnerID = ruleID;
             }
 
             if(currentRule.factWrites!=null)
@@ -306,30 +342,25 @@ namespace FactMatcher
             
         }
 
-        private static bool previousAtomWasORRule = false;
-        private static void ParseRuleAtoms(string line, RuleDBEntry currentRule, ref int orGroupID)
+        private static void ParseFactTests(string line, RuleDBEntry currentRule, ref int orGroupID)
         {
-            if (line.Contains("Range"))
-            {
-                var splits = line.Split(new[] {"Range"}, StringSplitOptions.RemoveEmptyEntries);
-            }
             
-            var operands = new List<(string, RuleDBAtomEntry.Comparision)>
+            var operands = new List<(string, RuleDBFactTestEntry.Comparision)>
             {
-                (">", RuleDBAtomEntry.Comparision.MoreThan),
-                (">=", RuleDBAtomEntry.Comparision.MoreThanEqual),
-                ("<", RuleDBAtomEntry.Comparision.LessThan),
-                ("<=", RuleDBAtomEntry.Comparision.LessThanEqual),
-                ("=", RuleDBAtomEntry.Comparision.Equal),
-                ("Range", RuleDBAtomEntry.Comparision.Range),
-                ("!", RuleDBAtomEntry.Comparision.NotEqual)
+                (">", RuleDBFactTestEntry.Comparision.MoreThan),
+                (">=", RuleDBFactTestEntry.Comparision.MoreThanEqual),
+                ("<", RuleDBFactTestEntry.Comparision.LessThan),
+                ("<=", RuleDBFactTestEntry.Comparision.LessThanEqual),
+                ("=", RuleDBFactTestEntry.Comparision.Equal),
+                ("range", RuleDBFactTestEntry.Comparision.Range),
+                ("!", RuleDBFactTestEntry.Comparision.NotEqual)
             };
             //Operands with multiple characters must be matched prior to operands of lower character..
             //or else , >= would first be treated as > operand ... 
             operands.Sort((s, s1) => s1.Item1.Length - s.Item1.Length);
             foreach (var operand in operands)
             {
-                if (line.Trim().Contains(operand.Item1))
+                if (line.Trim().Contains(operand.Item1,StringComparison.InvariantCultureIgnoreCase))
                 {
                     var splits = line.Split(new[] {operand.Item1}, StringSplitOptions.RemoveEmptyEntries);
                     if (splits.Length != 2)
@@ -338,11 +369,12 @@ namespace FactMatcher
                     }
                     else
                     {
-                        //Todo add support for strict
-                        RuleDBAtomEntry atomEntry = new RuleDBAtomEntry();
-                        atomEntry.compareMethod = operand.Item2;
+                        RuleDBFactTestEntry factTestEntry = new RuleDBFactTestEntry();
+                        factTestEntry.compareMethod = operand.Item2;
                         var factNameOrLogicCandidate = splits[0].Trim();
                         var isOrRule = false;
+                        
+                        var startsWithQuestion = factNameOrLogicCandidate.StartsWith("?");
                         var startsWithIF = factNameOrLogicCandidate.StartsWith("IF");
                         var startsWithOR = factNameOrLogicCandidate.StartsWith("OR");
                         if (startsWithOR || startsWithIF)
@@ -351,27 +383,31 @@ namespace FactMatcher
                             {
                                 orGroupID++;
                             }
-                            atomEntry.factName = splits[0].Remove(0,2).Trim();
-                            atomEntry.orGroupRuleID = orGroupID;
+                            factTestEntry.factName = factNameOrLogicCandidate.Remove(0,2).Trim();
+                            factTestEntry.orGroupRuleID = orGroupID;
                             isOrRule = true;
                         }
                         else
                         {
-                            atomEntry.factName = splits[0].Trim();
-                            atomEntry.orGroupRuleID = -1;
+                            factTestEntry.factName = splits[0].Trim();
+                            factTestEntry.orGroupRuleID = -1;
+                        }
+                        factTestEntry.isStrict = !startsWithQuestion;
+                        if (startsWithQuestion)
+                        {
+                            factTestEntry.factName = factTestEntry.factName.Trim('?');
                         }
                         var valueMatch = splits[1].Trim();
-                        previousAtomWasORRule = isOrRule;
                         
                         //If we have added a rule - from derived - but are overwriting that fact-query , then delete the 
                         //derived rule , or else we would get two conflicting rule atoms in our rule...
-                        if (!isOrRule && currentRule.atoms.Any(entry => entry.factName.Equals(atomEntry.factName)))
+                        if (!isOrRule && currentRule.factTests.Any(entry => entry.factName.Equals(factTestEntry.factName)))
                         {
-                            currentRule.atoms.Remove(currentRule.atoms.Find(entry =>
-                                entry.factName.Equals(atomEntry.factName)));
+                            currentRule.factTests.Remove(currentRule.factTests.Find(entry =>
+                                entry.factName.Equals(factTestEntry.factName)));
                         }
 
-                        if (atomEntry.compareMethod == RuleDBAtomEntry.Comparision.Range)
+                        if (factTestEntry.compareMethod == RuleDBFactTestEntry.Comparision.Range)
                         {
                             //further parse out the Range..
                             valueMatch = valueMatch.Trim();
@@ -384,40 +420,40 @@ namespace FactMatcher
                             //Debug.Log($"handling right val {splitRange[1]} in compareMethodRange");
                             if (float.TryParse(splitRange[0], out float left))
                             {
-                                atomEntry.matchValue = left;
-                                atomEntry.compareType = FactValueType.Value;
-                                atomEntry.compareMethod = exclusiveLeft
-                                    ? RuleDBAtomEntry.Comparision.MoreThan
-                                    : RuleDBAtomEntry.Comparision.MoreThanEqual; 
+                                factTestEntry.matchValue = left;
+                                factTestEntry.compareType = FactValueType.Value;
+                                factTestEntry.compareMethod = exclusiveLeft
+                                    ? RuleDBFactTestEntry.Comparision.MoreThan
+                                    : RuleDBFactTestEntry.Comparision.MoreThanEqual; 
                                 if (float.TryParse(splitRange[1], out float right))
                                 {
-                                    RuleDBAtomEntry rangeEnd = new RuleDBAtomEntry();
+                                    RuleDBFactTestEntry rangeEnd = new RuleDBFactTestEntry();
                                     rangeEnd.compareMethod = exclusiveRight
-                                        ? RuleDBAtomEntry.Comparision.LessThan
-                                        : RuleDBAtomEntry.Comparision.LessThanEqual;
-                                    rangeEnd.factName = atomEntry.factName;
+                                        ? RuleDBFactTestEntry.Comparision.LessThan
+                                        : RuleDBFactTestEntry.Comparision.LessThanEqual;
+                                    rangeEnd.factName = factTestEntry.factName;
                                     rangeEnd.matchValue = right;
                                     rangeEnd.compareType= FactValueType.Value;
                             
-                                    currentRule.atoms.Add(atomEntry);
-                                    currentRule.atoms.Add(rangeEnd);
+                                    currentRule.factTests.Add(factTestEntry);
+                                    currentRule.factTests.Add(rangeEnd);
                                 }
                             }
                             
                         }
                         else
                         {
-                            atomEntry.compareType = FactValueType.String;
+                            factTestEntry.compareType = FactValueType.String;
                             if (float.TryParse(valueMatch, out float floatVal))
                             {
-                                atomEntry.matchValue = floatVal;
-                                atomEntry.compareType = FactValueType.Value;
+                                factTestEntry.matchValue = floatVal;
+                                factTestEntry.compareType = FactValueType.Value;
                             }
                             else
                             {
-                                atomEntry.matchString = valueMatch;
+                                factTestEntry.matchString = valueMatch;
                             }
-                            currentRule.atoms.Add(atomEntry);
+                            currentRule.factTests.Add(factTestEntry);
                         }
                     }
 

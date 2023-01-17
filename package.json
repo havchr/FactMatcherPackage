@@ -1,6 +1,6 @@
 {
   "name": "no.agens.factmatcher",
-  "version": "0.1.76",
+  "version": "0.2.0",
   "displayName": "FactMatcher",
   "unity": "2019.1",
   "keywords": [
@@ -13,6 +13,6 @@
     "email": "havchr@agens.no",
     "url": "https://github.com/havchr/FactMatcher"
   },
-  "description": "Factmatcher is a system to pick best matching rules given a set of facts. The payload supported in the current version is text. You can use it to create dynamic dialogs and text that responds dynamically to the player.",
+  "description": "Factmatcher is a system to pick best matching rules given a set of facts. The payload supported in the current version is text or a Scriptable Object. You can use it to create dynamic dialogs and text that responds dynamically to the player. It can also be used as an AI decision making system.",
   "type": "tool"
 }

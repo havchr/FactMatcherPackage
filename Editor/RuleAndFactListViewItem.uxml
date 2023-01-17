@@ -1,0 +1,8 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="project://database/Packages/no.agens.factmatcher/Editor/RuleDBListViewItem.uss?fileID=7433441132597879392&amp;guid=3778693f918b64cd69ecc98c6257407e&amp;type=3#RuleDBListViewItem" />
+    <ui:VisualElement style="flex-grow: 1; background-color: rgba(0, 0, 0, 0); flex-direction: row; height: auto; min-height: auto; justify-content: flex-start;">
+        <ui:Button text="Set" display-tooltip-when-elided="true" style="flex-direction: row; flex-shrink: 0; align-items: stretch; justify-content: flex-start; white-space: nowrap;" />
+        <ui:Button text="Ping" display-tooltip-when-elided="true" style="flex-direction: row; flex-shrink: 0; align-items: stretch; justify-content: flex-start; white-space: nowrap;" />
+        <ui:Label tabindex="-1" text="Label" display-tooltip-when-elided="true" name="Label" />
+    </ui:VisualElement>
+</ui:UXML>

@@ -69,7 +69,7 @@ public class FactMatcherCodeGenerator
 			}
 
 
-			foreach (var atom in rule.atoms)
+			foreach (var atom in rule.factTests)
 			{
 				//Parsing out atom.factName which is expected to be in form namespace.fact , for instance player.health is namespace player and fact health.
 				if (atom.factName!=null && atom.factName.Length > 1)

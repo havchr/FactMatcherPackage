@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-using FactMatcher;
+using FactMatching;
 using UnityEditor;
 using UnityEngine;
 
@@ -28,9 +28,26 @@ public class RuleDBFactWrite
 }
 
 [Serializable]
-public class RuleDBAtomEntry
+public class RuleDBFactTestEntry
 {
-    
+
+    public RuleDBFactTestEntry()
+    {
+        
+    }
+    public RuleDBFactTestEntry(RuleDBFactTestEntry rhs)
+    {
+        isStrict = rhs.isStrict;
+        orGroupRuleID = rhs.orGroupRuleID;
+        factID = rhs.factID;
+        factName = rhs.factName;
+        matchString = rhs.matchString;
+        matchValue = rhs.matchValue;
+        compareMethod = rhs.compareMethod;
+        compareType = rhs.compareType;
+        ruleOwnerID = rhs.ruleOwnerID;
+    }
+    public bool isStrict;
     public int orGroupRuleID;
     public int factID;
     public string factName;
@@ -38,32 +55,58 @@ public class RuleDBAtomEntry
     public float matchValue;
     public Comparision compareMethod;
     public FactValueType compareType;
+    public int ruleOwnerID;
 
     public enum Comparision
     {
         Equal,NotEqual,LessThan,MoreThan,LessThanEqual,MoreThanEqual,Range
     }
 
-    public FactMatcher.RuleCompare CreateCompare(RulesDB rules)
+    public string CompareMethodPrintable()
+    {
+        switch (compareMethod)
+        {
+            case Comparision.Equal:
+                return "=";
+            case Comparision.NotEqual:
+                return "!=";
+            case Comparision.LessThan:
+                return "<";
+            case Comparision.LessThanEqual:
+                return "<=";
+            case Comparision.MoreThan:
+                return ">";
+            case Comparision.MoreThanEqual:
+                return ">=";
+        }
+        return "";
+    }
+
+    public string MatchValuePrintable()
+    {
+        return (compareType == FactValueType.Value) ? $"{matchValue}" : matchString;
+    }
+
+    public FactMatching.FactCompare CreateCompare(RulesDB rules)
     {
         //used in the fact system 
         var val = compareType == FactValueType.String ?  rules.StringId(matchString) : matchValue;
         switch (compareMethod)
         {
             case Comparision.Equal:
-                return FactMatcher.RuleCompare.Equals(val);
+                return FactMatching.FactCompare.Equals(val);
             case Comparision.NotEqual:
-                return FactMatcher.RuleCompare.NotEquals(val);
+                return FactMatching.FactCompare.NotEquals(val);
             case Comparision.LessThan:
-                return FactMatcher.RuleCompare.LessThan(val);
+                return FactMatching.FactCompare.LessThan(val);
             case Comparision.LessThanEqual:
-                return FactMatcher.RuleCompare.LessThanEquals(val);
+                return FactMatching.FactCompare.LessThanEquals(val);
             case Comparision.MoreThan:
-                return FactMatcher.RuleCompare.MoreThan(val);
+                return FactMatching.FactCompare.MoreThan(val);
             case Comparision.MoreThanEqual:
-                return FactMatcher.RuleCompare.MoreThanEquals(val);
+                return FactMatching.FactCompare.MoreThanEquals(val);
         }
-        return FactMatcher.RuleCompare.Equals(val);
+        return FactMatching.FactCompare.Equals(val);
     }
 }
 
@@ -77,7 +120,7 @@ public class RuleDBEntry
     public int payloadStringID;
     public ScriptableObject PayloadObject;
     public List<RuleDBFactWrite> factWrites;
-    public List<RuleDBAtomEntry> atoms;
+    public List<RuleDBFactTestEntry> factTests;
 }
 
 [CreateAssetMenu(fileName = "RulesDB", menuName = "FactMatcher/RulesDB", order = 1)]
@@ -92,7 +135,8 @@ public class RulesDB : ScriptableObject
     private Dictionary<int, RuleDBEntry> RuleMap;
     public List<TextAsset> generateFrom;
     public List<RuleDBEntry> rules;
-    
+    public Action OnRulesParsed;
+
     public void InitRuleDB()
     {
         RuleStringMap = RuleStringIDs(this);
@@ -100,24 +144,42 @@ public class RulesDB : ScriptableObject
         FactIdsMap = CreateFactIds();
     }
 
-    public List<RuleDBAtomEntry> CreateFlattenedRuleAtomList( Func<RuleDBAtomEntry,bool> filter=null)
+    public List<RuleDBFactTestEntry> CreateFlattenedFactTestListWithNoDuplicateFactIDS(Func<RuleDBFactTestEntry, bool> filter = null)
     {
-        List<RuleDBAtomEntry> ruleAtoms = new List<RuleDBAtomEntry>();
+        List<RuleDBFactTestEntry> factTests = new List<RuleDBFactTestEntry>();
         List<int> usedIDs = new List<int>();
         foreach (var rule in rules)
         {
-            foreach (var ruleAtom in rule.atoms)
+            foreach (var factTest in rule.factTests)
             {
-                if (!usedIDs.Contains(ruleAtom.factID) && filter!= null && filter(ruleAtom))
+                if (!usedIDs.Contains(factTest.factID) && ((filter != null && filter(factTest)) || filter == null))
                 {
-                    usedIDs.Add(ruleAtom.factID); 
-                    ruleAtoms.Add(ruleAtom);
+                    usedIDs.Add(factTest.factID);
+                    factTests.Add(factTest);
                 }
-            } 
+            }
         }
-        return ruleAtoms;
+
+        return factTests;
     }
     
+    public List<RuleDBFactTestEntry> CreateFlattenedRuleAtomListWithPotentiallyDuplicateFactIDS(Func<RuleDBFactTestEntry, bool> filter = null)
+    {
+        List<RuleDBFactTestEntry> ruleAtoms = new List<RuleDBFactTestEntry>();
+        foreach (var rule in rules)
+        {
+            foreach (var factTest in rule.factTests)
+            {
+                if (((filter != null && filter(factTest)) || filter == null))
+                {
+                    ruleAtoms.Add(factTest);
+                }
+            }
+        }
+
+        return ruleAtoms;
+    }
+
     public void CreateRulesFromRulescripts()
     {
         if (generateFrom != null)
@@ -125,31 +187,34 @@ public class RulesDB : ScriptableObject
             rules.Clear();
             int factID = 0;
             int ruleID = 0;
-            Dictionary<string,int> addedFactIDS = new Dictionary<string, int>();
+            Dictionary<string, int> addedFactIDS = new Dictionary<string, int>();
             foreach (var ruleScript in generateFrom)
             {
                 var parser = new RuleScriptParser();
-                parser.GenerateFromText(ruleScript.text,rules,ref factID,ref addedFactIDS, ref ruleID); 
+                parser.GenerateFromText(ruleScript.text, rules, ref factID, ref addedFactIDS, ref ruleID);
             }
 
+            OnRulesParsed?.Invoke();
         }
     }
 
     private Dictionary<string, int> CreateFactIds()
     {
-        var result = new Dictionary<string,int>();
-		foreach (var rule in rules)
-		{
+        var result = new Dictionary<string, int>();
+        foreach (var rule in rules)
+        {
 
-			foreach (var atom in rule.atoms)
+            foreach (var factTest in rule.factTests)
             {
-                result[atom.factName] = atom.factID;
+                result[factTest.factName] = factTest.factID;
             }
-			foreach (var factWrite in rule.factWrites)
+
+            foreach (var factWrite in rule.factWrites)
             {
                 result[factWrite.factName] = factWrite.factID;
             }
-		}
+        }
+
         return result;
     }
 
@@ -159,6 +224,7 @@ public class RulesDB : ScriptableObject
         {
             InitRuleDB();
         }
+
         int id = -1;
         if (!RuleStringMap.TryGetValue(str, out id))
         {
@@ -169,14 +235,17 @@ public class RulesDB : ScriptableObject
         {
             //Debug.Log($"Found stringID {id} for string {str}");
         }
+
         return id;
     }
+
     public int FactId(string str)
     {
         if (FactIdsMap == null)
         {
             InitRuleDB();
         }
+
         int id = -1;
         if (!FactIdsMap.TryGetValue(str, out id))
         {
@@ -187,10 +256,11 @@ public class RulesDB : ScriptableObject
         {
             //Debug.Log($"Found factID {id} for fact {str}");
         }
+
         return id;
     }
-    
-    public string  GetFactVariabelNameFromFactID(int factID)
+
+    public string GetFactVariabelNameFromFactID(int factID)
     {
         foreach (var strVal in FactIdsMap)
         {
@@ -200,36 +270,39 @@ public class RulesDB : ScriptableObject
 
         return "";
     }
-    
-    public string ParseFactValueFromFactID(int factID,float value)
+
+    public string ParseFactValueFromFactID(int factID, float value)
     {
         foreach (var rule in rules)
         {
-            foreach (var atom in rule.atoms)
+            foreach (var factTest in rule.factTests)
             {
-                if (atom.factID == factID && atom.compareType == FactValueType.String)
+                if (factTest.factID == factID && factTest.compareType == FactValueType.String)
                 {
-                    return GetStringFromStringID((int)value);
+                    return GetStringFromStringID((int) value);
                 }
             }
         }
+
         return value.ToString();
     }
-    public string  GetStringFromStringID(int stringID)
+
+    public string GetStringFromStringID(int stringID)
     {
         if (RuleStringMap == null)
         {
             return "Non-inited";
         }
+
         foreach (var strVal in RuleStringMap)
         {
             if (strVal.Value == stringID)
                 return strVal.Key;
         }
 
-        return "StringID does not exist";
+        return "NA";
     }
-    
+
     public RuleDBEntry RuleFromID(int id)
     {
         if (RuleMap == null)
@@ -242,28 +315,34 @@ public class RulesDB : ScriptableObject
         {
             rule = null;
         }
+
         return rule;
     }
 
     private static Dictionary<int, RuleDBEntry> CreateEntryFromIDDic(RulesDB current)
     {
-        Dictionary<int,RuleDBEntry>  dic = new Dictionary<int,RuleDBEntry>();
+        Dictionary<int, RuleDBEntry> dic = new Dictionary<int, RuleDBEntry>();
         foreach (var rule in current.rules)
         {
             var id = rule.RuleID;
             dic[id] = rule;
         }
+
         return dic;
     }
 
     private static Dictionary<string, int> RuleStringIDs(RulesDB current)
     {
-        Dictionary<string, int>  dic = new Dictionary<string, int>();
-        
+        Dictionary<string, int> dic = new Dictionary<string, int>();
+
         int id = 0;
-        dic.Add("false",FactMatcher.Consts.False);
-        dic.Add("true",FactMatcher.Consts.True);
-        id = FactMatcher.Consts.True +1;
+        dic.Add("FALSE", FactMatching.Consts.False);
+        dic.Add("False", FactMatching.Consts.False);
+        dic.Add("false", FactMatching.Consts.False);
+        dic.Add("TRUE", FactMatching.Consts.True);
+        dic.Add("True", FactMatching.Consts.True);
+        dic.Add("true", FactMatching.Consts.True);
+        id = FactMatching.Consts.True + 1;
         for (int i = 0; i < current.rules.Count; i++)
         {
             var rule = current.rules[i];
@@ -277,12 +356,13 @@ public class RulesDB : ScriptableObject
             {
                 rule.payloadStringID = dic[rule.payload];
             }
+
             foreach (var factWrite in rule.factWrites)
             {
-                if (factWrite.writeMode == RuleDBFactWrite.WriteMode.SetString 
-                && factWrite.writeString!=null && factWrite.writeString.Length>=1)
+                if (factWrite.writeMode == RuleDBFactWrite.WriteMode.SetString
+                    && factWrite.writeString != null && factWrite.writeString.Length >= 1)
                 {
-                    
+
                     if (!dic.ContainsKey(factWrite.writeString))
                     {
                         dic[factWrite.writeString] = id;
@@ -291,35 +371,35 @@ public class RulesDB : ScriptableObject
                 }
             }
 
-            foreach (var atom in rule.atoms)
+            foreach (var factTest in rule.factTests)
             {
-                if (atom.compareType == FactValueType.String && atom.matchString!=null && atom.matchString.Length>=1)
+                if (factTest.compareType == FactValueType.String && factTest.matchString != null && factTest.matchString.Length >= 1)
                 {
-                    if (!dic.ContainsKey(atom.matchString))
+                    if (!dic.ContainsKey(factTest.matchString))
                     {
-                        dic[atom.matchString] = id;
+                        dic[factTest.matchString] = id;
                         id++;
                     }
                 }
             }
         }
-        
+
         return dic;
     }
-    
-	public int CountNumberOfFacts()
-	{
-		int topFactID = 0;
-		foreach (var rule in rules)
-		{
 
-			foreach (var atom in rule.atoms)
-			{
-				if (atom.factID > topFactID)
-				{
-					topFactID = atom.factID;
-				}
-			}
+    public int CountNumberOfFacts()
+    {
+        int topFactID = 0;
+        foreach (var rule in rules)
+        {
+
+            foreach (var factTest in rule.factTests)
+            {
+                if (factTest.factID > topFactID)
+                {
+                    topFactID = factTest.factID;
+                }
+            }
 
             foreach (var factWrite in rule.factWrites)
             {
@@ -328,21 +408,37 @@ public class RulesDB : ScriptableObject
                     topFactID = factWrite.factID;
                 }
             }
-		}
-		return topFactID + 1;
-	}
+        }
 
-    public RuleDBAtomEntry GetAtomFromFactID(int i)
+        return topFactID + 1;
+    }
+
+    public RuleDBFactTestEntry GetFactTestFromFactID(int i)
     {
         foreach (var rule in rules)
         {
-            foreach (var atom in rule.atoms)
+            foreach (var factTest in rule.factTests)
             {
-                if (atom.factID == i)
+                if (factTest.factID == i)
                 {
-                    return atom;
+                    return factTest;
                 }
-            } 
+            }
+        }
+
+        return null;
+    }
+    public RuleDBFactTestEntry GetFactTestFromFactIDAndRuleID(int factID,int ruleID)
+    {
+        foreach (var rule in rules)
+        {
+            foreach (var factTest in rule.factTests)
+            {
+                if (factTest.factID == factID && factTest.ruleOwnerID == ruleID)
+                {
+                    return factTest;
+                }
+            }
         }
 
         return null;

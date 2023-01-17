@@ -1,0 +1,28 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="True">
+    <ui:ScrollView>
+        <ui:VisualElement style="flex-grow: 1; background-color: rgba(0, 0, 0, 0); flex-direction: row;">
+            <ui:VisualElement style="flex-grow: 0; background-color: rgba(0, 0, 0, 0); width: auto; min-width: 400px;">
+                <uie:ObjectField label="Rules" view-data-key="RulesDBField" type="RulesDB, Agens.FactMatcher" name="RulesDBField" />
+                <ui:Foldout text="Foldout" name="Foldy">
+                    <ui:VisualElement name="RulesDBDrawer" style="flex-grow: 1; background-color: rgba(0, 0, 0, 0);" />
+                </ui:Foldout>
+                <ui:TextField picking-mode="Ignore" label="FactFilename" value="FactFile.csv" name="FactFileLocation" />
+                <ui:Button text="SaveToFile" display-tooltip-when-elided="true" name="SaveToFile" />
+                <ui:Button text="LoadFromFile" display-tooltip-when-elided="true" name="LoadFromFile" />
+                <ui:Button text="PickRule" display-tooltip-when-elided="true" name="PickRuleButton" />
+                <ui:Label tabindex="-1" text="Label" display-tooltip-when-elided="true" name="RuleLabel" style="font-size: 18px; margin-left: 8px;" />
+                <ui:TextField picking-mode="Ignore" label="Text Field" name="FactFilter" />
+                <ui:ListView focusable="true" name="FactList" />
+            </ui:VisualElement>
+            <ui:VisualElement style="flex-grow: 0; background-color: rgba(0, 0, 0, 0); width: auto; min-width: 400px;">
+                <ui:ListView focusable="true" name="RuleList" />
+            </ui:VisualElement>
+            <ui:VisualElement style="flex-grow: 1; background-color: rgba(0, 0, 0, 0); flex-shrink: 1; max-width: none; min-width: auto;">
+                <ui:DropdownField label="RuleScript" index="-1" choices="System.Collections.Generic.List`1[System.String]" name="RuleScriptSelector" />
+                <ui:TextField picking-mode="Ignore" label="RuleScript" value="filler text" name="RuleScript" multiline="true" />
+                <ui:Button text="SaveReload" display-tooltip-when-elided="true" name="SaveRuleScript" />
+                <ui:Button text="SaveStateAndReload" display-tooltip-when-elided="true" name="SaveRuleScriptReload" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:ScrollView>
+</ui:UXML>

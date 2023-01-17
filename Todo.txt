@@ -1,0 +1,9 @@
+Here are some known issues and some ideas.
+
+We are not sorting rules based on most factTests up front.
+If we add this sorting step, then we would speed up the execution for,
+the general case, where we are not writing back to all rules that matches.
+
+
+The tooling is very rudimentary.
+

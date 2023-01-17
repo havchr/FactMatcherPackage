@@ -1,0 +1,15 @@
+.fact-true {
+    background-color: rgba(88, 141, 19, 0.94);
+}
+
+.fact-false {
+    background-color: rgba(164, 35, 18, 0.75);
+}
+
+.rule {
+    background-color: rgba(25, 22, 125, 0.83);
+}
+
+.fact-or {
+    background-color: rgba(75, 57, 57, 0.83);
+}
