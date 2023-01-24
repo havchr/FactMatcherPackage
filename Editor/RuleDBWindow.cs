@@ -75,7 +75,7 @@ public class RuleDBWindow : EditorWindow
                 {
                     if (_factMatcherProvider.GetFactMatcher().IsInited)
                     {
-                        FactMatcherVeryMuchInitSuper(content,_factMatcherProvider.GetFactMatcher());
+                        InitUIWithFactMatcher(content,_factMatcherProvider.GetFactMatcher());
                     }
                 }
             }
@@ -105,7 +105,7 @@ public class RuleDBWindow : EditorWindow
                         _factMatcherSelfAllocated = false;
                         if (provider.GetFactMatcher()!=null && provider.GetFactMatcher().IsInited)
                         {
-                            FactMatcherVeryMuchInitSuper(content,provider.GetFactMatcher());
+                            InitUIWithFactMatcher(content,provider.GetFactMatcher());
                         }
                         break;
                     }
@@ -129,7 +129,7 @@ public class RuleDBWindow : EditorWindow
             _factMatcherSelfAllocated = true;
             _factMatcher = new FactMatcher(rulesDB);
             _factMatcher.Init(countAllMatches: true);
-            FactMatcherVeryMuchInitSuper(content,_factMatcher);
+            InitUIWithFactMatcher(content,_factMatcher);
         }
     }
 
@@ -151,7 +151,7 @@ public class RuleDBWindow : EditorWindow
         
     }
 
-    private void FactMatcherVeryMuchInitSuper(VisualElement content, FactMatcher factMatcher)
+    private void InitUIWithFactMatcher(VisualElement content, FactMatcher factMatcher)
     {
         _factMatcher = factMatcher;
         var rulesDB = _factMatcher.ruleDB;
