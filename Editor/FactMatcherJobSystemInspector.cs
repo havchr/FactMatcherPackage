@@ -88,8 +88,29 @@ public class FactMatcherJobSystemInspector : Editor
         _factListView = inspector.Q<ListView>("FactList");
         _factFilterField = inspector.Q<TextField>("FactFilter");
         _factFilterField.value = "";
-        _factListView.makeItem = MakeItem;
-        _factListView.bindItem = BindItem;
+        
+        /*
+         * 
+    private void BindItem(VisualElement visElement, int index)
+    {
+        var controlla = (FactEntryController) visElement.userData;
+        var factValue = "";
+        var atom = _ruleAtoms[index];
+        if (_facty.IsInited)
+        {
+            factValue = atom.compareType == FactValueType.String ? _facty.ruleDB.GetStringFromStringID((int) _facty[atom.factID]) : $"{_facty[atom.factID]}";
+        }
+
+        controlla.Publish(_facty.GetFactMatcherData(), _ruleAtoms[index], factValue);
+    }
+         */
+        
+        _factListView.makeItem = () => FactEntryController.MakeItem(FactItemVisAss);
+        _factListView.bindItem = (element, i) => FactEntryController.BindItem(element, i, _ruleAtoms, _facty.GetFactMatcher());
+        _factFilterField.RegisterCallback<ChangeEvent<string>>(evt => { UpdateListView(); });
+        
+        //_factListView.makeItem = MakeItem;
+        //_factListView.bindItem = BindItem;
 
         inspector.Q<Button>("PickRuleButton").RegisterCallback<ClickEvent>(evt =>
         {
@@ -149,18 +170,6 @@ public class FactMatcherJobSystemInspector : Editor
         }
     }
 
-    private void BindItem(VisualElement visElement, int index)
-    {
-        var controlla = (FactEntryController) visElement.userData;
-        var factValue = "";
-        var atom = _ruleAtoms[index];
-        if (_facty.IsInited)
-        {
-            factValue = atom.compareType == FactValueType.String ? _facty.ruleDB.GetStringFromStringID((int) _facty[atom.factID]) : $"{_facty[atom.factID]}";
-        }
-
-        controlla.Publish(_facty.GetFactMatcherData(), _ruleAtoms[index], factValue);
-    }
 
 
     TemplateContainer MakeItem()

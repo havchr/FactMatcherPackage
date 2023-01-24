@@ -2,6 +2,7 @@
     <ui:ScrollView>
         <ui:VisualElement style="flex-grow: 1; background-color: rgba(0, 0, 0, 0); flex-direction: row;">
             <ui:VisualElement style="flex-grow: 0; background-color: rgba(0, 0, 0, 0); width: auto; min-width: 400px;">
+                <uie:ObjectField label="FactMatcher" type="UnityEngine.GameObject, UnityEngine.CoreModule" name="FactMatcherProvider" />
                 <uie:ObjectField label="Rules" view-data-key="RulesDBField" type="RulesDB, Agens.FactMatcher" name="RulesDBField" />
                 <ui:Foldout text="Foldout" name="Foldy">
                     <ui:VisualElement name="RulesDBDrawer" style="flex-grow: 1; background-color: rgba(0, 0, 0, 0);" />
@@ -10,11 +11,12 @@
                 <ui:Button text="SaveToFile" display-tooltip-when-elided="true" name="SaveToFile" />
                 <ui:Button text="LoadFromFile" display-tooltip-when-elided="true" name="LoadFromFile" />
                 <ui:Button text="PickRule" display-tooltip-when-elided="true" name="PickRuleButton" />
-                <ui:Label tabindex="-1" text="Label" display-tooltip-when-elided="true" name="RuleLabel" style="font-size: 18px; margin-left: 8px;" />
+                <ui:Label tabindex="-1" text="Label" display-tooltip-when-elided="true" name="RuleLabel" style="margin-left: 8px; white-space: normal;" />
                 <ui:TextField picking-mode="Ignore" label="Text Field" name="FactFilter" />
                 <ui:ListView focusable="true" name="FactList" />
             </ui:VisualElement>
             <ui:VisualElement style="flex-grow: 0; background-color: rgba(0, 0, 0, 0); width: auto; min-width: 400px;">
+                <ui:TextField picking-mode="Ignore" label="Rule Filter" name="RuleFilter" />
                 <ui:ListView focusable="true" name="RuleList" />
             </ui:VisualElement>
             <ui:VisualElement style="flex-grow: 1; background-color: rgba(0, 0, 0, 0); flex-shrink: 1; max-width: none; min-width: auto;">

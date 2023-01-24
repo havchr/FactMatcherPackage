@@ -10,9 +10,13 @@ using Debug = UnityEngine.Debug;
 using Unity.Jobs;
 using UnityEngine;
 
+public interface FactMatcherProvider
+{
+    public FactMatcher GetFactMatcher();
+}
+
 public class FactMatcher 
 {
-    
     
     public Action OnInited;
     public Action<int> OnRulePicked;

@@ -16,7 +16,7 @@ public class FactMatcherDebugRewriteEntry{
     public bool handleAsString;
 }
 
-public class FactMatcherJobSystem : MonoBehaviour
+public class FactMatcherJobSystem : MonoBehaviour, FactMatcherProvider
 {
     public bool AutoInitOnStart = false;
     //Use this to re-cache indices, stringID's when hotloading
@@ -159,5 +159,10 @@ public class FactMatcherJobSystem : MonoBehaviour
     public RuleDBEntry GetRule(int i)
     {
         return _factMatcher.GetRuleFromMatches(i);
+    }
+
+    public FactMatcher GetFactMatcher()
+    {
+        return _factMatcher;
     }
 }

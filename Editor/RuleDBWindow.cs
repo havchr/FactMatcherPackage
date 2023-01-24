@@ -25,17 +25,21 @@ public class RuleDBWindow : EditorWindow
         wnd.titleContent = new GUIContent("RuleDB-Window");
     }
 
-    private FactMatcher factaMatcha;
+    private FactMatcher _factMatcher;
     private Label _lastPickedRule;
     private ListView _factListView;
     private ListView _ruleListView;
     private TextField _factFilterField;
+    private TextField _ruleFilterField;
     private TextField _factFileField;
     private TextField _ruleScriptField;
     private DropdownField _ruleScriptSelector;
     private List<RuleDBFactTestEntry> _factTests;
     private List<FactRulesListViewController.Data> _rulesDatas;
     private TextAsset _currentRuleScript;
+    
+    private bool _factMatcherSelfAllocated = false;
+    private FactMatcherProvider _factMatcherProvider;
     
     public void CreateGUI()
     {
@@ -46,158 +50,260 @@ public class RuleDBWindow : EditorWindow
 
         _lastPickedRule = content.Q<Label>("RuleLabel");
         var rulesDBField = content.Q<ObjectField>("RulesDBField");
+        var factMatcherProvider = content.Q<ObjectField>("FactMatcherProvider");
         _ruleScriptField = content.Q<TextField>("RuleScript");
         _ruleScriptSelector = content.Q<DropdownField>("RuleScriptSelector");
         _factFileField = content.Q<TextField>("FactFileLocation");
+        _ruleFilterField = content.Q<TextField>("RuleFilter");
         
         rulesDBField.objectType = typeof(RulesDB);
-        
-        
-        rulesDBField.RegisterCallback<ChangeEvent<Object>>(evt =>
+        rulesDBField.RegisterCallback<ChangeEvent<Object>>(evt => { onRuleDBFieldChanged(evt, content); });
+        factMatcherProvider.RegisterCallback<ChangeEvent<Object>>(onFactMatcherProviderChanged(content));
+        EditorApplication.playModeStateChanged += change =>
         {
-            if (factaMatcha != null && factaMatcha.HasDataToDispose())
+            if (change == PlayModeStateChange.ExitingPlayMode)
             {
-                factaMatcha.DisposeData();
-                factaMatcha = null;
-            }
-            var rulesDB = evt.newValue as RulesDB;
-            if (rulesDB!=null)
-            {
-                Debug.Log("We are initing things.");
-                factaMatcha = new FactMatcher(rulesDB);
-                factaMatcha.Init(countAllMatches:true);
-                var button = content.Q<Button>("PickRuleButton");
-                factaMatcha.SetFact(factaMatcha.FactID("fact_value_example"), 1337.0f);
-                    
-
-                rulesDB.OnRulesParsed += OnRulesParsed;
-                factaMatcha.OnRulePicked += OnRulePicked;
-                factaMatcha.OnInited += OnInited;
-                
-                var editor = Editor.CreateEditor(rulesDB);
-                var taskInspector = new IMGUIContainer(() => { editor.OnInspectorGUI(); });
-                var rulesDBDrawer = content.Q<VisualElement>("RulesDBDrawer");
-                rulesDBDrawer.Add(taskInspector);
-
-                var ruleScriptChoices = new List<string>();
-                foreach (var textAsset in rulesDB.generateFrom)
+                if (!_factMatcherSelfAllocated)
                 {
-                    ruleScriptChoices.Add(textAsset.name);
-                    if (textAsset.text.Length < 4000)
-                    {
-                        _ruleScriptField.value = textAsset.text;
-                    }
-                    _currentRuleScript = textAsset;
-                    _ruleScriptSelector.SetValueWithoutNotify(textAsset.name);
+                    _factMatcher = null;
+                    ClearUI(content);
                 }
-                ((INotifyValueChanged<string>)_ruleScriptSelector.labelElement).SetValueWithoutNotify("scriptFile:");
-                _ruleScriptSelector.RegisterCallback<ChangeEvent<string>>(ev =>
+            }
+            if (change == PlayModeStateChange.EnteredPlayMode)
+            {
+                if (!_factMatcherSelfAllocated)
                 {
-                    var index = Mathf.Max(0,ruleScriptChoices.IndexOf(ev.newValue));
-                    if (index > 0 && index < rulesDB.generateFrom.Count)
+                    if (_factMatcherProvider.GetFactMatcher().IsInited)
                     {
-                        _currentRuleScript = rulesDB.generateFrom[index];
-                        _ruleScriptField.value = rulesDB.generateFrom[index].text;
+                        FactMatcherVeryMuchInitSuper(content,_factMatcherProvider.GetFactMatcher());
                     }
-                });
-                _ruleScriptSelector.choices = ruleScriptChoices;
-                
-                
-                var saveScriptAndReload = content.Q<Button>("SaveRuleScript");
-                var saveScriptAndReloadIncludingFacts = content.Q<Button>("SaveRuleScriptReload");
-                
-                saveScriptAndReload.RegisterCallback<ClickEvent>(evt =>
-                {
-                    factaMatcha.LoadFromCSV(_factFileField.value);
-                    UpdateListView();
-                });
-                saveScriptAndReloadIncludingFacts.RegisterCallback<ClickEvent>(evt =>
-                {
-                    factaMatcha.SaveToCSV(_factFileField.value);
-                    var path = AssetDatabase.GetAssetPath(_currentRuleScript);
-                    StreamWriter writer = new StreamWriter(path, false);
-                    writer.Write(_ruleScriptField.value);
-                    writer.Close();
-                    AssetDatabase.ImportAsset(path); 
-                    // _currentRuleScript
-                    
-                    //_currentRuleScript. = _ruleScriptField.value;  
-                    
-                    //_ruleScriptField.value = rulesDB.generateFrom[_ruleScriptSelector.].text;
-                    
-                    factaMatcha.Reload();
-                    factaMatcha.LoadFromCSV(_factFileField.value);
-                    UpdateListView();
-                });
+                }
+            }
+        };
+    }
 
 
-                button.RegisterCallback<ClickEvent>(evt =>
+    private EventCallback<ChangeEvent<Object>> onFactMatcherProviderChanged(VisualElement content)
+    {
+        return evt =>
+        {
+            var gob = evt.newValue as GameObject;
+            if (gob != null)
+            {
+                Component[] comps = gob.GetComponents<MonoBehaviour>();
+                foreach (var comp in comps)
                 {
-                    factaMatcha.PickRules();
-
-                });
-                
-                var saveButton= content.Q<Button>("SaveToFile");
-                saveButton.RegisterCallback<ClickEvent>(evt =>
-                {
-                    factaMatcha.SaveToCSV(_factFileField.value);
-
-                });
-                
-                var loadButton = content.Q<Button>("LoadFromFile");
-                loadButton.RegisterCallback<ClickEvent>(evt =>
-                {
-                    factaMatcha.LoadFromCSV(_factFileField.value);
-                    UpdateListView();
-                });
-                
-                _factListView = content.Q<ListView>("FactList");
-                _factFilterField = content.Q<TextField>("FactFilter");
-                _factFilterField.value = "";
-                _factListView.makeItem = () => FactEntryController.MakeItem(FactItemVisAss);
-                _factListView.bindItem = (element, i) => FactEntryController.BindItem(element, i, _factTests, factaMatcha);
-                _factFilterField.RegisterCallback<ChangeEvent<string> >(evt =>
-                {
-                    UpdateListView();
-                });
-                _factListView.itemsSource = _factTests;
-                UpdateListView();
-                _factListView.fixedItemHeight = 16.0f;
-
-                
-                _ruleListView = content.Q<ListView>("RuleList");
-                _ruleListView.makeItem = () => FactRulesListViewController.MakeItem(RuleListViewItemAss);
-                _ruleListView.bindItem = (element,i) => FactRulesListViewController.BindItem(element,i,_rulesDatas,factaMatcha);
-                _ruleListView.itemsSource = _rulesDatas;
-                UpdateListViewRules();
-                _ruleListView.fixedItemHeight = 18.0f;
-
-                FactEntryController.factChanged -= i =>
-                {
-                    //UpdateListViewRules();
-                };
-                FactEntryController.factChanged += i =>
-                {
-                    //UpdateListViewRules();
-                    
-                    if (factaMatcha != null && factaMatcha.ruleDB != null)
+                    FactMatcherProvider provider = comp as FactMatcherProvider;
+                    if (provider != null)
                     {
-                        //createRuleDatas();
-                        //_ruleListView.itemsSource = _rulesDatas;
-                        _ruleListView.RefreshItems();
+                        _factMatcherProvider = provider;
+                        if (_factMatcher != null && _factMatcher.HasDataToDispose() && _factMatcherSelfAllocated)
+                        {
+                            _factMatcher.DisposeData();
+                            _factMatcher = null;
+                        }
+                        _factMatcherSelfAllocated = false;
+                        if (provider.GetFactMatcher()!=null && provider.GetFactMatcher().IsInited)
+                        {
+                            FactMatcherVeryMuchInitSuper(content,provider.GetFactMatcher());
+                        }
+                        break;
                     }
-                };
+                }
+            }
+        };
+    }
+
+    private void onRuleDBFieldChanged(ChangeEvent<Object> evt, VisualElement content)
+    {
+        if (_factMatcher != null && _factMatcher.HasDataToDispose() && _factMatcherSelfAllocated)
+        {
+            _factMatcher.DisposeData();
+            _factMatcher = null;
+        }
+
+        var rulesDB = evt.newValue as RulesDB;
+        if (rulesDB != null)
+        {
+            Debug.Log("We are initing things.");
+            _factMatcherSelfAllocated = true;
+            _factMatcher = new FactMatcher(rulesDB);
+            _factMatcher.Init(countAllMatches: true);
+            FactMatcherVeryMuchInitSuper(content,_factMatcher);
+        }
+    }
+
+    
+    private void ClearUI(VisualElement content)
+    {
+        _ruleScriptSelector.visible = false;
+        _ruleFilterField.visible = false;
+        content.Q<Button>("SaveRuleScript").visible = false;
+        content.Q<Button>("PickRuleButton").visible = false;
+        content.Q<ListView>("FactList").visible = false;
+        content.Q<TextField>("FactFilter").visible = false;
+        content.Q<ListView>("RuleList").visible = false;
+        content.Q<Button>("SaveToFile").visible = false;
+        content.Q<Button>("LoadFromFile").visible = false;
+        content.Q<Button>("SaveRuleScript").visible = false;
+        content.Q<Button>("SaveRuleScriptReload").visible = false;
+        content.Q<Button>("RefreshFactValues").visible = false;
+        
+    }
+
+    private void FactMatcherVeryMuchInitSuper(VisualElement content, FactMatcher factMatcher)
+    {
+        _factMatcher = factMatcher;
+        var rulesDB = _factMatcher.ruleDB;
+        var button = content.Q<Button>("PickRuleButton");
+
+        rulesDB.OnRulesParsed += OnRulesParsed;
+        _factMatcher.OnRulePicked += OnRulePicked;
+        _factMatcher.OnInited += OnInited;
+        
+        _ruleScriptSelector.visible = true;
+        _ruleFilterField.visible = true;
+        content.Q<Button>("SaveRuleScript").visible = true;
+        content.Q<Button>("PickRuleButton").visible = true;
+        content.Q<ListView>("FactList").visible = true;
+        content.Q<TextField>("FactFilter").visible = true;
+        content.Q<ListView>("RuleList").visible = true;
+        content.Q<Button>("SaveToFile").visible = true;
+        content.Q<Button>("LoadFromFile").visible = true;
+        content.Q<Button>("SaveRuleScript").visible = true;
+        content.Q<Button>("SaveRuleScriptReload").visible = true;
+        content.Q<Button>("RefreshFactValues").visible = true;
+
+        /*
+        var editor = Editor.CreateEditor(rulesDB);
+        var taskInspector = new IMGUIContainer(() => { editor.OnInspectorGUI(); });
+        var rulesDBDrawer = content.Q<VisualElement>("RulesDBDrawer");
+        rulesDBDrawer.Add(taskInspector);
+        */
+
+        var ruleScriptChoices = new List<string>();
+        foreach (var textAsset in rulesDB.generateFrom)
+        {
+            ruleScriptChoices.Add(textAsset.name);
+            if (textAsset.text.Length < 4000)
+            {
+                _ruleScriptField.value = textAsset.text;
+            }
+
+            _currentRuleScript = textAsset;
+            _ruleScriptSelector.SetValueWithoutNotify(textAsset.name);
+        }
+
+        ((INotifyValueChanged<string>) _ruleScriptSelector.labelElement).SetValueWithoutNotify("scriptFile:");
+        _ruleScriptSelector.RegisterCallback<ChangeEvent<string>>(ev =>
+        {
+            var index = Mathf.Max(0, ruleScriptChoices.IndexOf(ev.newValue));
+            if (index > 0 && index < rulesDB.generateFrom.Count)
+            {
+                _currentRuleScript = rulesDB.generateFrom[index];
+                _ruleScriptField.value = rulesDB.generateFrom[index].text;
             }
         });
+        _ruleScriptSelector.choices = ruleScriptChoices;
+
+
+        var saveScriptAndReload = content.Q<Button>("SaveRuleScript");
+        var saveScriptAndReloadIncludingFacts = content.Q<Button>("SaveRuleScriptReload");
+
+        saveScriptAndReload.RegisterCallback<ClickEvent>(evt =>
+        {
+            _factMatcher.LoadFromCSV(_factFileField.value);
+            UpdateListView();
+        });
+        saveScriptAndReloadIncludingFacts.RegisterCallback<ClickEvent>(evt =>
+        {
+            _factMatcher.SaveToCSV(_factFileField.value);
+            var path = AssetDatabase.GetAssetPath(_currentRuleScript);
+            StreamWriter writer = new StreamWriter(path, false);
+            writer.Write(_ruleScriptField.value);
+            writer.Close();
+            AssetDatabase.ImportAsset(path);
+
+            _factMatcher.Reload();
+            _factMatcher.LoadFromCSV(_factFileField.value);
+            UpdateListView();
+        });
+
+
+        button.RegisterCallback<ClickEvent>(evt => { _factMatcher.PickRules(); });
+
+        var saveButton = content.Q<Button>("SaveToFile");
+        saveButton.RegisterCallback<ClickEvent>(evt => { _factMatcher.SaveToCSV(_factFileField.value); });
+
+        var loadButton = content.Q<Button>("LoadFromFile");
+        loadButton.RegisterCallback<ClickEvent>(evt =>
+        {
+            _factMatcher.LoadFromCSV(_factFileField.value);
+            UpdateListView();
+        });
+        
+        content.Q<Button>("RefreshFactValues").RegisterCallback<ClickEvent>(evt =>
+                                                      {
+                                                          UpdateListView();
+                                                      });
+
+        _factListView = content.Q<ListView>("FactList");
+        _factFilterField = content.Q<TextField>("FactFilter");
+        _factFilterField.value = "";
+        _factListView.makeItem = () => FactEntryController.MakeItem(FactItemVisAss);
+        _factListView.bindItem = (element, i) => FactEntryController.BindItem(element, i, _factTests, _factMatcher);
+        _factFilterField.RegisterCallback<ChangeEvent<string>>(evt => { UpdateListView(); });
+        _factListView.itemsSource = _factTests;
+        UpdateListView();
+        _factListView.fixedItemHeight = 16.0f;
+
+
+        _ruleListView = content.Q<ListView>("RuleList");
+        _ruleListView.makeItem = () => FactRulesListViewController.MakeItem(RuleListViewItemAss);
+        _ruleListView.bindItem = (element, i) => FactRulesListViewController.BindItem(element, i, _rulesDatas, _factMatcher);
+        _ruleListView.itemsSource = _rulesDatas;
+
+        _ruleFilterField.RegisterCallback<ChangeEvent<string>>(evt => { UpdateListViewRules(); });
+        UpdateListViewRules();
+        _ruleListView.fixedItemHeight = 18.0f;
+
+        FactEntryController.factChanged -= OnFactChangedFromFactsList();
+        FactEntryController.factChanged += OnFactChangedFromFactsList();
+        FactRulesListViewController.factChanged -= OnFactChangedFromFactsAndRulesList();
+        FactRulesListViewController.factChanged += OnFactChangedFromFactsAndRulesList();
+    }
+
+    private Action<int> OnFactChangedFromFactsAndRulesList()
+    {
+        return i =>
+        {
+            if (_factMatcher != null && _factMatcher.ruleDB != null)
+            {
+                _factListView.RefreshItems();
+                _ruleListView.RefreshItems();
+            }
+        };
+    }
+
+    private Action<int> OnFactChangedFromFactsList()
+    {
+        return i =>
+        {
+                    
+            if (_factMatcher != null && _factMatcher.ruleDB != null)
+            {
+                _ruleListView.RefreshItems();
+            }
+        };
     }
 
     private void OnRulesParsed()
     {
-        if (factaMatcha.HasDataToDispose())
+        if (_factMatcher.HasDataToDispose())
         {
-            factaMatcha.DisposeData();
+            _factMatcher.DisposeData();
         }
-        factaMatcha.Init();
+        _factMatcher.Init();
     }
 
     private void OnInited()
@@ -208,7 +314,7 @@ public class RuleDBWindow : EditorWindow
 
     private void OnRulePicked(int noOfBestRules)
     {
-        var rule = noOfBestRules >= 1 ? factaMatcha.GetRuleFromMatches(0) : null;
+        var rule = noOfBestRules >= 1 ? _factMatcher.GetRuleFromMatches(0) : null;
         if (rule!=null)
         {
             _lastPickedRule.text = $"Last Picked rule  {rule.ruleName} payload {rule.payload} and ruleID {rule.RuleID}";
@@ -223,9 +329,9 @@ public class RuleDBWindow : EditorWindow
     
     void UpdateListView()
     {
-        if (factaMatcha != null && factaMatcha.ruleDB != null)
+        if (_factMatcher != null && _factMatcher.ruleDB != null)
         {
-            var factTests = factaMatcha.ruleDB.CreateFlattenedFactTestListWithNoDuplicateFactIDS(entry =>
+            var factTests = _factMatcher.ruleDB.CreateFlattenedFactTestListWithNoDuplicateFactIDS(entry =>
             {
                 var splits = _factFilterField.text.Split("|");
                 bool include = false;
@@ -249,7 +355,7 @@ public class RuleDBWindow : EditorWindow
     
     void UpdateListViewRules()
     {
-        if (factaMatcha != null && factaMatcha.ruleDB != null)
+        if (_factMatcher != null && _factMatcher.ruleDB != null)
         {
             createRuleDatas();
             _ruleListView.itemsSource = _rulesDatas;
@@ -259,7 +365,44 @@ public class RuleDBWindow : EditorWindow
 
     private void createRuleDatas()
     {
-        var factTestsFromRulesFlattened = factaMatcha.ruleDB.CreateFlattenedRuleAtomListWithPotentiallyDuplicateFactIDS();
+        var factTestsFromRulesFlattened = _factMatcher.ruleDB.CreateFlattenedRuleAtomListWithPotentiallyDuplicateFactIDS(entry =>
+        {
+            if (_ruleFilterField.value.Length == 0) return true;
+            
+            var splits = _ruleFilterField.text.Split(",");
+            bool include = false;
+            for (int i = 0; i < splits.Length; i++)
+            {
+
+                var test = splits[i].Trim();
+                var invert = test.StartsWith("!");
+                var or = test.StartsWith("|");
+                var and = test.StartsWith("&");
+                test = test.Trim('!');
+                test = test.Trim('&');
+                test = test.Trim('|');
+                var rule = _factMatcher.GetRuleFromRuleID(entry.ruleOwnerID);
+                var includeTest = rule.ruleName.Contains(test);
+                if (invert)
+                {
+                    includeTest= !includeTest;
+                }
+                if (and)
+                {
+                    include = includeTest && include;
+                }
+                if (includeTest && or)
+                {
+                    include = includeTest || include;
+                }
+
+                if (!or && !and)
+                {
+                    include = includeTest;
+                }
+            }
+            return include;
+        });
         if (_rulesDatas == null)
         {
             _rulesDatas = new List<FactRulesListViewController.Data>();
@@ -272,7 +415,7 @@ public class RuleDBWindow : EditorWindow
             if (lastRuleID != ruleDBFactTest.ruleOwnerID)
             {
                 var ruleData = new FactRulesListViewController.Data();
-                ruleData.text = factaMatcha.GetRuleFromRuleID(ruleDBFactTest.ruleOwnerID).ruleName;
+                ruleData.text = _factMatcher.GetRuleFromRuleID(ruleDBFactTest.ruleOwnerID).ruleName;
                 ruleData.isRule = true;
                 ruleData.ruleIndex = ruleDBFactTest.ruleOwnerID;
                 ruleData.factIndex = -1;
@@ -283,10 +426,7 @@ public class RuleDBWindow : EditorWindow
 
             data.ruleIndex = ruleDBFactTest.ruleOwnerID;
             data.factIndex = ruleDBFactTest.factID;
-            //var matchValue = factaMatcha.PrintableFactValueFromFactTest(ruleDBFactTest);
-            //(ruleDBFactTest.compareType == FactValueType.Value) ? $"{ruleDBFactTest.matchValue}" : ruleDBFactTest.matchString;
-
-            data.factValueText = $"{factaMatcha.PrintableFactValueFromFactTest(ruleDBFactTest)}";
+            data.factValueText = $"{_factMatcher.PrintableFactValueFromFactTest(ruleDBFactTest)}";
 
             var strictOrNot = ruleDBFactTest.isStrict ? "" : "?";
             data.text =
@@ -300,14 +440,19 @@ public class RuleDBWindow : EditorWindow
     private void OnDestroy()
     {
 
-        if (factaMatcha.ruleDB != null)
+        FactEntryController.factChanged -= OnFactChangedFromFactsList();
+        FactRulesListViewController.factChanged -= OnFactChangedFromFactsAndRulesList();
+        if (_factMatcher != null)
         {
-            factaMatcha.ruleDB.OnRulesParsed -= OnRulesParsed;
-        }
-        factaMatcha.OnRulePicked -= OnRulePicked;
-        if (factaMatcha != null && factaMatcha.HasDataToDispose())
-        {
-            factaMatcha.DisposeData();
+            if (_factMatcher.ruleDB != null)
+            {
+                _factMatcher.ruleDB.OnRulesParsed -= OnRulesParsed;
+            }
+            _factMatcher.OnRulePicked -= OnRulePicked;
+            if (_factMatcher.HasDataToDispose())
+            {
+                _factMatcher.DisposeData();
+            }
         }
     }
 }
