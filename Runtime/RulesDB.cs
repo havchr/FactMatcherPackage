@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Text;
 using FactMatching;
+#if UNITY_EDITOR
 using UnityEditor;
+#endif
 using UnityEngine;
 
 public enum FactValueType
@@ -191,7 +193,9 @@ public class RulesDB : ScriptableObject
             foreach (var ruleScript in generateFrom)
             {
                 var parser = new RuleScriptParser();
-                var path= AssetDatabase.GetAssetPath(ruleScript);
+                var path = "";
+                #if UNITY_EDITOR
+                path= AssetDatabase.GetAssetPath(ruleScript);
                 var lastIndexOf = path.LastIndexOf('/');
                 if (lastIndexOf == -1)
                 {
@@ -202,6 +206,7 @@ public class RulesDB : ScriptableObject
                 {
                     path = path.Substring(0, lastIndexOf +1);
                 }
+                #endif
                 parser.GenerateFromText(ruleScript.text, rules, ref factID, ref addedFactIDS, ref ruleID,path);
             }
 
