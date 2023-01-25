@@ -1,25 +1,38 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using UnityEngine;
 
 namespace FactMatching
 {
     public class RuleScriptParser  
     {
+        /*
+         * This file parses RuleScripts for the FactMatcher system.
+         * Given a file that complies to the RuleScript syntax, it works,
+         * but the code is very winding and not that robust in terms of
+         * readability, parsing speed and communicating parsing errors.
+         *
+         * For the future refactoring this code would be nice.
+         */
         
         public enum RuleScriptParserEnum
         {
-            ParsingRule,ParsingResponse,ParsingFactWrite,LookingForRule,ParsingPayloadObject,
+            ParsingRule,ParsingResponse,ParsingFactWrite,LookingForRule,ParsingPayloadObject,ParsingTemplate
         }
         
         public enum RuleScriptParserKeywordEnum
         {
-            KeywordEND,KeywordRESPONSE,KeywordWRITE,KeywordPAYLOAD,NoKeyword
+            KeywordEND,KeywordRESPONSE,KeywordWRITE,KeywordPAYLOAD,NoKeyword,KeywordTEMPLATE,KeywordTEMPLATE_END,
         }
 
         static private Dictionary<string, RuleScriptParserKeywordEnum> _keywordEnums;
+        const string template_keyword = ".template";
+        private static int _lineNumber = 0;
+        private static int _templateLineNumber = 0;
 
         static RuleScriptParser()
         {
@@ -28,10 +41,13 @@ namespace FactMatching
             _keywordEnums[".end"] = RuleScriptParserKeywordEnum.KeywordEND;
             _keywordEnums[".then response"] = RuleScriptParserKeywordEnum.KeywordRESPONSE;
             _keywordEnums[".then payload"] = RuleScriptParserKeywordEnum.KeywordPAYLOAD;
+            _keywordEnums[template_keyword] = RuleScriptParserKeywordEnum.KeywordTEMPLATE;
+            _keywordEnums[".template_end"] = RuleScriptParserKeywordEnum.KeywordTEMPLATE_END;
         }
         RuleScriptParserKeywordEnum LookForKeywordInLine(string line)
         {
-            var key = line.Trim().ToLower();
+            var lineSplit = line.Trim().ToLower().Split('=');
+            var key = lineSplit[0].Trim();
             if (_keywordEnums.ContainsKey(key))
             {
                 return _keywordEnums[key];
@@ -40,7 +56,7 @@ namespace FactMatching
         }
         
         
-        public void GenerateFromText(string text,List<RuleDBEntry> rules,ref int factID,ref Dictionary<string,int> addedFactIDNames,ref int ruleID)
+        public void GenerateFromText(string text,List<RuleDBEntry> rules,ref int factID,ref Dictionary<string,int> addedFactIDNames,ref int ruleID,string folderPath)
         {
 
             RuleScriptParserEnum state = RuleScriptParserEnum.LookingForRule;
@@ -48,12 +64,40 @@ namespace FactMatching
             RuleDBEntry currentRule = null;
             StringBuilder payload = new StringBuilder();
             ScriptableObject payloadObject = null;
-            using (System.IO.StringReader reader = new System.IO.StringReader(text))
+            string templatePath = "";
+            Dictionary<string,string> templateArguments = new Dictionary<string, string>();
+            
+            //If a RuleScript references a template file, we replace the currentReader with reading from the
+            //template before returning the currentReader to the original reader
+            System.IO.StringReader originalReader = new System.IO.StringReader(text);
+            System.IO.StringReader currentReader = originalReader;
+            _lineNumber = 0;
+            _templateLineNumber = 0;
+            try
+                //using (System.IO.StringReader reader = new System.IO.StringReader(text))
             {
                 string line;
                 int orGroupID = 0;
-                while ( (line = reader.ReadLine()) !=null)
+                while ((line = currentReader.ReadLine()) != null || currentReader != originalReader)
                 {
+                    if (line == null && currentReader != originalReader)
+                    {
+                        if (currentReader != null)
+                        {
+                            currentReader.Dispose(); 
+                        }
+                        currentReader = originalReader;
+                        continue;
+                    }
+
+                    if (currentReader == originalReader)
+                    {
+                        _lineNumber++;
+                    }
+                    else
+                    {
+                        _templateLineNumber++;
+                    }
                     //-- in ruleScript is a comment , except if we are parsing a response..
                     if (state != RuleScriptParserEnum.ParsingResponse)
                     {
@@ -62,17 +106,47 @@ namespace FactMatching
                             continue;
                         }
                     }
-	            
+
+                    if (state == RuleScriptParserEnum.ParsingTemplate)
+                    {
+                        var keyword = LookForKeywordInLine(line);
+                        if (keyword != RuleScriptParserKeywordEnum.KeywordTEMPLATE_END)
+                        {
+                            if (line.StartsWith("%"))
+                            {
+
+                                var templateVariable = line.Split("=")[0].Trim();
+                                var argument = line.Split("=")[1].Trim();
+                                templateArguments[templateVariable] = argument;
+                            }
+                        }
+                        else
+                        {
+                            currentReader = HandleTheTemplateFile(templatePath, templateArguments);
+                            state = RuleScriptParserEnum.LookingForRule;
+                            continue;
+                        }
+                    }
+
                     if (state == RuleScriptParserEnum.LookingForRule)
                     {
-                        var noKeyword = LookForKeywordInLine(line) == RuleScriptParserKeywordEnum.NoKeyword;
+                        var keyword = LookForKeywordInLine(line);
+                        var noKeyword = keyword == RuleScriptParserKeywordEnum.NoKeyword;
+                        if (keyword == RuleScriptParserKeywordEnum.KeywordTEMPLATE)
+                        {
+                            templatePath = folderPath + line.Split('=')[1].Trim();
+                            state = RuleScriptParserEnum.ParsingTemplate;
+                            templateArguments = new Dictionary<string, string>();
+                            _templateLineNumber = 0;
+                        }
+
                         if (noKeyword && line.Length > 0 && line[0] == '.')
                         {
                             //Todo - Rules should start with .
                             //Should give error if not the case... 
                             state = RuleScriptParserEnum.ParsingRule;
                             line = line.Trim().Split(' ')[0];
-                            var ruleNames = line.Split( '.');
+                            var ruleNames = line.Split('.');
                             var finalName = new StringBuilder();
                             var derived = new StringBuilder("");
                             bool foundDerived = false;
@@ -83,10 +157,10 @@ namespace FactMatching
                             //We should see if we can derive from NickHit.Allies ... and so on.
                             while (!foundDerived && lastIndex > 1)
                             {
-                            
-                                finalName.Clear(); 
+
+                                finalName.Clear();
                                 derived.Clear();
-                                for(int i=1; i < lastIndex; i++)
+                                for (int i = 1; i < lastIndex; i++)
                                 {
                                     finalName.Append($"{ruleNames[i]}");
                                     if (i < lastIndex - 1)
@@ -108,6 +182,7 @@ namespace FactMatching
                                         foundDerived = true;
                                     }
                                 }
+
                                 lastIndex--;
                                 //Debug.Log($"derived is {derived} and foundDerived is {foundDerived} and lastIndex {lastIndex} and finalName is {finalName}");
                             }
@@ -122,38 +197,35 @@ namespace FactMatching
                                 {
                                     foreach (var factTest in parsedFactTests[derived.ToString()])
                                     {
-                                
+
                                         //Debug.Log($"for rule {currentRule.ruleName} - Adding factTest {factTest.factName} from derived {derived}");
                                         //To ensure proper serialization and avoid bugs, we make a new copy of factTest
                                         RuleDBFactTestEntry copyFactTest = new RuleDBFactTestEntry(factTest);
-                                        currentRule.factTests.Add(copyFactTest); 
+                                        currentRule.factTests.Add(copyFactTest);
                                     }
                                 }
                             }
-                            Debug.Log($"line is {line}");
-                            Debug.Log($"FinalName is {finalName} and derived is {derived}");
-					
                         }
                     }
 
                     if (state == RuleScriptParserEnum.ParsingRule)
                     {
-                        ParseFactTests(line, currentRule,ref orGroupID);
+                        ParseFactTests(line, currentRule, ref orGroupID);
                         switch (LookForKeywordInLine(line))
                         {
-                           case RuleScriptParserKeywordEnum.KeywordWRITE: 
-                               state = RuleScriptParserEnum.ParsingFactWrite;
-                            break;
-                           case RuleScriptParserKeywordEnum.KeywordRESPONSE:
-                               state = RuleScriptParserEnum.ParsingResponse;
-                               payload.Clear();
-                            break;
-                           case RuleScriptParserKeywordEnum.KeywordPAYLOAD:
-                               state = RuleScriptParserEnum.ParsingPayloadObject;
-                               payload.Clear();
-                            break;
+                            case RuleScriptParserKeywordEnum.KeywordWRITE:
+                                state = RuleScriptParserEnum.ParsingFactWrite;
+                                break;
+                            case RuleScriptParserKeywordEnum.KeywordRESPONSE:
+                                state = RuleScriptParserEnum.ParsingResponse;
+                                payload.Clear();
+                                break;
+                            case RuleScriptParserKeywordEnum.KeywordPAYLOAD:
+                                state = RuleScriptParserEnum.ParsingPayloadObject;
+                                payload.Clear();
+                                break;
                         }
-                    
+
                     }
                     else if (state == RuleScriptParserEnum.ParsingFactWrite)
                     {
@@ -161,14 +233,14 @@ namespace FactMatching
                         ParseFactWrites(line, currentRule);
                         switch (LookForKeywordInLine(line))
                         {
-                           case RuleScriptParserKeywordEnum.KeywordRESPONSE:
-                               state = RuleScriptParserEnum.ParsingResponse;
-                               payload.Clear();
-                            break;
-                           case RuleScriptParserKeywordEnum.KeywordPAYLOAD:
-                               state = RuleScriptParserEnum.ParsingPayloadObject;
-                               payload.Clear();
-                            break;
+                            case RuleScriptParserKeywordEnum.KeywordRESPONSE:
+                                state = RuleScriptParserEnum.ParsingResponse;
+                                payload.Clear();
+                                break;
+                            case RuleScriptParserKeywordEnum.KeywordPAYLOAD:
+                                state = RuleScriptParserEnum.ParsingPayloadObject;
+                                payload.Clear();
+                                break;
                         }
                     }
                     else if (state == RuleScriptParserEnum.ParsingPayloadObject)
@@ -188,7 +260,7 @@ namespace FactMatching
                                     break;
                                 case RuleScriptParserKeywordEnum.KeywordRESPONSE:
                                     state = RuleScriptParserEnum.ParsingResponse;
-                               break;
+                                    break;
                             }
                         }
                         else
@@ -198,8 +270,8 @@ namespace FactMatching
                     }
                     else if (state == RuleScriptParserEnum.ParsingResponse)
                     {
-                        
-                        
+
+
                         var keyword = LookForKeywordInLine(line);
                         if (keyword == RuleScriptParserKeywordEnum.KeywordEND)
                         {
@@ -210,17 +282,17 @@ namespace FactMatching
                             payloadObject = null;
                             if (rules.Any(entry => entry.ruleName.Equals(currentRule.ruleName)))
                             {
-                               Debug.LogError($"Allready Contains a rule named {currentRule.ruleName} - will not add"); 
+                                Debug.LogError($"Allready Contains a rule named {currentRule.ruleName} - will not add");
                             }
                             else
                             {
                                 //Assigns an unique (to the RuleDB) ID to each fact
-                                SetFactID(currentRule, ref addedFactIDNames,ref factID,ruleID);
+                                SetFactID(currentRule, ref addedFactIDNames, ref factID, ruleID);
                                 currentRule.RuleID = ruleID;
                                 ruleID++;
                                 rules.Add(currentRule);
                             }
-                        
+
                             //adding all our factTests into the factTest array for deriving to work..
                             foreach (var factTest in currentRule.factTests)
                             {
@@ -229,6 +301,7 @@ namespace FactMatching
                                 {
                                     parsedFactTests[currentRule.ruleName] = new List<RuleDBFactTestEntry>();
                                 }
+
                                 parsedFactTests[currentRule.ruleName].Add(factTest);
                             }
                         }
@@ -240,6 +313,17 @@ namespace FactMatching
 
                 }
             }
+            finally
+            {
+                if (originalReader!= null)
+                {
+                   originalReader.Dispose();
+                }
+                if (originalReader!= null)
+                {
+                   originalReader.Dispose();
+                }
+            }
 
             //Sort rules on orGroupRuleID so we can check orGroups sequentially.
             foreach (var rule in rules)
@@ -247,6 +331,31 @@ namespace FactMatching
                 rule.factTests.Sort((factTest1, factTest2) => factTest1.orGroupRuleID - factTest2.orGroupRuleID);
                 
             }
+        }
+
+        private StringReader HandleTheTemplateFile(string templatePath, Dictionary<string, string> templateArguments)
+        {
+            StringBuilder builder = new StringBuilder();
+            using (FileStream fs = File.Open(templatePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (BufferedStream bs = new BufferedStream(fs))
+            using (StreamReader sr = new StreamReader(bs))
+            {
+                string line;
+                while ((line = sr.ReadLine()) != null)
+                {
+                    if (line.StartsWith("--"))
+                    {
+                        continue;
+                    }
+                    foreach (var keyVal in templateArguments)
+                    {
+                        line = line.Replace(keyVal.Key, keyVal.Value);
+                        
+                    }
+                    builder.AppendLine(line);
+                }
+            }
+            return new StringReader(builder.ToString());
         }
 
         private static void SetFactID(RuleDBEntry currentRule, ref Dictionary<string,int> addedFactIDNames, ref int factID, int ruleID)
@@ -362,10 +471,11 @@ namespace FactMatching
             {
                 if (line.Trim().Contains(operand.Item1,StringComparison.InvariantCultureIgnoreCase))
                 {
-                    var splits = line.Split(new[] {operand.Item1}, StringSplitOptions.RemoveEmptyEntries);
+                    var splits = Regex.Split(line, operand.Item1, RegexOptions.IgnoreCase).Where(s => s.Length > 0).ToArray();
+                    //var splits = line.Split(new[] {operand.Item1}, StringSplitOptions.RemoveEmptyEntries);
                     if (splits.Length != 2)
                     {
-                        Debug.LogError("Error case - Operand split trouble");
+                        Debug.LogError($"Error case - Operand split trouble , lineNumber = {_lineNumber} and templateLineNumber {_templateLineNumber}");
                     }
                     else
                     {

@@ -191,7 +191,18 @@ public class RulesDB : ScriptableObject
             foreach (var ruleScript in generateFrom)
             {
                 var parser = new RuleScriptParser();
-                parser.GenerateFromText(ruleScript.text, rules, ref factID, ref addedFactIDS, ref ruleID);
+                var path= AssetDatabase.GetAssetPath(ruleScript);
+                var lastIndexOf = path.LastIndexOf('/');
+                if (lastIndexOf == -1)
+                {
+                    lastIndexOf = path.LastIndexOf('\\');
+                }
+
+                if (lastIndexOf != -1)
+                {
+                    path = path.Substring(0, lastIndexOf +1);
+                }
+                parser.GenerateFromText(ruleScript.text, rules, ref factID, ref addedFactIDS, ref ruleID,path);
             }
 
             OnRulesParsed?.Invoke();

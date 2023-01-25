@@ -19,7 +19,7 @@ To create rules - FactMatcher parses text files called RuleScripts, which follow
 -- Naming conventions , snake_case. 
 -- Keywords are written in upper caps.
 -- Indentation is optional, but makes it easier to read for humans.
-.rule_name IF
+.rule_name_with_template_ IF
     fact_test_string_example = hello world
     fact_test_value_example >= 1337
    ?weak_fact_test_example = 99
@@ -81,6 +81,34 @@ if (factMatcher != null && factMatcher.HasDataToDispose())
 	factMatcher.DisposeData();
 	factMatcher = null;
 }
+
+== Template support ==
+One can create rules that are templates for other rules.
+Here is template_example.rule
+
+.template_rule_%0 IF
+	test = %1
+	bunch_of_other_tests_1 = 8
+	bunch_of_other_tests_2 = 9
+.THEN RESPONSE
+Hello %2
+.END
+
+and then one could write a rulescript that references 
+the template file like this
+
+.TEMPLATE = template_example.rule
+	%0 = example
+	%1 = test_string
+	%2 = World
+.TEMPLATE_END
+
+and this would now insert a rule that is called
+template_rule_example
+with a test for 
+test = test_string
+and the response would be Hello World.
+
 
 Getting the FactID is quite cumbersome.
 Usually you would create a system that caches all the FactIDS you want 
