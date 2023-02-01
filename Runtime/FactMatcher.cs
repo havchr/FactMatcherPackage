@@ -185,8 +185,6 @@ public class FactMatcher
         for (int i = 0; i < _noOfRulesWithBestMatch[0]; i++)
         {
             var rule = ruleDB.RuleFromID(_rules[_allRulesMatches[i]].ruleFiredEventId);
-            Debug.Log(
-                $"The result of the best match {i + 1} of {_noOfRulesWithBestMatch[0]} is: {rule.payload} with {_bestRuleMatches[0]} matches and it took {sw.ElapsedMilliseconds} ms and payloadID {rule.payloadStringID}");
             if (!ruleDB.FactWriteToAllThatMatches)
             {
                 HandleFactWrites(ruleDB.RuleFromID(_rules[_allRulesMatches[i]].ruleFiredEventId));
