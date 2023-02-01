@@ -66,6 +66,7 @@ namespace FactMatching
             ScriptableObject payloadObject = null;
             string templatePath = "";
             Dictionary<string,string> templateArguments = new Dictionary<string, string>();
+            List<RuleDBFactTestEntry> derivedFactTests = new List<RuleDBFactTestEntry>();
             
             //If a RuleScript references a template file, we replace the currentReader with reading from the
             //template before returning the currentReader to the original reader
@@ -142,6 +143,7 @@ namespace FactMatching
 
                         if (noKeyword && line.Length > 0 && line[0] == '.')
                         {
+                            derivedFactTests.Clear();
                             //Todo - Rules should start with .
                             //Should give error if not the case... 
                             state = RuleScriptParserEnum.ParsingRule;
@@ -201,6 +203,7 @@ namespace FactMatching
                                         //Debug.Log($"for rule {currentRule.ruleName} - Adding factTest {factTest.factName} from derived {derived}");
                                         //To ensure proper serialization and avoid bugs, we make a new copy of factTest
                                         RuleDBFactTestEntry copyFactTest = new RuleDBFactTestEntry(factTest);
+                                        derivedFactTests.Add(copyFactTest);
                                         currentRule.factTests.Add(copyFactTest);
                                     }
                                 }
@@ -210,7 +213,7 @@ namespace FactMatching
 
                     if (state == RuleScriptParserEnum.ParsingRule)
                     {
-                        ParseFactTests(line, currentRule, ref orGroupID);
+                        ParseFactTests(line, currentRule, ref orGroupID,ref derivedFactTests);
                         switch (LookForKeywordInLine(line))
                         {
                             case RuleScriptParserKeywordEnum.KeywordWRITE:
@@ -451,7 +454,7 @@ namespace FactMatching
             
         }
 
-        private static void ParseFactTests(string line, RuleDBEntry currentRule, ref int orGroupID)
+        private static void ParseFactTests(string line, RuleDBEntry currentRule, ref int orGroupID, ref List<RuleDBFactTestEntry> derived)
         {
             
             var operands = new List<(string, RuleDBFactTestEntry.Comparision)>
@@ -511,10 +514,10 @@ namespace FactMatching
                         
                         //If we have added a rule - from derived - but are overwriting that fact-query , then delete the 
                         //derived rule , or else we would get two conflicting rule atoms in our rule...
-                        if (!isOrRule && currentRule.factTests.Any(entry => entry.factName.Equals(factTestEntry.factName)))
+                        if (derived.Any(entry => entry.factName.Equals(factTestEntry.factName)))
                         {
-                            currentRule.factTests.Remove(currentRule.factTests.Find(entry =>
-                                entry.factName.Equals(factTestEntry.factName)));
+                            currentRule.factTests.Remove(currentRule.factTests.Find(entry => entry.factName.Equals(factTestEntry.factName)));
+                            derived.Remove(derived.Find(entry => entry.factName.Equals(factTestEntry.factName)));
                         }
 
                         if (factTestEntry.compareMethod == RuleDBFactTestEntry.Comparision.Range)
