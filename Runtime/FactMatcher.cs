@@ -234,6 +234,21 @@ public class FactMatcher
                         $"Writing String {factWrite.writeString} into fact {factWrite.factName} with factID {factWrite.factID}");
                     _factValues[factWrite.factID] = ruleDB.StringId(factWrite.writeString);
                     break;
+                case RuleDBFactWrite.WriteMode.SetToOtherFactValue:
+                    LogWritebacks(
+                        $"setting value of factID {(int)factWrite.writeValue} into fact {factWrite.factName} with factID {factWrite.factID}");
+                    _factValues[factWrite.factID] = _factValues[(int)factWrite.writeValue];
+                    break;
+                case RuleDBFactWrite.WriteMode.IncrementByOtherFactValue:
+                    LogWritebacks(
+                        $"increment by value of factID {(int)factWrite.writeValue} onto fact {factWrite.factName} with factID {factWrite.factID}");
+                    _factValues[factWrite.factID] += _factValues[(int)factWrite.writeValue];
+                    break;
+                case RuleDBFactWrite.WriteMode.SubtractByOtherFactValue:
+                    LogWritebacks(
+                        $"increment by value of factID {(int)factWrite.writeValue} onto fact {factWrite.factName} with factID {factWrite.factID}");
+                    _factValues[factWrite.factID] -= _factValues[(int)factWrite.writeValue];
+                    break;
             }
         }
     }
