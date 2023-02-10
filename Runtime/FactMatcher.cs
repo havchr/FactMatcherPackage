@@ -140,6 +140,29 @@ public class FactMatcher
         OnInited?.Invoke();
     }
 
+    //returns -1 if Not inited
+    public int GetMemorySizeInBytesForDatabase()
+    {
+
+        if (_hasBeenInited)
+        {
+            int bytes = 0;
+            bytes += _factValues.Length * sizeof(float);
+            bytes += _rules.Length * Rule.SizeInBytes();
+            bytes += _factTests.Length * FactTest.SizeInBytes();
+            bytes += _bestRule.Length * sizeof(int);
+            bytes += _bestRuleMatches.Length * sizeof(int);
+            bytes += _allRuleIndices.Length * sizeof(int);
+            bytes += _allRulesMatches.Length * sizeof(int);
+            bytes += _allMatchesForAllRules.Length * sizeof(int);
+            bytes += _noOfRulesWithBestMatch.Length * sizeof(int);
+            bytes += _noOfRulesWithBestMatch.Length * Settings.SizeInBytes();
+            return bytes;
+        }
+
+        return -1;
+    }
+
     public int GetNumberOfMatchesForRuleID(int ruleID, out bool ruleValid)
     {
         PickRules(false, false);

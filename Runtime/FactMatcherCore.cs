@@ -10,6 +10,7 @@ namespace FactMatching
     {
         public const int False = 0;
         public const int True = 1;
+        
     }
     
     public struct Settings 
@@ -19,6 +20,16 @@ namespace FactMatching
         {
             this.FactWriteToAllMatches = factWriteToAllMatches;
             CountAllFactMatches = countAllMatches;
+        }
+        
+        /*
+         * This is used to calculate memory footprint.
+         * Annoying but I think I have to, if I want to avoid
+         * enabling unsafe code
+         */
+        public static int SizeInBytes()
+        {
+            return sizeof(bool) * 2;;
         }
 
         public bool FactWriteToAllMatches;
@@ -37,6 +48,16 @@ namespace FactMatching
             this.orGroupRuleID = orGroupRuleID;
         }
             
+        /*
+         * This is used to calculate memory footprint.
+         * Annoying but I think I have to, if I want to avoid
+         * enabling unsafe code
+         */
+        public static int SizeInBytes()
+        {
+            return sizeof(int) * 3 + sizeof(bool) + FactCompare.SizeInBytes();
+        }
+        
         public readonly int orGroupRuleID;
         public readonly int factID;
         public int ruleID;
@@ -53,6 +74,15 @@ namespace FactMatching
             this.numOfFactTests = numOfFactTests;
         }
 
+        /*
+         * This is used to calculate memory footprint.
+         * Annoying but I think I have to, if I want to avoid
+         * enabling unsafe code
+         */
+        public static int SizeInBytes()
+        {
+            return sizeof(int) * 3;
+        }
         public readonly int ruleFiredEventId;
         public readonly int factTestIndex;
         public readonly int numOfFactTests;
@@ -69,6 +99,7 @@ namespace FactMatching
             this.epsilon = epsilon;
             this.negation = negation;
         }
+
 
         public static FactCompare Equals(float a)
         {
@@ -102,13 +133,23 @@ namespace FactMatching
         {
             return new FactCompare(a,b);
         }
+        
+        /*
+         * This is used to calculate memory footprint.
+         * Annoying but I think I have to, if I want to avoid
+         * enabling unsafe code
+         */
+        public static int SizeInBytes()
+        {
+            return sizeof(float) * 3 + sizeof(bool);
+        }
         public readonly float lowerBound;
         public readonly float upperBound;
         public readonly float epsilon;
         public readonly bool negation;
     }
     
-    public static class  Functions
+    public static class Functions
     {
         public static void CreateNativeRules(RulesDB db, out NativeArray<Rule> rules, out NativeArray<FactTest> factTests)
         {
