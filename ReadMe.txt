@@ -28,6 +28,7 @@ To create rules - FactMatcher parses text files called RuleScripts, which follow
     OR fact_test_or_group_example_3 = pizza
 .THEN WRITE
 	fact_test_value += 3
+	fact_test_value_2 (+=) fact_test_value 
 .THEN PAYLOAD
 	scriptableobject_path_relative_to_a_resource_folder
 .THEN RESPONSE
@@ -45,6 +46,17 @@ An entire OR-GROUP , will only score 1 point if any of its tests passes.
 Next up is examples of writing back to the factValue database. This only gets written
 if the rule scores the most and is picked. You can set a setting so that all the rules that are valid, that is, scores more than 1, also writes back to its rules. What you need depends on how you use the system.
 The .THEN WRITE, is optional, so your rule does not have to write back if it does not want to.
+The syntax, operands supported for writing back is as follows : 
+fact_value += 1337 , adding a number to a fact_value 
+fact_value -= 1337 , subtracting a number to a fact_value 
+fact_value = 909 , setting the fact_value to a number
+fact_value_str = some_string , setting the fact_value to a string 
+
+And variants where you use another fact_value
+fact_value (+=) fact_value_2, adding the value of fact_value_2 to fact_value 
+fact_value (-=) fact_value_2, subtracting the value of fact_value_2 to fact_value 
+fact_value (=) fact_value_2, setting the fact_value to the value of fact_value_2 
+fact_value_str (=) fact_value_str_2, setting the fact_value_str to the value of fact_value_str_2 
 
 The .THEN PAYLOAD , is optional, and expects a line below where the path to a ScriptableObject is located. This is relative to the resource folder.
 

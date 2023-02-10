@@ -24,7 +24,7 @@ public class RuleDBFactWrite
 
     public enum WriteMode
     {
-        SetString,SetValue,IncrementValue,SubtractValue
+        SetString,SetValue,IncrementValue,SubtractValue,SetToOtherFactValue,IncrementByOtherFactValue,SubtractByOtherFactValue
     }
     
 }
@@ -210,8 +210,37 @@ public class RulesDB : ScriptableObject
                 parser.GenerateFromText(ruleScript.text, rules, ref factID, ref addedFactIDS, ref ruleID,path);
             }
 
+            InitFactWriteIndexers(ref addedFactIDS);
             OnRulesParsed?.Invoke();
         }
+    }
+            
+    //FactWrites that are referencing another factID - must now be converted to their factIDS.
+    void InitFactWriteIndexers(ref Dictionary<string, int> addedFactIDS)
+    {
+            foreach (var rule in rules)
+            {
+                foreach( var factWrite in rule.factWrites)
+                {
+                    switch (factWrite.writeMode)
+                    {
+                        case RuleDBFactWrite.WriteMode.SetToOtherFactValue:
+                        case RuleDBFactWrite.WriteMode.IncrementByOtherFactValue:
+                        case RuleDBFactWrite.WriteMode.SubtractByOtherFactValue:
+                            if (addedFactIDS.ContainsKey(factWrite.writeString))
+                            {
+                                //encoding the factID index into the writeValue
+                                factWrite.writeValue = addedFactIDS[factWrite.writeString];
+                            }
+                            else
+                            {
+                                Debug.LogError($"Trying to FactWrite by a non existing other FactValue {factWrite.writeString}");
+                            }
+                            //now convert the name into the factID.
+                            break;
+                    }
+                }
+            }
     }
 
     private Dictionary<string, int> CreateFactIds()

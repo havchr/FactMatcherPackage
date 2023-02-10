@@ -332,7 +332,6 @@ namespace FactMatching
             foreach (var rule in rules)
             {
                 rule.factTests.Sort((factTest1, factTest2) => factTest1.orGroupRuleID - factTest2.orGroupRuleID);
-                
             }
         }
 
@@ -406,6 +405,9 @@ namespace FactMatching
                 ("+=", RuleDBFactWrite.WriteMode.IncrementValue),
                 ("-=", RuleDBFactWrite.WriteMode.SubtractValue),
                 ("=", RuleDBFactWrite.WriteMode.SetString),
+                ("(+=)", RuleDBFactWrite.WriteMode.IncrementByOtherFactValue),
+                ("(-=)", RuleDBFactWrite.WriteMode.SubtractByOtherFactValue),
+                ("(=)", RuleDBFactWrite.WriteMode.SetToOtherFactValue),
                 
             };
             //Operands with multiple characters must be matched prior to operands of lower character..
@@ -439,9 +441,13 @@ namespace FactMatching
                         else
                         {
 
-                            if (factWrite.writeMode != RuleDBFactWrite.WriteMode.SetString)
+                            if (
+                                factWrite.writeMode == RuleDBFactWrite.WriteMode.SetValue
+                                || factWrite.writeMode == RuleDBFactWrite.WriteMode.IncrementValue
+                                || factWrite.writeMode == RuleDBFactWrite.WriteMode.SubtractValue
+                            )
                             {
-                               Debug.LogError("Using wrong operand for string. Only = supported"); 
+                               Debug.LogError("Using wrong operand for string. Only = supported, or (=) (+=) or (-=)"); 
                             }
                             factWrite.writeString = valueMatch;
                         }
@@ -485,7 +491,6 @@ namespace FactMatching
                         RuleDBFactTestEntry factTestEntry = new RuleDBFactTestEntry();
                         factTestEntry.compareMethod = operand.Item2;
                         var factNameOrLogicCandidate = splits[0].Trim();
-                        var isOrRule = false;
                         
                         var startsWithQuestion = factNameOrLogicCandidate.StartsWith("?");
                         var startsWithIF = factNameOrLogicCandidate.StartsWith("IF");
@@ -498,7 +503,6 @@ namespace FactMatching
                             }
                             factTestEntry.factName = factNameOrLogicCandidate.Remove(0,2).Trim();
                             factTestEntry.orGroupRuleID = orGroupID;
-                            isOrRule = true;
                         }
                         else
                         {
