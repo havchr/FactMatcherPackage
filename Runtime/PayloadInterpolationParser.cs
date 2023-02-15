@@ -76,34 +76,6 @@ public class PayloadInterpolationParser
             state = State.AddingValueInterpolation; 
             HandleNewState(ruleDBEntry, addedFactIDS,  state, interpolationVariable, ruleDBEntry.payload.Length-1, valueFormatInterpolation, ref payloadInterpolation);
         }
-
-        int currentInterpolationIndex = 0;
-        StringBuilder strb = new StringBuilder();
-        if( currentInterpolationIndex < ruleDBEntry.interpolations.Count )
-        {
-            RulePayloadInterpolation interpolation = ruleDBEntry.interpolations[currentInterpolationIndex];
-            bool inInterpolation = false;
-            for (int i = 0; i < ruleDBEntry.payload.Length; i++)
-            {
-                if (i >= interpolation.payLoadStringStartIndex && i <=interpolation.payLoadStringEndIndex)
-                {
-                }
-                else
-                {
-                    strb.Append(ruleDBEntry.payload[i]);
-                }
-                if (i == interpolation.payLoadStringEndIndex)
-                {
-                    strb.Append($"FactIndex_{interpolation.factValueIndex}");
-                    currentInterpolationIndex++;
-                    if (currentInterpolationIndex >= ruleDBEntry.interpolations.Count)
-                    {
-                        break;
-                    }
-                    interpolation = ruleDBEntry.interpolations[currentInterpolationIndex];
-                }
-            }
-        }
     }
 
     private static State HandleNewState(RuleDBEntry ruleDBEntry, Dictionary<string, int> addedFactIDS, 

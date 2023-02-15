@@ -148,17 +148,16 @@ public class RuleDBEntry
             if( currentInterpolationIndex < interpolations.Count )
             {
                 RulePayloadInterpolation interpolation = interpolations[currentInterpolationIndex];
-                bool inInterpolation = false;
                 for (int i = 0; i < payload.Length; i++)
                 {
-                    if (i >= interpolation.payLoadStringStartIndex && i <= interpolation.payLoadStringEndIndex)
+                    if (interpolation!= null && i >= interpolation.payLoadStringStartIndex && i <= interpolation.payLoadStringEndIndex)
                     {
                     }
                     else
                     {
                         stringBuilder.Append(payload[i]);
                     }
-                    if (i == interpolation.payLoadStringEndIndex)
+                    if (interpolation!=null && i == interpolation.payLoadStringEndIndex)
                     {
                         if (interpolation.type == FactValueType.String)
                         {
@@ -178,13 +177,16 @@ public class RuleDBEntry
                         currentInterpolationIndex++;
                         if (currentInterpolationIndex >= interpolations.Count)
                         {
-                            break;
+                            interpolation = null;
                         }
-                        interpolation = interpolations[currentInterpolationIndex];
+                        else
+                        {
+                            interpolation = interpolations[currentInterpolationIndex];
+                        }
                     }
                 }
+                return stringBuilder.ToString();
             }
-            return stringBuilder.ToString();
         }
         return payload;
     }
