@@ -113,6 +113,16 @@ public class RuleDBFactTestEntry
 }
 
 [Serializable]
+public class RulePayloadInterpolation
+{
+    public int payLoadStringStartIndex;
+    public int payLoadStringEndIndex;
+    public int factValueIndex;
+    public FactValueType type;
+    public string numberFormat;
+}
+
+[Serializable]
 public class RuleDBEntry
 {
     public int RuleID;
@@ -123,6 +133,61 @@ public class RuleDBEntry
     public ScriptableObject PayloadObject;
     public List<RuleDBFactWrite> factWrites;
     public List<RuleDBFactTestEntry> factTests;
+    public List<RulePayloadInterpolation> interpolations;
+
+    public string Interpolate(FactMatcher matcher,ref StringBuilder stringBuilder)
+    {
+        if (matcher.IsInited)
+        {
+            if (stringBuilder == null)
+            {
+                stringBuilder = new StringBuilder();
+            }
+            stringBuilder.Clear();
+            int currentInterpolationIndex = 0;
+            if( currentInterpolationIndex < interpolations.Count )
+            {
+                RulePayloadInterpolation interpolation = interpolations[currentInterpolationIndex];
+                bool inInterpolation = false;
+                for (int i = 0; i < payload.Length; i++)
+                {
+                    if (i >= interpolation.payLoadStringStartIndex && i <= interpolation.payLoadStringEndIndex)
+                    {
+                    }
+                    else
+                    {
+                        stringBuilder.Append(payload[i]);
+                    }
+                    if (i == interpolation.payLoadStringEndIndex)
+                    {
+                        if (interpolation.type == FactValueType.String)
+                        {
+                            stringBuilder.Append($"{matcher.ruleDB.GetStringFromStringID((int)matcher[interpolation.factValueIndex])}");
+                        }
+                        else if (interpolation.type == FactValueType.Value)
+                        {
+                            if (interpolation.numberFormat.Length > 0)
+                            {
+                                stringBuilder.Append(matcher[interpolation.factValueIndex].ToString(interpolation.numberFormat));
+                            }
+                            else
+                            {
+                                stringBuilder.Append($"{matcher[interpolation.factValueIndex]}");
+                            }
+                        }
+                        currentInterpolationIndex++;
+                        if (currentInterpolationIndex >= interpolations.Count)
+                        {
+                            break;
+                        }
+                        interpolation = interpolations[currentInterpolationIndex];
+                    }
+                }
+            }
+            return stringBuilder.ToString();
+        }
+        return payload;
+    }
 }
 
 [CreateAssetMenu(fileName = "RulesDB", menuName = "FactMatcher/RulesDB", order = 1)]
@@ -138,6 +203,8 @@ public class RulesDB : ScriptableObject
     public List<TextAsset> generateFrom;
     public List<RuleDBEntry> rules;
     public Action OnRulesParsed;
+    
+    private StringBuilder _interpolationBuilder; 
 
     public void InitRuleDB()
     {
@@ -212,6 +279,12 @@ public class RulesDB : ScriptableObject
 
             InitFactWriteIndexers(ref addedFactIDS);
             OnRulesParsed?.Invoke();
+
+            PayloadInterpolationParser payloadInterpolationParser = new PayloadInterpolationParser();
+            foreach (var rule in rules)
+            {
+                payloadInterpolationParser.Parsey(rule,ref addedFactIDS);
+            }
         }
     }
             

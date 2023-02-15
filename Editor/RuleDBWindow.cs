@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
@@ -230,7 +231,10 @@ public class RuleDBWindow : EditorWindow
         });
 
 
-        button.RegisterCallback<ClickEvent>(evt => { _factMatcher.PickRules(); });
+        button.RegisterCallback<ClickEvent>(evt =>
+        {
+            _factMatcher.PickRules();
+        });
 
         var saveButton = content.Q<Button>("SaveToFile");
         saveButton.RegisterCallback<ClickEvent>(evt => { _factMatcher.SaveToCSV(_factFileField.value); });
@@ -318,6 +322,8 @@ public class RuleDBWindow : EditorWindow
         if (rule!=null)
         {
             _lastPickedRule.text = $"Last Picked rule  {rule.ruleName} payload {rule.payload} and ruleID {rule.RuleID}";
+            StringBuilder strBuilder = new StringBuilder();
+            Debug.Log($"interpolated {rule.Interpolate(_factMatcher,ref strBuilder)}");
         }
         else
         {

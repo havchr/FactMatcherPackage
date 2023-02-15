@@ -143,7 +143,6 @@ public class FactMatcher
     //returns -1 if Not inited
     public int GetMemorySizeInBytesForDatabase()
     {
-
         if (_hasBeenInited)
         {
             int bytes = 0;
