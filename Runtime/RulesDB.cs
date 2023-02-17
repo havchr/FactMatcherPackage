@@ -7,9 +7,6 @@ using FactMatching;
 using UnityEditor;
 #endif
 using UnityEngine;
-using JetBrains.Annotations;
-using Mono.CompilerServices.SymbolWriter;
-using Sirenix.OdinInspector;
 
 public enum FactValueType
 {
