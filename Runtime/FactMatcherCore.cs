@@ -10,6 +10,15 @@ namespace FactMatching
     {
         public const int False = 0;
         public const int True = 1;
+       /* 
+        we reserve one slot in our Facts-array
+        as a place where we stash unused values.
+        If we look for a named FactID("some_fact") and find none, we return
+        FactIDDevNull, this makes code that transfers values to factMatcher like this 
+        _factmatcher[FindID("some_fact")] = someValue; not cause an error if 
+        our rules does not contain any tests that uses some_fact
+        */
+        public const int FactIDDevNull= 0;
         
     }
     

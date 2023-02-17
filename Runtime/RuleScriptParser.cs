@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using UnityEngine;
 
+
 namespace FactMatching
 {
     public class RuleScriptParser  
@@ -28,6 +29,7 @@ namespace FactMatching
         {
             KeywordEND,KeywordRESPONSE,KeywordWRITE,KeywordPAYLOAD,NoKeyword,KeywordTEMPLATE,KeywordTEMPLATE_END,
         }
+
 
         static private Dictionary<string, RuleScriptParserKeywordEnum> _keywordEnums;
         const string template_keyword = ".template";
@@ -55,10 +57,8 @@ namespace FactMatching
             return RuleScriptParserKeywordEnum.NoKeyword;
         }
         
-        
-        public void GenerateFromText(string text,List<RuleDBEntry> rules,ref int factID,ref Dictionary<string,int> addedFactIDNames,ref int ruleID,string folderPath)
+        public void GenerateFromText(string text,List<RuleDBEntry> rules,ref int factID,ref Dictionary<string,int> addedFactIDNames,ref int ruleID,string folderPath,TextAsset file,ref RuleScriptParsingProblems problems)
         {
-
             RuleScriptParserEnum state = RuleScriptParserEnum.LookingForRule;
             Dictionary<string,List<RuleDBFactTestEntry>> parsedFactTests = new Dictionary<string, List<RuleDBFactTestEntry>>();
             RuleDBEntry currentRule = null;
@@ -174,7 +174,6 @@ namespace FactMatching
                                             derived.Append(".");
                                         }
                                     }
-
                                 }
 
                                 if (derived.Length > 0)
@@ -183,12 +182,15 @@ namespace FactMatching
                                     {
                                         foundDerived = true;
                                     }
+                                    else
+                                    {
+                                        problems.ReportNewError($"derived is ({derived}) and foundDerived is ({foundDerived}) and finalName is ({finalName})", file, _lineNumber);
+                                    }
                                 }
 
                                 lastIndex--;
-                                //Debug.Log($"derived is {derived} and foundDerived is {foundDerived} and lastIndex {lastIndex} and finalName is {finalName}");
+                                //if (derived.Length > 0) Debug.Log($"derived is ({derived}) and foundDerived is ({foundDerived}) and lastIndex ({lastIndex}) and finalName is ({finalName})");
                             }
-
                             currentRule = new RuleDBEntry {factTests = new List<RuleDBFactTestEntry>(), factWrites = new List<RuleDBFactWrite>(), ruleName = finalName.ToString()};
 
                             //Debug.Log($"Adding factTests from derived {derived}");
@@ -251,7 +253,7 @@ namespace FactMatching
                         var keyword = LookForKeywordInLine(line);
                         if (keyword != RuleScriptParserKeywordEnum.NoKeyword)
                         {
-                            Debug.Log($"payload is {payload} trying to parse that as payload object");
+                            //Debug.Log($"payload is {payload} trying to parse that as payload object");
                             //Try to load resource from payload into payloadObject
                             payloadObject = Resources.Load<ScriptableObject>(payload.ToString());
                             payload.Clear();
@@ -273,8 +275,6 @@ namespace FactMatching
                     }
                     else if (state == RuleScriptParserEnum.ParsingResponse)
                     {
-
-
                         var keyword = LookForKeywordInLine(line);
                         if (keyword == RuleScriptParserKeywordEnum.KeywordEND)
                         {
@@ -285,7 +285,7 @@ namespace FactMatching
                             payloadObject = null;
                             if (rules.Any(entry => entry.ruleName.Equals(currentRule.ruleName)))
                             {
-                                Debug.LogError($"Allready Contains a rule named {currentRule.ruleName} - will not add");
+                                problems.ReportNewError($"Already Contains a rule named {currentRule.ruleName} - will not add", file, _lineNumber);
                             }
                             else
                             {

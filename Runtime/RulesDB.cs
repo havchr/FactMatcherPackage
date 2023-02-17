@@ -1,11 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using FactMatching;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
 using UnityEngine;
+using JetBrains.Annotations;
+using Mono.CompilerServices.SymbolWriter;
+using Sirenix.OdinInspector;
 
 public enum FactValueType
 {
@@ -27,6 +31,87 @@ public class RuleDBFactWrite
         SetString,SetValue,IncrementValue,SubtractValue,SetToOtherFactValue,IncrementByOtherFactValue,SubtractByOtherFactValue
     }
     
+}
+
+public class RuleScriptParsingProblems // Tasked to record the problems encountered when creating the rules for factMacher 
+{
+    private static readonly List<ProblemEntry> problems = new();
+    public enum ProblemType { Error, Warning }
+
+    // Reports new problem (user defined problem type)
+    public void ReportNewProblem(string problemMessage, TextAsset file, int lineNumber, ProblemType problemType)
+    { problems.Add(new ProblemEntry() { File = file, LineNumber = lineNumber, ProblemMessage = problemMessage, ProblemType = problemType.ToString() }); }
+
+    // Reports new problem (auto error user can change)
+    public void ReportNewError(string problemMessage, TextAsset filename, int lineNumber, ProblemType problemType = ProblemType.Error)
+    { problems.Add(new ProblemEntry() { File = filename, LineNumber = lineNumber, ProblemMessage = problemMessage, ProblemType = problemType.ToString() }); }
+
+    // Reports new problem (auto warning user can change)
+    public void ReportNewWarning(string problemMessage, TextAsset filename, int lineNumber, ProblemType problemType = ProblemType.Warning)
+    { problems.Add(new ProblemEntry() { File = filename, LineNumber = lineNumber, ProblemMessage = problemMessage, ProblemType = problemType.ToString() }); }
+    
+    public bool ContainsErrors()
+    {
+        foreach (var problem in problems)
+        {
+            if (problem.ProblemType == ProblemType.Error.ToString())
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public bool ContainsWarnings()
+    {
+        foreach (var problem in problems)
+        {
+            if (problem.ProblemType == ProblemType.Warning.ToString())
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public bool ContainsErrorsOrWarnings()
+    {
+        foreach (var problem in problems)
+        {
+            if (problem.ProblemType == ProblemType.Error.ToString() || problem.ProblemType == ProblemType.Warning.ToString())
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public List<ProblemEntry> GetListOfProblems() // Returns the list of problems and clear the previews problems
+    {
+        List<ProblemEntry> listOfProblems = new (problems);
+        problems.Clear();
+        return listOfProblems;
+    }
+}
+
+[Serializable]
+public class ProblemEntry
+{
+    public string ProblemType;
+    public TextAsset File;
+    public int LineNumber;
+    public string ProblemMessage;
+    public override string ToString()
+    { return $"{ProblemType} occurred in the file: {File}, at line: {LineNumber}, whit the message:\n{ProblemMessage}"; }
+
+    public bool Equals(ProblemEntry other)
+    {
+        if (other == null)
+        {
+            return false;
+        }
+        return (this.LineNumber.Equals(other.LineNumber));
+    }
 }
 
 [Serializable]
@@ -195,7 +280,8 @@ public class RuleDBEntry
 [CreateAssetMenu(fileName = "RulesDB", menuName = "FactMatcher/RulesDB", order = 1)]
 public class RulesDB : ScriptableObject
 {
-
+    public List<ProblemEntry> problemList;
+    [Space(10)]
     public bool PickMultipleBestRules = false;
     public bool FactWriteToAllThatMatches = false;
     public bool CompileToCSharp = false;
@@ -251,20 +337,22 @@ public class RulesDB : ScriptableObject
         return ruleAtoms;
     }
 
-    public void CreateRulesFromRulescripts()
+    public List<ProblemEntry> CreateRulesFromRulescripts()
     {
-        if (generateFrom != null)
+        RuleScriptParsingProblems problems = new();
+        problemList.Clear();
+        if (generateFrom.Count != 0)
         {
             rules.Clear();
-            int factID = 0;
+            int factID = Consts.FactIDDevNull + 1;
             int ruleID = 0;
             Dictionary<string, int> addedFactIDS = new Dictionary<string, int>();
             foreach (var ruleScript in generateFrom)
             {
                 var parser = new RuleScriptParser();
                 var path = "";
-                #if UNITY_EDITOR
-                path= AssetDatabase.GetAssetPath(ruleScript);
+#if UNITY_EDITOR
+                path = AssetDatabase.GetAssetPath(ruleScript);
                 var lastIndexOf = path.LastIndexOf('/');
                 if (lastIndexOf == -1)
                 {
@@ -273,23 +361,32 @@ public class RulesDB : ScriptableObject
 
                 if (lastIndexOf != -1)
                 {
-                    path = path.Substring(0, lastIndexOf +1);
+                    path = path.Substring(0, lastIndexOf + 1);
                 }
-                #endif
-                parser.GenerateFromText(ruleScript.text, rules, ref factID, ref addedFactIDS, ref ruleID,path);
+#endif
+                parser.GenerateFromText(ruleScript.text, rules, ref factID, ref addedFactIDS, ref ruleID, path,
+                    ruleScript, ref problems);
             }
 
             InitFactWriteIndexers(ref addedFactIDS);
-            OnRulesParsed?.Invoke();
-
-            PayloadInterpolationParser payloadInterpolationParser = new PayloadInterpolationParser();
-            foreach (var rule in rules)
+            if (!problems.ContainsErrors())
             {
-                payloadInterpolationParser.Parsey(rule,ref addedFactIDS);
+                rules = SortListByDescending(rules);
+                PayloadInterpolationParser payloadInterpolationParser = new PayloadInterpolationParser();
+                foreach (var rule in rules)
+                {
+                    payloadInterpolationParser.Parsey(rule, ref addedFactIDS);
+                }
+                OnRulesParsed?.Invoke();
+            }
+            else
+            {
+                problems.ReportNewError("generateFrom == null", null, -1);
             }
         }
-    }
-            
+        return problemList = problems.GetListOfProblems();
+    } 
+    
     //FactWrites that are referencing another factID - must now be converted to their factIDS.
     void InitFactWriteIndexers(ref Dictionary<string, int> addedFactIDS)
     {
@@ -366,10 +463,10 @@ public class RulesDB : ScriptableObject
             InitRuleDB();
         }
 
-        int id = -1;
+        int id = Consts.FactIDDevNull;
         if (!FactIdsMap.TryGetValue(str, out id))
         {
-            id = -1;
+            id = Consts.FactIDDevNull;
             Debug.Log($"did not find factID {id} for fact {str}");
         }
         else
@@ -563,4 +660,6 @@ public class RulesDB : ScriptableObject
 
         return null;
     }
+
+    public List<RuleDBEntry> SortListByDescending(List<RuleDBEntry> ruleToSort) { return ruleToSort.OrderByDescending(x => x.factTests.Count).ToList(); }
 }

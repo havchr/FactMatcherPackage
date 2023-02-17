@@ -20,19 +20,40 @@ public class RuleDBEditor : Editor
         _rulesDB = (RulesDB)target;
     }
 
+    List<ProblemEntry> problems = new();
     public override void OnInspectorGUI()
     {
         base.OnInspectorGUI();
-        if(GUILayout.Button("Generate From Rulescripts")) 
+        if(GUILayout.Button("Parse Rulescripts")) 
         {
-            GenerateFromText();
+            problems = ParseRuleScripts();
             EditorUtility.SetDirty(this);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             
-        }    
+        }
+
+        int errors = 0;
+        int warnings = 0;
+        foreach (var problem in problems)
+        {
+            if (problem.ProblemType == RuleScriptParsingProblems.ProblemType.Warning.ToString()) { warnings++; }
+            else if (problem.ProblemType == RuleScriptParsingProblems.ProblemType.Error.ToString()) { errors++; }
+        }
+        if (errors > 0)
+        {
+            EditorGUILayout.HelpBox($"Encounter {errors} error{(errors > 1 ? "s" : "")}", MessageType.Error);
+        }
+        if (warnings > 0)
+        {
+            EditorGUILayout.HelpBox($"Encounter {warnings} warning{(warnings > 1 ? "s" : "")}", MessageType.Warning);
+        }
+        else if (!(errors > 0))
+        {
+            EditorGUILayout.HelpBox($"Encountered no warnings or errors", MessageType.Info);
+        }
     }
-    
+
     [MenuItem("Assets/Create/FactMatcher/RuleScript")]
     private static void CreateRuleScript(MenuCommand command)
     {
@@ -163,7 +184,7 @@ public class RuleDBEditor : Editor
 
         }
         fileNumber++;
-        var finalPath = path + $"{fileNumber}.txt";
+        var finalPath = path + $"{fileNumber}.fmrs.txt";
         return Application.dataPath + finalPath.Split(new[] {"Assets"}, StringSplitOptions.RemoveEmptyEntries)[0];
     }
 
@@ -231,12 +252,12 @@ public class RuleDBEditor : Editor
     }
 
 	
-    private void GenerateFromText()
+    private List<ProblemEntry> ParseRuleScripts()
     {
         var rulesProperty = serializedObject.FindProperty("rules");
         rulesProperty.ClearArray();
-        
-        _rulesDB.CreateRulesFromRulescripts();
+
+        problems = _rulesDB.CreateRulesFromRulescripts();
         if (_rulesDB.CompileToCSharp && _rulesDB.generateFrom!=null)
         {
             GenerateFactIDS();
@@ -252,6 +273,8 @@ public class RuleDBEditor : Editor
                 factTest.ruleOwnerID = rule.RuleID;
             }
         }
+
+        return problems;
     }
 
     
