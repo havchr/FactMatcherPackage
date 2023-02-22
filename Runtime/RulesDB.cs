@@ -298,6 +298,13 @@ public class RulesDB : ScriptableObject
         FactIdsMap = CreateFactIds();
     }
 
+    /// <summary>
+    /// Creates a list of the current info tests and makes sure none have duplicated IDs
+    /// </summary>
+    /// <param name="filter"></param>
+    /// <returns>
+    /// List of factTests
+    /// </returns>
     public List<RuleDBFactTestEntry> CreateFlattenedFactTestListWithNoDuplicateFactIDS(Func<RuleDBFactTestEntry, bool> filter = null)
     {
         List<RuleDBFactTestEntry> factTests = new List<RuleDBFactTestEntry>();

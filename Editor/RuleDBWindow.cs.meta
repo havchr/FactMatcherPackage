@@ -8,8 +8,8 @@ MonoImporter:
   - RuleVisAss: {instanceID: 0}
   - FactItemVisAss: {fileID: 9197481963319205126, guid: e0b5c45f1f3814fbeba9c0378b7ffeb9, type: 3}
   - RuleListViewItemAss: {fileID: 9197481963319205126, guid: a48e4f6ff0fa549648fab7176db9ef8b, type: 3}
-  - WindowXML: {fileID: 9197481963319205126, guid: 32da4dfc3a8c24b41bd17518f0cadaef, type: 3}
-  - Style: {fileID: 7433441132597879392, guid: 8fab6a59ecabc439eb5255ab7f21e856, type: 3}
+  - WindowXML: {fileID: 9197481963319205126, guid: 3344aa428f330d244aadb6fd35bf7c97, type: 3}
+  - Style: {fileID: 7433441132597879392, guid: e14315bc30851d5429c7bb48f6c76b1f, type: 3}
   executionOrder: 0
   icon: {instanceID: 0}
   userData: 

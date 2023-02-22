@@ -1,17 +1,18 @@
-using System;
-using System.Collections;
+using Object = UnityEngine.Object;
 using System.Collections.Generic;
-using System.IO;
+using UnityEditor.UIElements;
+using UnityEngine.UIElements;
 using System.Text;
 using UnityEditor;
-using UnityEditor.UIElements;
 using UnityEngine;
-using UnityEngine.UIElements;
-using Object = UnityEngine.Object;
+using System.IO;
+using System;
 
+/// <summary>
+/// The RuleDBWindow controller
+/// </summary>
 public class RuleDBWindow : EditorWindow 
 {
-    
     public VisualTreeAsset RuleVisAss;
     public VisualTreeAsset FactItemVisAss;
     public VisualTreeAsset RuleListViewItemAss;
@@ -19,8 +20,8 @@ public class RuleDBWindow : EditorWindow
     public VisualTreeAsset WindowXML;
     public StyleSheet Style;
     
-    [MenuItem("Agens/FactMatcher/RuleDB-Window")]
-    public static void ShowMyEditor()
+    [MenuItem("Agens/FactMatcher/RuleDB-Window")] // Menu item to create RuleDB-Window
+    public static void ShowMyEditor() // Starts editor window
     {
         EditorWindow wnd = GetWindow<RuleDBWindow>();
         wnd.titleContent = new GUIContent("RuleDB-Window");
@@ -41,7 +42,10 @@ public class RuleDBWindow : EditorWindow
     
     private bool _factMatcherSelfAllocated = false;
     private FactMatcherProvider _factMatcherProvider;
-    
+
+    /// <summary>
+    /// Generates the GUI also assigns variables for later reassignment of values
+    /// </summary>
     public void CreateGUI()
     {
         var content = new VisualElement();
@@ -58,9 +62,9 @@ public class RuleDBWindow : EditorWindow
         _ruleFilterField = content.Q<TextField>("RuleFilter");
         
         rulesDBField.objectType = typeof(RulesDB);
-        rulesDBField.RegisterCallback<ChangeEvent<Object>>(evt => { onRuleDBFieldChanged(evt, content); });
-        factMatcherProvider.RegisterCallback<ChangeEvent<Object>>(onFactMatcherProviderChanged(content));
-        EditorApplication.playModeStateChanged += change =>
+        rulesDBField.RegisterCallback<ChangeEvent<Object>>(evt => { OnRuleDBFieldChanged(evt, content); });
+        factMatcherProvider.RegisterCallback<ChangeEvent<Object>>(OnFactMatcherProviderChanged(content));
+        EditorApplication.playModeStateChanged += change => // When play-mode is updated
         {
             if (change == PlayModeStateChange.ExitingPlayMode)
             {
@@ -83,30 +87,36 @@ public class RuleDBWindow : EditorWindow
         };
     }
 
-
-    private EventCallback<ChangeEvent<Object>> onFactMatcherProviderChanged(VisualElement content)
+    /// <summary>
+    /// When the fact matcher provider is changed
+    /// </summary>
+    /// <param name="content">
+    /// The FactMatcher UI content
+    /// </param>
+    /// <returns></returns>
+    private EventCallback<ChangeEvent<Object>> OnFactMatcherProviderChanged(VisualElement content)
     {
         return evt =>
         {
             var gob = evt.newValue as GameObject;
             if (gob != null)
             {
-                Component[] comps = gob.GetComponents<MonoBehaviour>();
+                Component[] comps = gob.GetComponents<MonoBehaviour>(); // Creates array whit all monoBehaviours in game
                 foreach (var comp in comps)
                 {
-                    FactMatcherProvider provider = comp as FactMatcherProvider;
-                    if (provider != null)
+                    FactMatcherProvider provider = comp as FactMatcherProvider; 
+                    if (provider != null) // Is there a FactmacherProvider in the current comp
                     {
                         _factMatcherProvider = provider;
-                        if (_factMatcher != null && _factMatcher.HasDataToDispose() && _factMatcherSelfAllocated)
+                        if (_factMatcher != null && _factMatcher.HasDataToDispose() && _factMatcherSelfAllocated) // If we have a _factMatcher and _factMatcher has data to dispose and _factMatcherSelfAllocated
                         {
-                            _factMatcher.DisposeData();
+                            _factMatcher.DisposeData(); // Dispose all data
                             _factMatcher = null;
                         }
                         _factMatcherSelfAllocated = false;
-                        if (provider.GetFactMatcher()!=null && provider.GetFactMatcher().IsInited)
+                        if (provider.GetFactMatcher()!=null && provider.GetFactMatcher().IsInited) // If provider.GetFactMatcher != null && provider.GetFactMacher.IsInited
                         {
-                            InitUIWithFactMatcher(content,provider.GetFactMatcher());
+                            InitUIWithFactMatcher(content,provider.GetFactMatcher()); // Initiate the UI whit the FactMatcher and the visual element
                         }
                         break;
                     }
@@ -115,26 +125,39 @@ public class RuleDBWindow : EditorWindow
         };
     }
 
-    private void onRuleDBFieldChanged(ChangeEvent<Object> evt, VisualElement content)
+    /// <summary>
+    /// When the RuleDB field is changed
+    /// </summary>
+    /// <param name="evt"></param>
+    /// <param name="content">
+    /// The FactMatcher UI content
+    /// </param>
+    private void OnRuleDBFieldChanged(ChangeEvent<Object> evt, VisualElement content)
     {
-        if (_factMatcher != null && _factMatcher.HasDataToDispose() && _factMatcherSelfAllocated)
+        if (_factMatcher != null && _factMatcher.HasDataToDispose() && _factMatcherSelfAllocated) // Dispose date if any
         {
             _factMatcher.DisposeData();
             _factMatcher = null;
         }
 
         var rulesDB = evt.newValue as RulesDB;
-        if (rulesDB != null)
+        if (rulesDB != null) // Initiate if we have a ruesDB
         {
-            Debug.Log("We are initing things.");
+            Debug.Log("We are initialing things.");
             _factMatcherSelfAllocated = true;
             _factMatcher = new FactMatcher(rulesDB);
             _factMatcher.Init(countAllMatches: true);
             InitUIWithFactMatcher(content,_factMatcher);
+            Debug.Log($"_lastPicedRule {_lastPickedRule.text = WindowXML.name}");
         }
     }
 
-    
+    /// <summary>
+    /// Turn everything invisible
+    /// </summary>
+    /// <param name="content">
+    /// The FactMatcher UI content
+    /// </param>
     private void ClearUI(VisualElement content)
     {
         _ruleScriptSelector.visible = false;
@@ -152,6 +175,13 @@ public class RuleDBWindow : EditorWindow
         
     }
 
+    /// <summary>
+    /// Starts the UI whit the FactMatcher
+    /// </summary>
+    /// <param name="content">
+    /// The FactMatcher UI content
+    /// </param>
+    /// <param name="factMatcher"></param>
     private void InitUIWithFactMatcher(VisualElement content, FactMatcher factMatcher)
     {
         _factMatcher = factMatcher;
@@ -196,14 +226,12 @@ public class RuleDBWindow : EditorWindow
         }
 
         ((INotifyValueChanged<string>) _ruleScriptSelector.labelElement).SetValueWithoutNotify("scriptFile:");
-        _ruleScriptSelector.RegisterCallback<ChangeEvent<string>>(ev =>
+        _ruleScriptSelector.RegisterCallback<ChangeEvent<string>>(ev => // When the _ruleScriptSelector is updated (changed RuleScript)
         {
-            var index = Mathf.Max(0, ruleScriptChoices.IndexOf(ev.newValue));
-            if (index > 0 && index < rulesDB.generateFrom.Count)
-            {
-                _currentRuleScript = rulesDB.generateFrom[index];
-                _ruleScriptField.value = rulesDB.generateFrom[index].text;
-            }
+            Debug.Log("_ruleScriptSelector.RegisterCallback");
+            var index = Mathf.Max(0, ruleScriptChoices.IndexOf(ev.newValue)); // index = the largest number.
+            _currentRuleScript = rulesDB.generateFrom[index];
+            _ruleScriptField.value = rulesDB.generateFrom[index].text; // Updates the text in the _ruleScriptField
         });
         _ruleScriptSelector.choices = ruleScriptChoices;
 
@@ -211,12 +239,12 @@ public class RuleDBWindow : EditorWindow
         var saveScriptAndReload = content.Q<Button>("SaveRuleScript");
         var saveScriptAndReloadIncludingFacts = content.Q<Button>("SaveRuleScriptReload");
 
-        saveScriptAndReload.RegisterCallback<ClickEvent>(evt =>
+        saveScriptAndReload.RegisterCallback<ClickEvent>(evt => // When save and reload button is pressed
         {
             _factMatcher.LoadFromCSV(_factFileField.value);
             UpdateListView();
         });
-        saveScriptAndReloadIncludingFacts.RegisterCallback<ClickEvent>(evt =>
+        saveScriptAndReloadIncludingFacts.RegisterCallback<ClickEvent>(evt => // When save script and reload including facts button is pressed
         {
             _factMatcher.SaveToCSV(_factFileField.value);
             var path = AssetDatabase.GetAssetPath(_currentRuleScript);
@@ -231,7 +259,7 @@ public class RuleDBWindow : EditorWindow
         });
 
 
-        button.RegisterCallback<ClickEvent>(evt =>
+        button.RegisterCallback<ClickEvent>(evt => // When pickRuleButton is pressed
         {
             _factMatcher.PickRules();
         });
@@ -247,9 +275,9 @@ public class RuleDBWindow : EditorWindow
         });
         
         content.Q<Button>("RefreshFactValues").RegisterCallback<ClickEvent>(evt =>
-                                                      {
-                                                          UpdateListView();
-                                                      });
+        {
+            UpdateListView();
+        });
 
         _factListView = content.Q<ListView>("FactList");
         _factFilterField = content.Q<TextField>("FactFilter");
@@ -259,7 +287,7 @@ public class RuleDBWindow : EditorWindow
         _factFilterField.RegisterCallback<ChangeEvent<string>>(evt => { UpdateListView(); });
         _factListView.itemsSource = _factTests;
         UpdateListView();
-        _factListView.fixedItemHeight = 16.0f;
+        _factListView.fixedItemHeight = 22.0f;
 
 
         _ruleListView = content.Q<ListView>("RuleList");
@@ -277,6 +305,11 @@ public class RuleDBWindow : EditorWindow
         FactRulesListViewController.factChanged += OnFactChangedFromFactsAndRulesList();
     }
 
+    /// <summary>
+    /// When facts changed from facts and rules list
+    /// Updates the _factListView and _ruleListView
+    /// </summary>
+    /// <returns></returns>
     private Action<int> OnFactChangedFromFactsAndRulesList()
     {
         return i =>
@@ -289,6 +322,11 @@ public class RuleDBWindow : EditorWindow
         };
     }
 
+    /// <summary>
+    /// When Fact changed from facts list
+    /// Updates the _ruleListView items
+    /// </summary>
+    /// <returns></returns>
     private Action<int> OnFactChangedFromFactsList()
     {
         return i =>
@@ -310,29 +348,39 @@ public class RuleDBWindow : EditorWindow
         _factMatcher.Init();
     }
 
+    /// <summary>
+    /// When initiated
+    /// </summary>
     private void OnInited()
     {
-        Debug.Log("On Inited");
+        //Debug.Log("On Inited");
         UpdateListView();
     }
 
+    /// <summary>
+    /// When picked a rule
+    /// Updates UI whit the rule that has been picked
+    /// </summary>
+    /// <param name="noOfBestRules"></param>
     private void OnRulePicked(int noOfBestRules)
     {
         var rule = noOfBestRules >= 1 ? _factMatcher.GetRuleFromMatches(0) : null;
         if (rule!=null)
         {
-            _lastPickedRule.text = $"Last Picked rule  {rule.ruleName} payload {rule.payload} and ruleID {rule.RuleID}";
             StringBuilder strBuilder = new StringBuilder();
-            Debug.Log($"interpolated {rule.Interpolate(_factMatcher,ref strBuilder)}");
+            var interpolatedPayload = rule.Interpolate(_factMatcher, ref strBuilder);
+            _lastPickedRule.text = $"Last Picked rule: {rule.ruleName}\nPayload: {interpolatedPayload}\nRuleID: {rule.RuleID}";
         }
         else
         {
-            _lastPickedRule.text = $"found no Rule for noBestRules={noOfBestRules}";
+            _lastPickedRule.text = $"Found no Rule for noBestRules = {noOfBestRules}";
         }
         UpdateListView();
     }
-    
-    
+
+    /// <summary>
+    /// Update the list view whit the current info tests
+    /// </summary>
     void UpdateListView()
     {
         if (_factMatcher != null && _factMatcher.ruleDB != null)
@@ -359,27 +407,32 @@ public class RuleDBWindow : EditorWindow
         }
     }
     
+    /// <summary>
+    /// Update list view rules
+    /// </summary>
     void UpdateListViewRules()
     {
         if (_factMatcher != null && _factMatcher.ruleDB != null)
         {
-            createRuleDatas();
+            CreateRuleDatas();
             _ruleListView.itemsSource = _rulesDatas;
             _ruleListView.RefreshItems();
         }
     }
 
-    private void createRuleDatas()
+    /// <summary>
+    /// Generate the rule data
+    /// </summary>
+    private void CreateRuleDatas()
     {
         var factTestsFromRulesFlattened = _factMatcher.ruleDB.CreateFlattenedRuleAtomListWithPotentiallyDuplicateFactIDS(entry =>
         {
-            if (_ruleFilterField.value.Length == 0) return true;
+            if (_ruleFilterField.value.Length == 0) { return true; }
             
             var splits = _ruleFilterField.text.Split(",");
             bool include = false;
             for (int i = 0; i < splits.Length; i++)
             {
-
                 var test = splits[i].Trim();
                 var invert = test.StartsWith("!");
                 var or = test.StartsWith("|");

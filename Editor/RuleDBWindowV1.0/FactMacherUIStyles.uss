@@ -1,0 +1,22 @@
+.objectField {
+    flex-direction: row;
+    flex-wrap: wrap;
+    font-size: 16px;
+    width: 100%;
+}
+
+.autoWrap {
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: 100%;
+    height: auto;
+    align-items: flex-end;
+    font-size: 15px;
+}
+
+.autoVisual {
+    width: 33%;
+    height: 100%;
+    max-width: 350px;
+    font-size: 15px;
+}

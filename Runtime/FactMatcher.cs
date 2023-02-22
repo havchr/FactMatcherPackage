@@ -61,7 +61,7 @@ public class FactMatcher
        }   
     }
     
-    public void LoadFromCSV(string filename)
+    public void LoadFromCSV(string filename) // Loaded facts from filename
     {
         var lines = File.ReadAllLines(filename).Skip(1);
         foreach (var csvLine in lines)
@@ -169,7 +169,7 @@ public class FactMatcher
         return Mathf.Abs(_allMatchesForAllRules[ruleID]);
     }
 
-    public int PickRules(bool factWrites=true,bool fireListener=true)
+    public int PickRules(bool factWrites=true,bool fireListener=true) // Pick the best matching rule
     {
     
         var job = new FactMatcherMatch() 
