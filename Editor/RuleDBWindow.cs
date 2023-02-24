@@ -1,18 +1,19 @@
 using Object = UnityEngine.Object;
 using System.Collections.Generic;
+using System.Text;
 using UnityEditor.UIElements;
 using UnityEngine.UIElements;
-using System.Text;
 using UnityEditor;
 using UnityEngine;
-using System.IO;
 using System;
+using System.IO;
 
 /// <summary>
 /// The RuleDBWindow controller
 /// </summary>
 public class RuleDBWindow : EditorWindow 
 {
+    
     public VisualTreeAsset RuleVisAss;
     public VisualTreeAsset FactItemVisAss;
     public VisualTreeAsset RuleListViewItemAss;
@@ -60,6 +61,7 @@ public class RuleDBWindow : EditorWindow
         _ruleScriptSelector = content.Q<DropdownField>("RuleScriptSelector");
         _factFileField = content.Q<TextField>("FactFileLocation");
         _ruleFilterField = content.Q<TextField>("RuleFilter");
+        _ruleListView = content.Q<ListView>("RuleList");
         
         rulesDBField.objectType = typeof(RulesDB);
         rulesDBField.RegisterCallback<ChangeEvent<Object>>(evt => { OnRuleDBFieldChanged(evt, content); });
@@ -134,6 +136,9 @@ public class RuleDBWindow : EditorWindow
     /// </param>
     private void OnRuleDBFieldChanged(ChangeEvent<Object> evt, VisualElement content)
     {
+        _ruleListView.bindItem = null;
+        _ruleListView.itemsSource = new List<FactRulesListViewController.Data>();
+        _ruleListView.Rebuild();
         if (_factMatcher != null && _factMatcher.HasDataToDispose() && _factMatcherSelfAllocated) // Dispose date if any
         {
             _factMatcher.DisposeData();
@@ -143,7 +148,6 @@ public class RuleDBWindow : EditorWindow
         var rulesDB = evt.newValue as RulesDB;
         if (rulesDB != null) // Initiate if we have a ruesDB
         {
-            Debug.Log("We are initialing things.");
             _factMatcherSelfAllocated = true;
             _factMatcher = new FactMatcher(rulesDB);
             _factMatcher.Init(countAllMatches: true);
@@ -204,13 +208,6 @@ public class RuleDBWindow : EditorWindow
         content.Q<Button>("SaveRuleScript").visible = true;
         content.Q<Button>("SaveRuleScriptReload").visible = true;
         content.Q<Button>("RefreshFactValues").visible = true;
-
-        /*
-        var editor = Editor.CreateEditor(rulesDB);
-        var taskInspector = new IMGUIContainer(() => { editor.OnInspectorGUI(); });
-        var rulesDBDrawer = content.Q<VisualElement>("RulesDBDrawer");
-        rulesDBDrawer.Add(taskInspector);
-        */
 
         var ruleScriptChoices = new List<string>();
         foreach (var textAsset in rulesDB.generateFrom)
@@ -290,11 +287,10 @@ public class RuleDBWindow : EditorWindow
         _factListView.fixedItemHeight = 22.0f;
 
 
-        _ruleListView = content.Q<ListView>("RuleList");
         _ruleListView.makeItem = () => FactRulesListViewController.MakeItem(RuleListViewItemAss);
         _ruleListView.bindItem = (element, i) => FactRulesListViewController.BindItem(element, i, _rulesDatas, _factMatcher);
-        _ruleListView.itemsSource = _rulesDatas;
-
+        _ruleListView.itemsSource = CreateRuleDatas();
+        
         _ruleFilterField.RegisterCallback<ChangeEvent<string>>(evt => { UpdateListViewRules(); });
         UpdateListViewRules();
         _ruleListView.fixedItemHeight = 18.0f;
@@ -414,8 +410,7 @@ public class RuleDBWindow : EditorWindow
     {
         if (_factMatcher != null && _factMatcher.ruleDB != null)
         {
-            CreateRuleDatas();
-            _ruleListView.itemsSource = _rulesDatas;
+            _ruleListView.itemsSource = CreateRuleDatas();
             _ruleListView.RefreshItems();
         }
     }
@@ -423,7 +418,7 @@ public class RuleDBWindow : EditorWindow
     /// <summary>
     /// Generate the rule data
     /// </summary>
-    private void CreateRuleDatas()
+    private List<FactRulesListViewController.Data> CreateRuleDatas()
     {
         var factTestsFromRulesFlattened = _factMatcher.ruleDB.CreateFlattenedRuleAtomListWithPotentiallyDuplicateFactIDS(entry =>
         {
@@ -494,6 +489,7 @@ public class RuleDBWindow : EditorWindow
             lastRuleID = ruleDBFactTest.ruleOwnerID;
             _rulesDatas.Add(data);
         }
+        return _rulesDatas;
     }
 
     private void OnDestroy()

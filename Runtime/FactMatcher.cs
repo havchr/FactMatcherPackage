@@ -188,7 +188,7 @@ public class FactMatcher
         };
         var sw = new Stopwatch();
         sw.Start();
-        job.Schedule().Complete();
+        job.Execute();
         sw.Stop();
         if (factWrites)
         {
