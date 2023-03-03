@@ -7,6 +7,7 @@ using FactMatching;
 using UnityEditor;
 #endif
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public enum FactValueType
 {
@@ -38,6 +39,11 @@ public class RuleScriptParsingProblems // Tasked to record the problems encounte
     // Reports new problem (user defined problem type)
     public void ReportNewProblem(string problemMessage, TextAsset file, int lineNumber, ProblemType problemType)
     { problems.Add(new ProblemEntry() { File = file, LineNumber = lineNumber, ProblemMessage = problemMessage, ProblemType = problemType.ToString() }); }
+
+    public void AddNewProblem(ProblemEntry problemEntry)
+    {
+        problems.Add(problemEntry); 
+    }
 
     // Reports new problem (auto error user can change)
     public void ReportNewError(string problemMessage, TextAsset filename, int lineNumber, ProblemType problemType = ProblemType.Error)
@@ -94,6 +100,7 @@ public class RuleScriptParsingProblems // Tasked to record the problems encounte
 [Serializable]
 public class ProblemEntry
 {
+    //todo ProblemType should be enum instead of string
     public string ProblemType;
     public TextAsset File;
     public int LineNumber;
@@ -208,6 +215,7 @@ public class RulePayloadInterpolation
 public class RuleDBEntry
 {
     public int RuleID;
+    public string bucket;
     public string ruleName;
     public string payload;
     [NonSerialized]
@@ -216,6 +224,8 @@ public class RuleDBEntry
     public List<RuleDBFactWrite> factWrites;
     public List<RuleDBFactTestEntry> factTests;
     public List<RulePayloadInterpolation> interpolations;
+    public int bucketSliceStartIndex;
+    public int bucketSliceEndIndex;
 
     public string Interpolate(FactMatcher matcher,ref StringBuilder stringBuilder)
     {
@@ -274,6 +284,7 @@ public class RuleDBEntry
     }
 }
 
+
 [CreateAssetMenu(fileName = "RulesDB", menuName = "FactMatcher/RulesDB", order = 1)]
 public class RulesDB : ScriptableObject
 {
@@ -284,6 +295,9 @@ public class RulesDB : ScriptableObject
     public bool CompileToCSharp = false;
     private Dictionary<string, int> FactIdsMap;
     private Dictionary<string, int> RuleStringMap;
+   
+    private Dictionary<string, BucketSlice> _bucketSlices;
+    
     private Dictionary<int, RuleDBEntry> RuleMap;
     public List<TextAsset> generateFrom;
     public List<RuleDBEntry> rules;
@@ -296,6 +310,20 @@ public class RulesDB : ScriptableObject
         RuleStringMap = RuleStringIDs(this);
         RuleMap = CreateEntryFromIDDic(this);
         FactIdsMap = CreateFactIds();
+        _bucketSlices = CreateBucketSlices();
+    }
+
+    private Dictionary<string, BucketSlice> CreateBucketSlices()
+    {
+        _bucketSlices = new Dictionary<string, BucketSlice>();
+        foreach (var entry in rules)
+        {
+            if (entry.bucket!=null && !_bucketSlices.ContainsKey(entry.bucket))
+            {
+                _bucketSlices[entry.bucket] = new BucketSlice(entry.bucketSliceStartIndex,entry.bucketSliceEndIndex,entry.bucket);
+            }
+        }
+        return _bucketSlices;
     }
 
     /// <summary>
@@ -350,7 +378,10 @@ public class RulesDB : ScriptableObject
             rules.Clear();
             int factID = Consts.FactIDDevNull + 1;
             int ruleID = 0;
+            int bucketID = 0;
             Dictionary<string, int> addedFactIDS = new Dictionary<string, int>();
+            Dictionary<string, BucketSlice> slicesForBuckets = new Dictionary<string, BucketSlice>();
+            Dictionary<string, string> bucketPartNames = new Dictionary<string, string>();
             foreach (var ruleScript in generateFrom)
             {
                 var parser = new RuleScriptParser();
@@ -368,14 +399,28 @@ public class RulesDB : ScriptableObject
                     path = path.Substring(0, lastIndexOf + 1);
                 }
 #endif
-                parser.GenerateFromText(ruleScript.text, rules, ref factID, ref addedFactIDS, ref ruleID, path,
-                    ruleScript, ref problems);
+                parser.GenerateFromText(ruleScript.text, 
+                                        rules,
+                                        ref factID,
+                                        ref addedFactIDS,
+                                        ref slicesForBuckets,
+                                        ref bucketPartNames,
+                                        ref bucketID,
+                                        ref ruleID,
+                                        path,
+                                ruleScript, 
+                                        ref problems);
             }
 
             InitFactWriteIndexers(ref addedFactIDS);
             if (!problems.ContainsErrors())
             {
-                rules = SortListByDescending(rules);
+                /*
+                 * We need to sort on our buckets, so that we can use bucketSlices (slices of the array)
+                 * to test only specific parts of the RuleDB, see the FactMatcher documentation about buckets
+                 */
+                rules = SortListByBucketIndexThenDescendingFactCounts(rules);
+                rules = BucketSlicer.SliceIntoBuckets(rules); 
                 PayloadInterpolationParser payloadInterpolationParser = new PayloadInterpolationParser();
                 foreach (var rule in rules)
                 {
@@ -458,6 +503,15 @@ public class RulesDB : ScriptableObject
         }
 
         return id;
+    }
+    
+    public BucketSlice GetSliceForBucket(string bucket)
+    {
+        if (_bucketSlices.TryGetValue(bucket, out BucketSlice bucketSlice))
+        {
+            return bucketSlice;
+        }
+        return null;
     }
 
     public int FactId(string str)
@@ -665,5 +719,8 @@ public class RulesDB : ScriptableObject
         return null;
     }
 
-    public List<RuleDBEntry> SortListByDescending(List<RuleDBEntry> ruleToSort) { return ruleToSort.OrderByDescending(x => x.factTests.Count).ToList(); }
+    public List<RuleDBEntry> SortListByBucketIndexThenDescendingFactCounts(List<RuleDBEntry> ruleToSort)
+    {
+        return ruleToSort.OrderBy(entry => entry.bucketSliceStartIndex).ThenByDescending(entry => entry.factTests.Count).ToList();
+    }
 }

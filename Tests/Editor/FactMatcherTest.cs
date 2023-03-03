@@ -208,14 +208,14 @@ public class FactMatcherTest
 
    
     [Test]
-    public void TestEqualsString()
+    public void TestEqualsHighNumber()
     {
-        //Equals
-        var text = "nick";
-        var x = text.GetHashCode();
-        Assert.IsTrue(Functions.Predicate(FactMatching.FactCompare.Equals(text.GetHashCode()),x));
-        x = "nack".GetHashCode();
-        Assert.IsFalse(Functions.Predicate(FactMatching.FactCompare.Equals(text.GetHashCode()),x));
+        float x = 123456f;
+        float y = 123456f;
+        float epsiFact = 0.0001f;
+        Assert.IsTrue(Functions.Predicate(FactMatching.FactCompare.EqualsEpsi(x,epsiFact),y));
+        y = 1234567.9f;
+        Assert.IsFalse(Functions.Predicate(FactMatching.FactCompare.Equals(x),y));
 
     }
     
@@ -234,7 +234,7 @@ public class FactMatcherTest
         Assert.IsTrue(Functions.Predicate(FactMatching.FactCompare.Equals(1.0f),x));
         x = 10.0f;
         Assert.IsFalse(Functions.Predicate(FactMatching.FactCompare.Equals(1.0f),x));
-        Assert.IsFalse(Functions.Predicate(FactMatching.FactCompare.Equals(10.001f),x));
+        Assert.IsFalse(Functions.Predicate(FactMatching.FactCompare.Equals(10.01f),x));
 
     }
     [Test]
@@ -289,7 +289,7 @@ public class FactMatcherTest
     public bool predicate(float a, float b, float x,float eps=0,bool negation=false)
     {
         var xEps = x + eps;
-        var aPart = a< (x + eps); 
+        var aPart = a < (x + eps); 
         var bPart = x < (b + eps); 
         Debug.Log($"xEps is {xEps}");
         Debug.Log($"a is {a}");

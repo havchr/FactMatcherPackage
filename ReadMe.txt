@@ -1,6 +1,10 @@
 FactMatcher is a system that chooses the highest "scoring" rule, from
 a database of many rules.
 
+FactMatcher is heavily inspired by the dialogue system in Left4Dead,
+see this talk By Elan Ruskin, https://www.youtube.com/watch?v=tAbBID3N64A&ab_channel=GDC
+to see where the system is coming from.
+
 A rule contains a list of factTests. 
 A factTest is a logic test
 which either checks a value against another value, or it can check
@@ -136,8 +140,85 @@ factMatcher[FactMatcherGen.fact_test_string_example] = factMatcher.StringID("tes
 
 
 
-
 You can compile this with Burst if you want to by adding a define FACTMATCHER_BURST
 
 It should be quite performant with a large number of rules and facts,
 but consider scoping your ruleDB for the current situation in your game.
+
+For added performance , you can also divide your rules into buckets. The following rule
+shows the syntax to create a bucket
+
+.bucket_test_on_shot IF
+    @concept = on_shot
+    @who = Johnny Lemon
+    player.health < 10
+.THEN RESPONSE
+rule matches if health is lower than 10 and name is Johnny Lemon
+.END
+
+This creates a bucket "concept:on_shot,who:Johnny Lemon"
+The main idea is that all rules that deals with the Johnny Lemon character being shot,
+are put into this bucket, and the application can then query against only this specific bucket
+when rule matching.
+From the application side, the way you use this - is as follows: 
+
+In the example below, we look at the bucket that is 
+concept:on_shot,who:everybody
+
+public class FactMatcherBucketPerfTest : MonoBehaviour, FactMatcherProvider
+{
+    public RulesDB rules;
+    private FactMatcher _matcher;
+    public RuleDBEntry lastRulePicked;
+    private BucketSlice OnShotEveryBodyBucket;
+    public string who = "everybody";
+    public string concept = "onShot";
+    
+    // Start is called before the first frame update
+    void Start()
+    {
+        _matcher = new FactMatcher(rules);
+        _matcher.Init();
+        OnShotEveryBodyBucket = _matcher.BucketSlice($"concept:{concept},who:{who}");
+    }
+
+    private void OnDestroy()
+    {
+        if (_matcher.IsInited && _matcher.HasDataToDispose())
+        {
+            _matcher.DisposeData();
+            _matcher = null;
+        }
+    }
+
+
+    // Update is called once per frame
+    void Update()
+    {
+        lastRulePicked = _matcher.PickRuleInBucket(OnShotEveryBodyBucket);
+    }
+
+    public FactMatcher GetFactMatcher()
+    {
+        return _matcher;
+    }
+}
+
+
+
+Credits:
+Agens
+Håvard Christensen
+Additional programming Ole Anders Astad
+Feedback, input and support Knut Clausen
+Feedback, input and support Trond Abusdal 
+
+Licence 
+The MIT License (MIT)
+Copyright © 2023 <copyright holders>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

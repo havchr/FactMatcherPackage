@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using FactMatching;
 using Unity.Collections;
 using Debug = UnityEngine.Debug;
@@ -32,6 +33,10 @@ public class FactMatcher
     private NativeArray<int> _allMatchesForAllRules;
     private NativeArray<int> _noOfRulesWithBestMatch;
     private NativeArray<Settings> _settings;
+    private NativeArray<int> _slice;
+    private FactMatcherMatch _cachedJob;
+    private bool hasCachedJob = false;
+
     
     public bool _dataDisposed = false;
     public bool _hasBeenInited = false;
@@ -134,6 +139,10 @@ public class FactMatcher
         _settings = new NativeArray<Settings>(1,Allocator.Persistent);
         _settings[0] = new Settings(ruleDB.FactWriteToAllThatMatches,countAllMatches);
         
+        _slice = new NativeArray<int>(2,Allocator.Persistent);
+        _slice[0] = 0;
+        _slice[1] = _rules.Length;
+        
         _dataDisposed = false;
         _inReload = false;
         _hasBeenInited = true;
@@ -156,6 +165,7 @@ public class FactMatcher
             bytes += _allMatchesForAllRules.Length * sizeof(int);
             bytes += _noOfRulesWithBestMatch.Length * sizeof(int);
             bytes += _noOfRulesWithBestMatch.Length * Settings.SizeInBytes();
+            bytes += _slice.Length * sizeof(int);
             return bytes;
         }
 
@@ -168,31 +178,49 @@ public class FactMatcher
         ruleValid = _allMatchesForAllRules[ruleID] <= 0;
         return Mathf.Abs(_allMatchesForAllRules[ruleID]);
     }
-
-    public int PickRules(bool factWrites=true,bool fireListener=true) // Pick the best matching rule
+    public int PickRulesInBucket(BucketSlice bucketSlice)
     {
-    
-        var job = new FactMatcherMatch() 
+        bucketSlice.ApplyBucket(this);
+        return PickRules(true, true, bucketSlice.startIndex, bucketSlice.endIndex);
+    }
+    public RuleDBEntry PickRuleInBucket(BucketSlice bucketSlice)
+    {
+        int result = PickRulesInBucket(bucketSlice);
+        if (result > 0)
         {
-            FactValues = _factValues,
-            FactTests = _factTests,
-            Rules = _rules,
-            BestRule = _bestRule,
-            BestRuleMatches = _bestRuleMatches,
-            AllEmRulesIndices = _allRuleIndices,
-            AllEmRulesMatches =  _allRulesMatches,
-            AllMatchesForAllRules = _allMatchesForAllRules,
-            NoOfRulesWithBestMatch =  _noOfRulesWithBestMatch,
-            Settings = _settings
-            
-        };
-        var sw = new Stopwatch();
-        sw.Start();
-        job.Execute();
-        sw.Stop();
+           return GetRuleFromMatches(0);
+        }
+        return null;
+    }
+
+    public int PickRules(bool factWrites=true,bool fireListener=true,int startIndex=0,int endIndex=-1) // Pick the best matching rule
+    {
+        _slice[0] = startIndex;
+        _slice[1] = endIndex == -1 ? _rules.Length : (endIndex+1);
+
+        if (!hasCachedJob)
+        {
+            hasCachedJob = true;
+            _cachedJob = new FactMatcherMatch() 
+            {
+                FactValues = _factValues,
+                FactTests = _factTests,
+                Rules = _rules,
+                BestRule = _bestRule,
+                BestRuleMatches = _bestRuleMatches,
+                AllEmRulesIndices = _allRuleIndices,
+                AllEmRulesMatches =  _allRulesMatches,
+                AllMatchesForAllRules = _allMatchesForAllRules,
+                NoOfRulesWithBestMatch = _noOfRulesWithBestMatch,
+                slice = _slice,
+                Settings = _settings
+                
+            };
+        }
+        _cachedJob.Execute();
         if (factWrites)
         {
-            HandleFactWrites(sw);
+            HandleFactWrites();
         }
 
         if (fireListener)
@@ -202,7 +230,7 @@ public class FactMatcher
         return _noOfRulesWithBestMatch[0];
     }
 
-    private void HandleFactWrites(Stopwatch sw)
+    private void HandleFactWrites()
     {
         for (int i = 0; i < _noOfRulesWithBestMatch[0]; i++)
         {
@@ -364,6 +392,25 @@ public class FactMatcher
     {
         return ruleDB.FactId(str);
     }
+    public BucketSlice BucketSlice(string str)
+    {
+        var bucketSlice = ruleDB.GetSliceForBucket(str);
+        if (bucketSlice != null)
+        {
+            bucketSlice.Init(this);
+            return bucketSlice;
+        }
+        bucketSlice = ruleDB.GetSliceForBucket("default");
+        if (bucketSlice != null)
+        {
+            Debug.LogError($"Could not find FactMatcher Bucket {str} - choosing default bucket [{bucketSlice.startIndex}:{bucketSlice.endIndex}] instead");
+            bucketSlice.Init(this);
+            return bucketSlice;
+        }
+            
+        Debug.LogError($"Could not find FactMatcher Bucket {str} - choosing bucket of all rules [{0}:{_rules.Length-1}] instead");
+        return new BucketSlice(0, _rules.Length - 1, "");
+    }
     
     public RuleDBEntry GetRuleFromRuleID(int ruleID)
     {
@@ -387,6 +434,7 @@ public class FactMatcher
         _allMatchesForAllRules.Dispose();
         _noOfRulesWithBestMatch.Dispose();
         _settings.Dispose();
+        _slice.Dispose();
         
         _dataDisposed = true;
         _hasBeenInited = false;

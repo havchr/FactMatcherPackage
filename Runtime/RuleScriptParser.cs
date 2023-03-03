@@ -35,6 +35,7 @@ namespace FactMatching
         const string template_keyword = ".template";
         private static int _lineNumber = 0;
         private static int _templateLineNumber = 0;
+        private const string BucketIndicator = "@";
 
         static RuleScriptParser()
         {
@@ -57,7 +58,15 @@ namespace FactMatching
             return RuleScriptParserKeywordEnum.NoKeyword;
         }
         
-        public void GenerateFromText(string text,List<RuleDBEntry> rules,ref int factID,ref Dictionary<string,int> addedFactIDNames,ref int ruleID,string folderPath,TextAsset file,ref RuleScriptParsingProblems problems)
+        public void GenerateFromText(string text,List<RuleDBEntry> rules,ref int factID,
+                                     ref Dictionary<string,int> addedFactIDNames,
+                                     ref Dictionary<string,BucketSlice> conceptBucket,
+                                     ref Dictionary<string,string> bucketPartNames,
+                                     ref int bucketID,
+                                     ref int ruleID,
+                                     string folderPath,
+                                     TextAsset file,
+                                     ref RuleScriptParsingProblems problems)
         {
             RuleScriptParserEnum state = RuleScriptParserEnum.LookingForRule;
             Dictionary<string,List<RuleDBFactTestEntry>> parsedFactTests = new Dictionary<string, List<RuleDBFactTestEntry>>();
@@ -123,7 +132,14 @@ namespace FactMatching
                         }
                         else
                         {
-                            currentReader = HandleTheTemplateFile(templatePath, templateArguments);
+                            try
+                            {
+                                currentReader = HandleTheTemplateFile(templatePath, templateArguments);
+                            }
+                            catch (Exception ex)
+                            {
+                               problems.ReportNewError($"Problem reading template file {templatePath} , {ex.ToString()}",file,_lineNumber); 
+                            }
                             state = RuleScriptParserEnum.LookingForRule;
                             continue;
                         }
@@ -290,7 +306,13 @@ namespace FactMatching
                             else
                             {
                                 //Assigns an unique (to the RuleDB) ID to each fact
-                                SetFactID(currentRule, ref addedFactIDNames, ref factID, ruleID);
+                                var anyProblem = SetFactIDsAndBucketForFactsInRule(currentRule, ref addedFactIDNames,ref conceptBucket,ref bucketPartNames, ref factID,ref bucketID, ruleID);
+                                if (anyProblem != null)
+                                {
+                                    anyProblem.LineNumber = _lineNumber;
+                                    anyProblem.File = file;
+                                    problems.AddNewProblem(anyProblem);
+                                }
                                 currentRule.RuleID = ruleID;
                                 ruleID++;
                                 rules.Add(currentRule);
@@ -333,36 +355,98 @@ namespace FactMatching
             {
                 rule.factTests.Sort((factTest1, factTest2) => factTest1.orGroupRuleID - factTest2.orGroupRuleID);
             }
+
         }
+
 
         private StringReader HandleTheTemplateFile(string templatePath, Dictionary<string, string> templateArguments)
         {
-            StringBuilder builder = new StringBuilder();
-            using (FileStream fs = File.Open(templatePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-            using (BufferedStream bs = new BufferedStream(fs))
-            using (StreamReader sr = new StreamReader(bs))
-            {
-                string line;
-                while ((line = sr.ReadLine()) != null)
+
+                StringBuilder builder = new StringBuilder();
+                using (FileStream fs = File.Open(templatePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                using (BufferedStream bs = new BufferedStream(fs))
+                using (StreamReader sr = new StreamReader(bs))
                 {
-                    if (line.StartsWith("--"))
+                    string line;
+                    while ((line = sr.ReadLine()) != null)
                     {
-                        continue;
+                        if (line.StartsWith("--"))
+                        {
+                            continue;
+                        }
+
+                        foreach (var keyVal in templateArguments)
+                        {
+                            line = line.Replace(keyVal.Key, keyVal.Value);
+
+                        }
+
+                        builder.AppendLine(line);
                     }
-                    foreach (var keyVal in templateArguments)
-                    {
-                        line = line.Replace(keyVal.Key, keyVal.Value);
-                        
-                    }
-                    builder.AppendLine(line);
                 }
-            }
-            return new StringReader(builder.ToString());
+
+                return new StringReader(builder.ToString());
         }
 
-        private static void SetFactID(RuleDBEntry currentRule, ref Dictionary<string,int> addedFactIDNames, ref int factID, int ruleID)
+
+
+        private static ProblemEntry SetFactIDsAndBucketForFactsInRule(RuleDBEntry currentRule,
+            ref Dictionary<string, int> addedFactIDNames,
+            ref Dictionary<string, BucketSlice> conceptBucket,
+            ref Dictionary<string, string> bucketPartNames,
+            ref int factID,
+            ref int bucketID,
+            int ruleID)
         {
-            
+
+            int bucketIdForRule = 0;
+            ProblemEntry anyProblem = null;
+
+            List<String> bucketPartNamesList = new List<string>();
+            StringBuilder bucket = new StringBuilder();
+            StringBuilder bucketFacts = new StringBuilder();
+            bool ruleHasBucketNames = false;
+            if (currentRule.factTests != null)
+            {
+                foreach (var factTest in currentRule.factTests)
+                {
+
+                    bool startsWithIndicator = factTest.factName.StartsWith(BucketIndicator);
+                    bool containedInBucketPartNames = bucketPartNames.ContainsKey(factTest.factName);
+                    if (startsWithIndicator || containedInBucketPartNames)
+                    {
+                        if (startsWithIndicator && !containedInBucketPartNames && ruleHasBucketNames)
+                        {
+                           //Raport problem
+                           ProblemEntry problem = new ProblemEntry();
+                           problem.ProblemType = RuleScriptParsingProblems.ProblemType.Error.ToString();
+                           problem.ProblemMessage =
+                               $"Bucket problem, cannot add {factTest.factName} as bucket because our bucket is already {bucket}";
+                           return problem;
+                        }
+
+                        if (containedInBucketPartNames)
+                        {
+                            ruleHasBucketNames = true;
+                        }
+                        factTest.factName = startsWithIndicator ? factTest.factName.Substring(1) : factTest.factName;
+                        var value = factTest.MatchValuePrintable();
+                        bucketPartNamesList.Add($"{factTest.factName}");
+                        if (bucket.Length != 0)
+                        {
+                            bucket.Append(",");
+                        }
+                        bucket.Append(factTest.factName).Append(":");
+                        bucket.Append(value);
+                        if (bucketFacts.Length != 0)
+                        {
+                            bucketFacts.Append(",");
+                        }
+                        bucketFacts.Append(factTest.factName);
+                    }
+                }
+            }
+
             if(currentRule.factTests!=null)
             foreach (var factTest in currentRule.factTests)
             {
@@ -376,9 +460,9 @@ namespace FactMatching
                 {
                     factTest.factID = addedFactIDNames[factTest.factName];
                 }
-                //Debug.Log($"for fact {factTest.factName} for rule {currentRule.ruleName} we set ruleOwnerID {ruleID}");
                 factTest.ruleOwnerID = ruleID;
             }
+
 
             if(currentRule.factWrites!=null)
             foreach (var factWrite in currentRule.factWrites)
@@ -395,7 +479,117 @@ namespace FactMatching
                     factWrite.factID = addedFactIDNames[factWrite.factName];
                 }
             }
+            anyProblem = CheckForBucketProblems(currentRule, conceptBucket, bucketPartNames, ref bucketID, bucketPartNamesList, bucketFacts, anyProblem,ref bucket);
+            currentRule.bucket = bucket.Length == 0 ? "default" : bucket.ToString();
+            if (!conceptBucket.ContainsKey(currentRule.bucket))
+            {
+                conceptBucket[currentRule.bucket] = new BucketSlice(bucketID, bucketID,currentRule.bucket);
+                bucketID++;
+            }
 
+            bucketIdForRule = conceptBucket[currentRule.bucket].startIndex;
+            currentRule.bucketSliceStartIndex = bucketIdForRule;
+            return anyProblem;
+        }
+
+        private static ProblemEntry CheckForBucketProblems(RuleDBEntry currentRule, Dictionary<string, BucketSlice> conceptBucket, Dictionary<string, string> bucketPartNames,
+            ref int bucketID, List<string> bucketPartNamesList, StringBuilder bucketFacts, ProblemEntry anyProblem,
+            ref StringBuilder bucket)
+        {
+            bucketPartNamesList.Sort();
+            bool freshBucket = false;
+            bool areWeSameBucketButDifferentOrder = sameBucketButDifferentOrder(bucketPartNames, bucketPartNamesList, bucketFacts);
+            if (areWeSameBucketButDifferentOrder)
+            {
+                string bucketGoodOrder = bucketPartNames[bucketPartNamesList[0]];
+                var goodBucketSplit = bucketGoodOrder.Split(",");
+                var badBucket = bucket.ToString();
+                var badBucketSplit = badBucket.Split(",");
+                bucket.Clear();
+                for (int i = 0; i < goodBucketSplit.Length; i++)
+                {
+                    var goodKey = goodBucketSplit[i].Split(":")[0];
+                    var valueForKey = "";
+                    foreach (var badBucketPart in badBucketSplit)
+                    {
+                        var badKeyValue = badBucketPart.Split(":");
+                        if (badKeyValue[0].Equals(goodKey))
+                        {
+                            valueForKey = badKeyValue[1];
+                            break;
+                        }
+                    }
+
+                    if (i != 0)
+                    {
+                        bucket.Append(",");
+                    }
+                    bucket.Append(goodKey).Append(":").Append(valueForKey);
+                }
+
+                //rebuild in order of existing.
+                //where do we find existing?
+            }
+            
+            foreach (var bucketPart in bucketPartNamesList)
+            {
+                if (!bucketPartNames.ContainsKey(bucketPart))
+                {
+                    freshBucket = true;
+                    bucketPartNames[bucketPart] = bucket.Length == 0 ? "" : bucket.ToString();
+                }
+            }
+
+            if (!freshBucket && !areWeSameBucketButDifferentOrder && bucketPartNamesList.Count > 0)
+            {
+                anyProblem = new ProblemEntry();
+                anyProblem.ProblemType = RuleScriptParsingProblems.ProblemType.Error.ToString();
+                anyProblem.ProblemMessage = "Bucket problem!";
+            }
+
+            return anyProblem;
+        }
+
+        private static bool sameBucketButDifferentOrder(Dictionary<string, string> bucketPartNames,
+                                                                    List<string> bucketPartNamesList, StringBuilder bucketFacts)
+        {
+            
+            foreach (var bucketPart in bucketPartNamesList)
+            {
+                if (bucketPartNames.ContainsKey(bucketPart) &&
+                    !bucketPartNames[bucketPart].Equals(bucketFacts.ToString()))
+                {
+                    //are we the same bucket, just in a different order? i.e concept_who is correct, but right now it is who_concept
+                    var splits = bucketPartNames[bucketPart].Split(",").ToList();
+                    for (int i = 0; i < splits.Count; i++)
+                    {
+                        splits[i] = splits[i].Split(":")[0];
+                    }
+                    splits.Sort();
+                    int match = 0;
+                    if (splits.Count == bucketPartNamesList.Count)
+                    {
+                        for (int i = 0; i < splits.Count; i++)
+                        {
+                            if (splits[i].Equals(bucketPartNamesList[i]))
+                            {
+                                match++;
+                            }
+                        }
+                    }
+
+                    if (match != splits.Count)
+                    {
+                        return false;
+                    }
+                    else
+                    {
+                        return true;
+                    }
+                }
+                
+            }
+            return false;
         }
 
         private static void ParseFactWrites(string line, RuleDBEntry currentRule)

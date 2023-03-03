@@ -18,8 +18,7 @@ namespace FactMatching
         _factmatcher[FindID("some_fact")] = someValue; not cause an error if 
         our rules does not contain any tests that uses some_fact
         */
-        public const int FactIDDevNull= 0;
-        
+        public const int FactIDDevNull = 0;
     }
     
     public struct Settings 
@@ -103,9 +102,8 @@ namespace FactMatching
         private const float epsiFact = 0.0001f;
         public FactCompare(float lowerBound, float upperBound, float epsilon = 0f,bool negation=false)
         {
-            this.lowerBound = lowerBound;
-            this.upperBound = upperBound;
-            this.epsilon = epsilon;
+            this.lowerBound = lowerBound - epsilon;
+            this.upperBound = upperBound + epsilon;
             this.negation = negation;
         }
 
@@ -113,6 +111,10 @@ namespace FactMatching
         public static FactCompare Equals(float a)
         {
             return new FactCompare(a,a,epsiFact);
+        }
+        public static FactCompare EqualsEpsi(float a,float epsi)
+        {
+            return new FactCompare(a,a,epsi);
         }
         public static FactCompare NotEquals(float a)
         {
@@ -150,11 +152,11 @@ namespace FactMatching
          */
         public static int SizeInBytes()
         {
-            return sizeof(float) * 3 + sizeof(bool);
+            return sizeof(float) * 2 + sizeof(bool);
         }
-        public readonly float lowerBound;
-        public readonly float upperBound;
-        public readonly float epsilon;
+        
+        public readonly double lowerBound;
+        public readonly double upperBound;
         public readonly bool negation;
     }
     
@@ -242,15 +244,9 @@ namespace FactMatching
         
         public static bool Predicate(in FactCompare comp,float x)
         {
-            
-            //Debug.Log($"Epsilon is {comp.epsilon}");
-            var aPart = comp.lowerBound < (x + comp.epsilon); 
-            var bPart = x < (comp.upperBound + comp.epsilon); 
-            //Debug.Log($"Testing Predicate aPart {aPart} vs bPart {bPart}");
-            //Debug.Log($"lowerCheck {comp.lowerBound} <? ({x + comp.epsilon}");
-            //Debug.Log($"upperCheck  x {x} <? {comp.lowerBound + comp.epsilon}");
-            return  comp.negation ? !(aPart && bPart) :(aPart && bPart);
+            return (x > comp.lowerBound && x < comp.upperBound) ^ comp.negation;
         }
+        
     }
     
 }
