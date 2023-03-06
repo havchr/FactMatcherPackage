@@ -53,6 +53,7 @@ public struct FactMatcherMatch : IJob
                 int orGroupHits = 0;
                 int lastOrGroup = -1;
                 int lastIndex = rule.factTestIndex + rule.numOfFactTests;
+                validRule = true;
                 howManyFactTestsMatch = (int)HowManyFactTestsMatch(rule, lastIndex, lastOrGroup, orGroupHits, howManyFactTestsMatch,Settings[0].CountAllFactMatches,ref validRule);
                 AllEmRulesIndices[ruleI] = validRule ? ruleI : FactMatcher.NotSetValue;
                 AllMatchesForAllRules[ruleI] = howManyFactTestsMatch;
