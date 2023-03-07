@@ -220,7 +220,7 @@ public class FactMatcher
         _cachedJob.Execute();
         if (factWrites)
         {
-            HandleFactWrites();
+            HandleFactWrites(_slice[0],_slice[1]);
         }
 
         if (fireListener)
@@ -230,22 +230,26 @@ public class FactMatcher
         return _noOfRulesWithBestMatch[0];
     }
 
-    private void HandleFactWrites()
+    private void HandleFactWrites(int sliceStart,int slicePastEnd)
     {
-        for (int i = 0; i < _noOfRulesWithBestMatch[0]; i++)
+
+        if (!ruleDB.FactWriteToAllThatMatches)
         {
-            var rule = ruleDB.RuleFromID(_rules[_allRulesMatches[i]].ruleFiredEventId);
-            if (!ruleDB.FactWriteToAllThatMatches)
+            for (int i = 0; i < _noOfRulesWithBestMatch[0]; i++)
             {
-                HandleFactWrites(ruleDB.RuleFromID(_rules[_allRulesMatches[i]].ruleFiredEventId));
+                int ruleIndex = _allRulesMatches[i];
+                if (ruleIndex >= sliceStart && ruleIndex < slicePastEnd)
+                {
+                    HandleFactWrites(ruleDB.RuleFromID(_rules[_allRulesMatches[i]].ruleFiredEventId));
+                }
             }
         }
-
-        if (ruleDB.FactWriteToAllThatMatches)
+        else
         {
             for (int i = 0; i < _allRuleIndices.Length; i++)
             {
-                if (_allRuleIndices[i] != NotSetValue)
+                int ruleIndex = _allRuleIndices[i];
+                if (ruleIndex != NotSetValue && ruleIndex >= sliceStart && ruleIndex < slicePastEnd)
                 {
                     HandleFactWrites(ruleDB.RuleFromID(_rules[_allRuleIndices[i]].ruleFiredEventId));
                 }
