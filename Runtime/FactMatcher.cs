@@ -246,7 +246,7 @@ public class FactMatcher
         }
         else
         {
-            for (int i = 0; i < _allRuleIndices.Length; i++)
+            for (int i = sliceStart; i < slicePastEnd; i++)
             {
                 int ruleIndex = _allRuleIndices[i];
                 if (ruleIndex != NotSetValue && ruleIndex >= sliceStart && ruleIndex < slicePastEnd)
