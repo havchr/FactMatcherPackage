@@ -160,6 +160,9 @@ namespace FactMatching
         public readonly bool negation;
     }
     
+    /// <summary>
+    /// Class to house Functions for the FactMacher
+    /// </summary>
     public static class Functions
     {
         public static void CreateNativeRules(RulesDB db, out NativeArray<Rule> rules, out NativeArray<FactTest> factTests)
@@ -246,7 +249,6 @@ namespace FactMatching
         {
             return (x > comp.lowerBound && x < comp.upperBound) ^ comp.negation;
         }
-        
     }
     
 }

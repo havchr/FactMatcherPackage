@@ -111,7 +111,7 @@ namespace FactMatching
                     //-- in ruleScript is a comment , except if we are parsing a response..
                     if (state != RuleScriptParserEnum.ParsingResponse)
                     {
-                        if (line.StartsWith("--"))
+                        if (line.TrimStart().StartsWith("--"))
                         {
                             continue;
                         }
@@ -138,7 +138,7 @@ namespace FactMatching
                             }
                             catch (Exception ex)
                             {
-                               problems.ReportNewError($"Problem reading template file {templatePath} , {ex.ToString()}",file,_lineNumber); 
+                               problems.ReportNewError($"Problem reading template file {templatePath}, {ex}", file, _lineNumber); 
                             }
                             state = RuleScriptParserEnum.LookingForRule;
                             continue;
@@ -175,7 +175,6 @@ namespace FactMatching
                             //We should see if we can derive from NickHit.Allies ... and so on.
                             while (!foundDerived && lastIndex > 1)
                             {
-
                                 finalName.Clear();
                                 derived.Clear();
                                 for (int i = 1; i < lastIndex; i++)
@@ -200,12 +199,11 @@ namespace FactMatching
                                     }
                                     else
                                     {
-                                        problems.ReportNewError($"derived is ({derived}) and foundDerived is ({foundDerived}) and finalName is ({finalName})", file, _lineNumber);
+                                        problems.ReportNewError($"derived is ({derived}) and foundDerived is ({foundDerived})", file, _lineNumber);
                                     }
                                 }
 
                                 lastIndex--;
-                                //if (derived.Length > 0) Debug.Log($"derived is ({derived}) and foundDerived is ({foundDerived}) and lastIndex ({lastIndex}) and finalName is ({finalName})");
                             }
                             currentRule = new RuleDBEntry {factTests = new List<RuleDBFactTestEntry>(), factWrites = new List<RuleDBFactWrite>(), ruleName = finalName.ToString()};
 
@@ -226,11 +224,13 @@ namespace FactMatching
                                     }
                                 }
                             }
+                            currentRule.startLine = _lineNumber;
                         }
                     }
 
                     if (state == RuleScriptParserEnum.ParsingRule)
                     {
+
                         ParseFactTests(line, currentRule, ref orGroupID,ref derivedFactTests);
                         switch (LookForKeywordInLine(line))
                         {
@@ -306,7 +306,7 @@ namespace FactMatching
                             else
                             {
                                 //Assigns an unique (to the RuleDB) ID to each fact
-                                var anyProblem = SetFactIDsAndBucketForFactsInRule(currentRule, ref addedFactIDNames,ref conceptBucket,ref bucketPartNames, ref factID,ref bucketID, ruleID);
+                                ProblemEntry anyProblem = SetFactIDsAndBucketForFactsInRule(currentRule, ref addedFactIDNames,ref conceptBucket,ref bucketPartNames, ref factID,ref bucketID, ruleID);
                                 if (anyProblem != null)
                                 {
                                     anyProblem.LineNumber = _lineNumber;
@@ -314,6 +314,7 @@ namespace FactMatching
                                     problems.AddNewProblem(anyProblem);
                                 }
                                 currentRule.RuleID = ruleID;
+                                currentRule.textFile = file;
                                 ruleID++;
                                 rules.Add(currentRule);
                             }
@@ -370,7 +371,7 @@ namespace FactMatching
                     string line;
                     while ((line = sr.ReadLine()) != null)
                     {
-                        if (line.StartsWith("--"))
+                        if (line.TrimStart().StartsWith("--"))
                         {
                             continue;
                         }
@@ -417,12 +418,14 @@ namespace FactMatching
                     {
                         if (startsWithIndicator && !containedInBucketPartNames && ruleHasBucketNames)
                         {
-                           //Raport problem
-                           ProblemEntry problem = new ProblemEntry();
-                           problem.ProblemType = RuleScriptParsingProblems.ProblemType.Error.ToString();
-                           problem.ProblemMessage =
-                               $"Bucket problem, cannot add {factTest.factName} as bucket because our bucket is already {bucket}";
-                           return problem;
+                            //Report problem
+                            ProblemEntry problem = new()
+                            {
+                                ProblemType = RuleScriptParsingProblems.ProblemType.Error.ToString(),
+                                ProblemMessage =
+                                $"Bucket problem, cannot add {factTest.factName} as bucket because our bucket is already {bucket}"
+                            };
+                            return problem;
                         }
 
                         if (containedInBucketPartNames)
@@ -498,7 +501,7 @@ namespace FactMatching
         {
             bucketPartNamesList.Sort();
             bool freshBucket = false;
-            bool areWeSameBucketButDifferentOrder = sameBucketButDifferentOrder(bucketPartNames, bucketPartNamesList, bucketFacts);
+            bool areWeSameBucketButDifferentOrder = SameBucketButDifferentOrder(bucketPartNames, bucketPartNamesList, bucketFacts);
             if (areWeSameBucketButDifferentOrder)
             {
                 string bucketGoodOrder = bucketPartNames[bucketPartNamesList[0]];
@@ -550,7 +553,7 @@ namespace FactMatching
             return anyProblem;
         }
 
-        private static bool sameBucketButDifferentOrder(Dictionary<string, string> bucketPartNames,
+        private static bool SameBucketButDifferentOrder(Dictionary<string, string> bucketPartNames,
                                                                     List<string> bucketPartNamesList, StringBuilder bucketFacts)
         {
             
@@ -656,7 +659,6 @@ namespace FactMatching
 
         private static void ParseFactTests(string line, RuleDBEntry currentRule, ref int orGroupID, ref List<RuleDBFactTestEntry> derived)
         {
-            
             var operands = new List<(string, RuleDBFactTestEntry.Comparision)>
             {
                 (">", RuleDBFactTestEntry.Comparision.MoreThan),
@@ -703,6 +705,7 @@ namespace FactMatching
                             factTestEntry.factName = splits[0].Trim();
                             factTestEntry.orGroupRuleID = -1;
                         }
+                        factTestEntry.lineNumber = _lineNumber;
                         factTestEntry.isStrict = !startsWithQuestion;
                         if (startsWithQuestion)
                         {

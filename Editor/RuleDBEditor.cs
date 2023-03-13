@@ -1,10 +1,8 @@
 ﻿#if UNITY_EDITOR
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using FactMatching;
 using UnityEditor;
 using UnityEngine;
 using Random = UnityEngine.Random;
@@ -31,6 +29,10 @@ public class RuleDBEditor : Editor
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             
+        }
+        if (GUILayout.Button("Parse to C#") && _rulesDB.generateFrom != null)
+        {
+            GenerateFactIDS();
         }
 
         int errors = 0;
@@ -258,11 +260,7 @@ public class RuleDBEditor : Editor
         rulesProperty.ClearArray();
 
         problems = _rulesDB.CreateRulesFromRulescripts();
-        if (_rulesDB.CompileToCSharp && _rulesDB.generateFrom!=null)
-        {
-            GenerateFactIDS();
-        }
-
+        
         EditorUtility.SetDirty(_rulesDB);
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
@@ -284,9 +282,18 @@ public class RuleDBEditor : Editor
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
 
-        var generatedName = StripNameIntoCamelCase(_rulesDB.name);
-        var fileName = $"FactMatcher/Generated/{generatedName}.cs";
-        FactMatcherCodeGenerator.GenerateFactIDS(fileName, GetNameSpaceName(), _rulesDB);
+        string generatedName = StripNameIntoCamelCase(_rulesDB.name);
+        string defaultFilePath = "/Assets/FactMatcher/Generated";
+        #if UNITY_EDITOR_WIN
+        defaultFilePath = defaultFilePath.Replace("/", "\\");
+        #endif
+        defaultFilePath = Directory.GetCurrentDirectory() + defaultFilePath;
+        string fullFilePath = EditorUtility.SaveFilePanel("Auto generate C# script", defaultFilePath, generatedName, "cs");
+        string fileName = Path.GetFileName(fullFilePath);
+        if (fileName != "")
+        {
+            FactMatcherCodeGenerator.GenerateFactIDS(fullFilePath, GetNameSpaceName(), _rulesDB);
+        }
     }
 
     public string GetNameSpaceName()
@@ -301,7 +308,6 @@ public class RuleDBEditor : Editor
 
         try
         {
-
             var stripEm = new[] {' ', '.'};
             StringBuilder genName = new StringBuilder();
             foreach (var strippy in stripEm)

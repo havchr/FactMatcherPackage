@@ -3,7 +3,7 @@
     <ui:VisualElement name="TitleVisualEliment" style="width: 100%; height: 40px; -unity-text-align: middle-center; font-size: 30px; border-left-color: rgb(47, 47, 47); border-right-color: rgb(47, 47, 47); border-top-color: rgb(47, 47, 47); border-bottom-color: rgb(47, 47, 47); border-bottom-width: 5px;">
         <ui:Label text="FactMacher" display-tooltip-when-elided="true" name="Titel" style="flex-grow: 1;" />
     </ui:VisualElement>
-    <ui:ScrollView style="width: 100%; height: 100%;">
+    <ui:ScrollView vertical-scroller-visibility="Hidden" horizontal-scroller-visibility="Hidden" style="width: 100%; height: 100%;">
         <ui:VisualElement name="Base" style="width: 100%; height: 100%; flex-grow: 1; flex-direction: row;">
             <ui:VisualElement class="autoVisual" style="width: 33%; height: 100%; font-size: 15px; max-width: none;">
                 <uie:ObjectField label="FactMatcher" picking-mode="Ignore" name="FactMatcherProvider" binding-path="FactMatcher" type="UnityEngine.GameObject, UnityEngine.CoreModule" class="objectField" />
@@ -23,10 +23,10 @@
                 <ui:ListView focusable="true" name="RuleList" show-border="true" class="autoWrap" style="max-height: none;" />
             </ui:VisualElement>
             <ui:VisualElement class="autoVisual" style="margin-right: 5px; max-width: none;">
-                <ui:DropdownField label="RuleScript" index="-1" choices="System.Collections.Generic.List`1[System.String]" name="RuleScriptSelector" class="autoWrap" />
-                <ui:TextField picking-mode="Ignore" label="RuleScript" name="RuleScript" multiline="true" mask-character="*" class="autoWrap" />
+                <uie:ObjectField label="Text File" name="TextFileField" type="UnityEngine.TextAsset, UnityEngine.CoreModule" />
                 <ui:Button text="SaveReload" display-tooltip-when-elided="true" name="SaveRuleScript" class="autoWrap" />
                 <ui:Button text="SaveStateAndReload" display-tooltip-when-elided="true" name="SaveRuleScriptReload" class="autoWrap" />
+                <ui:DropdownField label="RuleScript" index="-1" choices="System.Collections.Generic.List`1[System.String]" name="RuleScriptSelector" class="autoWrap" />
             </ui:VisualElement>
         </ui:VisualElement>
     </ui:ScrollView>

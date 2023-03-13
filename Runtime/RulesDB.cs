@@ -7,7 +7,7 @@ using FactMatching;
 using UnityEditor;
 #endif
 using UnityEngine;
-using UnityEngine.Serialization;
+using UnityEngine.UI;
 
 public enum FactValueType
 {
@@ -31,12 +31,21 @@ public class RuleDBFactWrite
     
 }
 
-public class RuleScriptParsingProblems // Tasked to record the problems encountered when creating the rules for factMacher 
+/// <summary>
+/// Tasked to record the problems encountered when creating the rules for factMacher 
+/// </summary>
+public class RuleScriptParsingProblems
 {
     private static readonly List<ProblemEntry> problems = new();
     public enum ProblemType { Error, Warning }
 
-    // Reports new problem (user defined problem type)
+    /// <summary>
+    /// Reports new problem (user defined problem type)
+    /// </summary>
+    /// <param name="problemMessage"></param>
+    /// <param name="file"></param>
+    /// <param name="lineNumber"></param>
+    /// <param name="problemType"></param>
     public void ReportNewProblem(string problemMessage, TextAsset file, int lineNumber, ProblemType problemType)
     { problems.Add(new ProblemEntry() { File = file, LineNumber = lineNumber, ProblemMessage = problemMessage, ProblemType = problemType.ToString() }); }
 
@@ -45,11 +54,23 @@ public class RuleScriptParsingProblems // Tasked to record the problems encounte
         problems.Add(problemEntry); 
     }
 
-    // Reports new problem (auto error user can change)
+    /// <summary>
+    /// Reports new problem (auto error user can change)
+    /// </summary>
+    /// <param name="problemMessage"></param>
+    /// <param name="filename"></param>
+    /// <param name="lineNumber"></param>
+    /// <param name="problemType"></param>
     public void ReportNewError(string problemMessage, TextAsset filename, int lineNumber, ProblemType problemType = ProblemType.Error)
     { problems.Add(new ProblemEntry() { File = filename, LineNumber = lineNumber, ProblemMessage = problemMessage, ProblemType = problemType.ToString() }); }
 
-    // Reports new problem (auto warning user can change)
+    /// <summary>
+    /// Reports new problem (auto warning user can change)
+    /// </summary>
+    /// <param name="problemMessage"></param>
+    /// <param name="filename"></param>
+    /// <param name="lineNumber"></param>
+    /// <param name="problemType"></param>
     public void ReportNewWarning(string problemMessage, TextAsset filename, int lineNumber, ProblemType problemType = ProblemType.Warning)
     { problems.Add(new ProblemEntry() { File = filename, LineNumber = lineNumber, ProblemMessage = problemMessage, ProblemType = problemType.ToString() }); }
     
@@ -114,7 +135,7 @@ public class ProblemEntry
         {
             return false;
         }
-        return (this.LineNumber.Equals(other.LineNumber));
+        return (LineNumber.Equals(other.LineNumber));
     }
 }
 
@@ -137,6 +158,7 @@ public class RuleDBFactTestEntry
         compareMethod = rhs.compareMethod;
         compareType = rhs.compareType;
         ruleOwnerID = rhs.ruleOwnerID;
+        lineNumber = rhs.lineNumber;
     }
     public bool isStrict;
     public int orGroupRuleID;
@@ -147,6 +169,7 @@ public class RuleDBFactTestEntry
     public Comparision compareMethod;
     public FactValueType compareType;
     public int ruleOwnerID;
+    public int lineNumber;
 
     public enum Comparision
     {
@@ -226,6 +249,8 @@ public class RuleDBEntry
     public List<RulePayloadInterpolation> interpolations;
     public int bucketSliceStartIndex;
     public int bucketSliceEndIndex;
+    public int startLine;
+    public TextAsset textFile;
 
     public string Interpolate(FactMatcher matcher,ref StringBuilder stringBuilder)
     {
@@ -292,7 +317,6 @@ public class RulesDB : ScriptableObject
     [Space(10)]
     public bool PickMultipleBestRules = false;
     public bool FactWriteToAllThatMatches = false;
-    public bool CompileToCSharp = false;
     private Dictionary<string, int> FactIdsMap;
     private Dictionary<string, int> RuleStringMap;
    
@@ -408,7 +432,7 @@ public class RulesDB : ScriptableObject
                                         ref bucketID,
                                         ref ruleID,
                                         path,
-                                ruleScript, 
+                                        ruleScript, 
                                         ref problems);
             }
 
@@ -439,29 +463,29 @@ public class RulesDB : ScriptableObject
     //FactWrites that are referencing another factID - must now be converted to their factIDS.
     void InitFactWriteIndexers(ref Dictionary<string, int> addedFactIDS)
     {
-            foreach (var rule in rules)
+        foreach (var rule in rules)
+        {
+            foreach( var factWrite in rule.factWrites)
             {
-                foreach( var factWrite in rule.factWrites)
+                switch (factWrite.writeMode)
                 {
-                    switch (factWrite.writeMode)
-                    {
-                        case RuleDBFactWrite.WriteMode.SetToOtherFactValue:
-                        case RuleDBFactWrite.WriteMode.IncrementByOtherFactValue:
-                        case RuleDBFactWrite.WriteMode.SubtractByOtherFactValue:
-                            if (addedFactIDS.ContainsKey(factWrite.writeString))
-                            {
-                                //encoding the factID index into the writeValue
-                                factWrite.writeValue = addedFactIDS[factWrite.writeString];
-                            }
-                            else
-                            {
-                                Debug.LogError($"Trying to FactWrite by a non existing other FactValue {factWrite.writeString}");
-                            }
-                            //now convert the name into the factID.
-                            break;
-                    }
+                    case RuleDBFactWrite.WriteMode.SetToOtherFactValue:
+                    case RuleDBFactWrite.WriteMode.IncrementByOtherFactValue:
+                    case RuleDBFactWrite.WriteMode.SubtractByOtherFactValue:
+                        if (addedFactIDS.ContainsKey(factWrite.writeString))
+                        {
+                            //encoding the factID index into the writeValue
+                            factWrite.writeValue = addedFactIDS[factWrite.writeString];
+                        }
+                        else
+                        {
+                            Debug.LogError($"Trying to FactWrite by a non existing other FactValue {factWrite.writeString}");
+                        }
+                        //now convert the name into the factID.
+                        break;
                 }
             }
+        }
     }
 
     private Dictionary<string, int> CreateFactIds()

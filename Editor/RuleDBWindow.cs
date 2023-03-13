@@ -6,7 +6,7 @@ using UnityEngine.UIElements;
 using UnityEditor;
 using UnityEngine;
 using System;
-using System.IO;
+using TextAsset = UnityEngine.TextAsset;
 
 /// <summary>
 /// The RuleDBWindow controller
@@ -35,11 +35,11 @@ public class RuleDBWindow : EditorWindow
     private TextField _factFilterField;
     private TextField _ruleFilterField;
     private TextField _factFileField;
-    private TextField _ruleScriptField;
     private DropdownField _ruleScriptSelector;
     private List<RuleDBFactTestEntry> _factTests;
     private List<FactRulesListViewController.Data> _rulesDatas;
     private TextAsset _currentRuleScript;
+    private Button _openTextFileButton;
     
     private bool _factMatcherSelfAllocated = false;
     private FactMatcherProvider _factMatcherProvider;
@@ -57,11 +57,12 @@ public class RuleDBWindow : EditorWindow
         _lastPickedRule = content.Q<Label>("RuleLabel");
         var rulesDBField = content.Q<ObjectField>("RulesDBField");
         var factMatcherProvider = content.Q<ObjectField>("FactMatcherProvider");
-        _ruleScriptField = content.Q<TextField>("RuleScript");
         _ruleScriptSelector = content.Q<DropdownField>("RuleScriptSelector");
+        _openTextFileButton = content.Q<Button>("OpenTextFile");
         _factFileField = content.Q<TextField>("FactFileLocation");
         _ruleFilterField = content.Q<TextField>("RuleFilter");
         _ruleListView = content.Q<ListView>("RuleList");
+        _factListView= content.Q<ListView>("FactList");
         
         rulesDBField.objectType = typeof(RulesDB);
         rulesDBField.RegisterCallback<ChangeEvent<Object>>(evt => { OnRuleDBFieldChanged(evt, content); });
@@ -136,6 +137,11 @@ public class RuleDBWindow : EditorWindow
     /// </param>
     private void OnRuleDBFieldChanged(ChangeEvent<Object> evt, VisualElement content)
     {
+        
+        _factListView.bindItem = null;
+        _factListView.itemsSource = new List<RuleDBFactTestEntry>();
+        _factListView.Rebuild();
+        
         _ruleListView.bindItem = null;
         _ruleListView.itemsSource = new List<FactRulesListViewController.Data>();
         _ruleListView.Rebuild();
@@ -152,19 +158,13 @@ public class RuleDBWindow : EditorWindow
             _factMatcher = new FactMatcher(rulesDB);
             _factMatcher.Init(countAllMatches: true);
             InitUIWithFactMatcher(content,_factMatcher);
-            Debug.Log($"_lastPicedRule {_lastPickedRule.text = WindowXML.name}");
         }
     }
 
-    /// <summary>
-    /// Turn everything invisible
-    /// </summary>
-    /// <param name="content">
-    /// The FactMatcher UI content
-    /// </param>
     private void ClearUI(VisualElement content)
     {
         _ruleScriptSelector.visible = false;
+        _openTextFileButton.visible = false;
         _ruleFilterField.visible = false;
         content.Q<Button>("SaveRuleScript").visible = false;
         content.Q<Button>("PickRuleButton").visible = false;
@@ -176,7 +176,6 @@ public class RuleDBWindow : EditorWindow
         content.Q<Button>("SaveRuleScript").visible = false;
         content.Q<Button>("SaveRuleScriptReload").visible = false;
         content.Q<Button>("RefreshFactValues").visible = false;
-        
     }
 
     /// <summary>
@@ -197,6 +196,7 @@ public class RuleDBWindow : EditorWindow
         _factMatcher.OnInited += OnInited;
         
         _ruleScriptSelector.visible = true;
+        _openTextFileButton.visible = true;
         _ruleFilterField.visible = true;
         content.Q<Button>("SaveRuleScript").visible = true;
         content.Q<Button>("PickRuleButton").visible = true;
@@ -213,24 +213,21 @@ public class RuleDBWindow : EditorWindow
         foreach (var textAsset in rulesDB.generateFrom)
         {
             ruleScriptChoices.Add(textAsset.name);
-            if (textAsset.text.Length < 4000)
-            {
-                _ruleScriptField.value = textAsset.text;
-            }
-
             _currentRuleScript = textAsset;
             _ruleScriptSelector.SetValueWithoutNotify(textAsset.name);
         }
 
-        ((INotifyValueChanged<string>) _ruleScriptSelector.labelElement).SetValueWithoutNotify("scriptFile:");
+        ((INotifyValueChanged<string>) _ruleScriptSelector.labelElement).SetValueWithoutNotify("ScriptFile:");
         _ruleScriptSelector.RegisterCallback<ChangeEvent<string>>(ev => // When the _ruleScriptSelector is updated (changed RuleScript)
         {
-            Debug.Log("_ruleScriptSelector.RegisterCallback");
             var index = Mathf.Max(0, ruleScriptChoices.IndexOf(ev.newValue)); // index = the largest number.
             _currentRuleScript = rulesDB.generateFrom[index];
-            _ruleScriptField.value = rulesDB.generateFrom[index].text; // Updates the text in the _ruleScriptField
         });
         _ruleScriptSelector.choices = ruleScriptChoices;
+        _openTextFileButton.RegisterCallback<ClickEvent>(ev =>
+        {
+            AssetDatabase.OpenAsset(_currentRuleScript);
+        });
 
 
         var saveScriptAndReload = content.Q<Button>("SaveRuleScript");
@@ -244,11 +241,6 @@ public class RuleDBWindow : EditorWindow
         saveScriptAndReloadIncludingFacts.RegisterCallback<ClickEvent>(evt => // When save script and reload including facts button is pressed
         {
             _factMatcher.SaveToCSV(_factFileField.value);
-            var path = AssetDatabase.GetAssetPath(_currentRuleScript);
-            StreamWriter writer = new StreamWriter(path, false);
-            writer.Write(_ruleScriptField.value);
-            writer.Close();
-            AssetDatabase.ImportAsset(path);
 
             _factMatcher.Reload();
             _factMatcher.LoadFromCSV(_factFileField.value);
@@ -276,13 +268,11 @@ public class RuleDBWindow : EditorWindow
             UpdateListView();
         });
 
-        _factListView = content.Q<ListView>("FactList");
         _factFilterField = content.Q<TextField>("FactFilter");
         _factFilterField.value = "";
         _factListView.makeItem = () => FactEntryController.MakeItem(FactItemVisAss);
         _factListView.bindItem = (element, i) => FactEntryController.BindItem(element, i, _factTests, _factMatcher);
         _factFilterField.RegisterCallback<ChangeEvent<string>>(evt => { UpdateListView(); });
-        _factListView.itemsSource = _factTests;
         UpdateListView();
         _factListView.fixedItemHeight = 22.0f;
 
@@ -299,11 +289,13 @@ public class RuleDBWindow : EditorWindow
         FactEntryController.factChanged += OnFactChangedFromFactsList();
         FactRulesListViewController.factChanged -= OnFactChangedFromFactsAndRulesList();
         FactRulesListViewController.factChanged += OnFactChangedFromFactsAndRulesList();
+        FactRulesListViewController.pingedRuleAction -= OnPingedRule;
+        FactRulesListViewController.pingedRuleAction += OnPingedRule;
     }
 
     /// <summary>
-    /// When facts changed from facts and rules list
-    /// Updates the _factListView and _ruleListView
+    /// When facts changed from facts and rules list,
+    /// updates the _factListView and _ruleListView
     /// </summary>
     /// <returns></returns>
     private Action<int> OnFactChangedFromFactsAndRulesList()
@@ -319,15 +311,14 @@ public class RuleDBWindow : EditorWindow
     }
 
     /// <summary>
-    /// When Fact changed from facts list
-    /// Updates the _ruleListView items
+    /// When Fact changed from facts list,
+    /// updates the _ruleListView items
     /// </summary>
     /// <returns></returns>
     private Action<int> OnFactChangedFromFactsList()
     {
         return i =>
-        {
-                    
+        {     
             if (_factMatcher != null && _factMatcher.ruleDB != null)
             {
                 _ruleListView.RefreshItems();
@@ -344,18 +335,14 @@ public class RuleDBWindow : EditorWindow
         _factMatcher.Init();
     }
 
-    /// <summary>
-    /// When initiated
-    /// </summary>
     private void OnInited()
     {
-        //Debug.Log("On Inited");
         UpdateListView();
     }
 
     /// <summary>
-    /// When picked a rule
-    /// Updates UI whit the rule that has been picked
+    /// When picked a rule,
+    /// updates UI whit the rule that has been picked
     /// </summary>
     /// <param name="noOfBestRules"></param>
     private void OnRulePicked(int noOfBestRules)
@@ -397,15 +384,12 @@ public class RuleDBWindow : EditorWindow
                 return include;
             });
             
-            _factListView.itemsSource = factTests;
             _factTests = factTests;
+            _factListView.itemsSource = _factTests;
             _factListView.RefreshItems();
         }
     }
     
-    /// <summary>
-    /// Update list view rules
-    /// </summary>
     void UpdateListViewRules()
     {
         if (_factMatcher != null && _factMatcher.ruleDB != null)
@@ -416,8 +400,13 @@ public class RuleDBWindow : EditorWindow
     }
 
     /// <summary>
-    /// Generate the rule data
+    /// Opens the pinged rules text file at specified line number
     /// </summary>
+    /// <param name="pingedRule">The rule containing the textAsset to open</param>
+    /// <param name="lineNumber">The line number to open the textAsset at</param>
+    public void OnPingedRule(RuleDBEntry pingedRule, int lineNumber)
+    { AssetDatabase.OpenAsset(pingedRule.textFile, lineNumber); }
+
     private List<FactRulesListViewController.Data> CreateRuleDatas()
     {
         var factTestsFromRulesFlattened = _factMatcher.ruleDB.CreateFlattenedRuleAtomListWithPotentiallyDuplicateFactIDS(entry =>
@@ -497,6 +486,7 @@ public class RuleDBWindow : EditorWindow
 
         FactEntryController.factChanged -= OnFactChangedFromFactsList();
         FactRulesListViewController.factChanged -= OnFactChangedFromFactsAndRulesList();
+        FactRulesListViewController.pingedRuleAction -= OnPingedRule;
         if (_factMatcher != null)
         {
             if (_factMatcher.ruleDB != null)

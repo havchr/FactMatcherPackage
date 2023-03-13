@@ -66,7 +66,7 @@ public class FactMatcher
        }   
     }
     
-    public void LoadFromCSV(string filename) // Loaded facts from filename
+    public void LoadFromCSV(string filename)
     {
         var lines = File.ReadAllLines(filename).Skip(1);
         foreach (var csvLine in lines)

@@ -1,0 +1,29 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="True">
+    <Style src="project://database/Packages/no.agens.factmatcher/Editor/RuleDBWindowV1.0/FactMacherUIStyles.uss?fileID=7433441132597879392&amp;guid=e14315bc30851d5429c7bb48f6c76b1f&amp;type=3#FactMacherUIStyles" />
+    <ui:VisualElement name="TitleVisualEliment" style="width: 100%; height: 40px; -unity-text-align: middle-center; font-size: 30px; border-left-color: rgb(47, 47, 47); border-right-color: rgb(47, 47, 47); border-top-color: rgb(47, 47, 47); border-bottom-color: rgb(47, 47, 47); border-bottom-width: 5px;">
+        <ui:Label text="FactMacher" display-tooltip-when-elided="true" name="Titel" style="flex-grow: 1;" />
+    </ui:VisualElement>
+    <ui:VisualElement name="Base" style="width: 100%; height: 100%; flex-grow: 1; flex-direction: row;">
+        <ui:VisualElement class="autoVisual" style="font-size: 15px; max-width: none;">
+            <uie:ObjectField label="FactMatcher" picking-mode="Ignore" name="FactMatcherProvider" binding-path="FactMatcher" type="UnityEngine.GameObject, UnityEngine.CoreModule" class="objectField" />
+            <uie:ObjectField label="Rules" name="RulesDBField" view-data-key="RulesDBField" class="objectField" />
+            <ui:Foldout text="Foldout" name="Foldy" class="autoWrap" />
+            <ui:TextField picking-mode="Ignore" label="FactFilename" value="FactFile.csv" name="FactFileLocation" class="autoWrap" />
+            <ui:Button text="SaveToFile" display-tooltip-when-elided="true" name="SaveToFile" class="autoWrap" />
+            <ui:Button text="LoadFromFile" display-tooltip-when-elided="true" name="LoadFromFile" class="autoWrap" />
+            <ui:Button text="PickRule" display-tooltip-when-elided="true" name="PickRuleButton" class="autoWrap" />
+            <ui:Button text="RefreshFacts" display-tooltip-when-elided="true" name="RefreshFactValues" class="autoWrap" />
+            <ui:Label display-tooltip-when-elided="true" name="RuleLabel" tabindex="-1" class="autoWrap" style="white-space: normal; border-left-color: rgb(47, 47, 47); border-right-color: rgb(47, 47, 47); border-top-color: rgb(47, 47, 47); border-bottom-color: rgb(47, 47, 47); margin-left: 5px; margin-right: 5px; margin-top: 5px; margin-bottom: 5px; border-bottom-width: 5px; border-left-width: 5px; border-right-width: 5px; border-top-width: 5px;" />
+            <ui:TextField picking-mode="Ignore" label="FactFilter" value="filler text" name="FactFilter" class="autoWrap" />
+            <ui:ListView focusable="true" name="FactList" class="autoWrap" />
+        </ui:VisualElement>
+        <ui:VisualElement class="autoVisual" style="margin-left: 5px; margin-right: 5px; max-width: none;">
+            <ui:DropdownField label="RuleScript" index="-1" choices="System.Collections.Generic.List`1[System.String]" name="RuleScriptSelector" class="autoWrap" />
+            <ui:Button text="Open File" display-tooltip-when-elided="true" name="OpenTextFile" class="autoWrap" />
+            <ui:Button text="SaveReload" display-tooltip-when-elided="true" name="SaveRuleScript" class="autoWrap" />
+            <ui:Button text="SaveStateAndReload" display-tooltip-when-elided="true" name="SaveRuleScriptReload" class="autoWrap" />
+            <ui:TextField picking-mode="Ignore" label="RuleFilter" name="RuleFilter" class="autoWrap" style="max-width: 350px;" />
+            <ui:ListView focusable="true" name="RuleList" show-border="true" show-bound-collection-size="true" horizontal-scrolling="true" class="autoWrap" style="max-height: none;" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
