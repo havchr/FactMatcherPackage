@@ -301,7 +301,6 @@ public class RuleDBEditor : Editor
         return $"FactMatcher_{StripNameIntoCamelCase(_rulesDB.name)}_Gen";
     }
 
-        
     //turns a string like "John Apple banana.power" into "JohnAppleBananaPower"
     public static string StripNameIntoCamelCase(string name)
     {

@@ -174,12 +174,21 @@ public class FactMatcher
 
     public int GetNumberOfMatchesForRuleID(int ruleID, out bool ruleValid)
     {
+        if (_inReload)
+        {
+            ruleValid = false;
+            return 0;
+        }
         PickRules(false, false);
         ruleValid = _allMatchesForAllRules[ruleID] <= 0;
         return Mathf.Abs(_allMatchesForAllRules[ruleID]);
     }
     public int PickRulesInBucket(BucketSlice bucketSlice)
     {
+        if (_inReload)
+        {
+            return 0;
+        }
         bucketSlice.ApplyBucket(this);
         return PickRules(true, true, bucketSlice.startIndex, bucketSlice.endIndex);
     }
@@ -195,6 +204,10 @@ public class FactMatcher
 
     public int PickRules(bool factWrites=true,bool fireListener=true,int startIndex=0,int endIndex=-1) // Pick the best matching rule
     {
+        if (_inReload)
+        {
+            return 0;
+        }
         _slice[0] = startIndex;
         _slice[1] = endIndex == -1 ? _rules.Length : (endIndex+1);
 
@@ -316,6 +329,7 @@ public class FactMatcher
     public void Reload()
     {
         _inReload = true;
+        hasCachedJob = false;
         if (_hasBeenInited)
         {
             DisposeData();
