@@ -28,7 +28,6 @@ public class RuleDBEditor : Editor
             EditorUtility.SetDirty(this);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            
         }
         if (GUILayout.Button("Parse to C#") && _rulesDB.generateFrom != null)
         {
@@ -36,23 +35,34 @@ public class RuleDBEditor : Editor
         }
 
         int errors = 0;
+        string errorsString = string.Empty;
         int warnings = 0;
+        string warningsString = string.Empty;
         foreach (var problem in problems)
         {
-            if (problem.ProblemType == RuleScriptParsingProblems.ProblemType.Warning.ToString()) { warnings++; }
-            else if (problem.ProblemType == RuleScriptParsingProblems.ProblemType.Error.ToString()) { errors++; }
+            if (problem.ProblemType == RuleScriptParsingProblems.ProblemType.Warning)
+            {
+                warningsString += '\n' + problem.ToString();
+                warnings++;
+            }
+            else if (problem.ProblemType == RuleScriptParsingProblems.ProblemType.Error)
+            {
+                errorsString += '\n' + problem.ToString();
+                errors++;
+            }
         }
+
         if (errors > 0)
         {
-            EditorGUILayout.HelpBox($"Encounter {errors} error{(errors > 1 ? "s" : "")}", MessageType.Error);
+            EditorGUILayout.HelpBox($"Encounter {errors} error{(errors > 1 ? "s" : "")}.{errorsString}", MessageType.Error);
         }
         if (warnings > 0)
         {
-            EditorGUILayout.HelpBox($"Encounter {warnings} warning{(warnings > 1 ? "s" : "")}", MessageType.Warning);
+            EditorGUILayout.HelpBox($"Encounter {warnings} warning{(warnings > 1 ? "s" : "")}.{warningsString}", MessageType.Warning);
         }
         else if (!(errors > 0))
         {
-            EditorGUILayout.HelpBox($"Encountered no warnings or errors", MessageType.Info);
+            EditorGUILayout.HelpBox($"Encountered no warning or error", MessageType.Info);
         }
     }
 

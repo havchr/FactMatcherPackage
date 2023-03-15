@@ -49,25 +49,34 @@ public class FactMatcher
         this.ruleDB = ruleDB;
     }
 
-    public void SaveToCSV(string filename)
+    public string SaveToCSV(string filename)
     {
-       using (StreamWriter writer = new StreamWriter(filename))  
-       {
-               
-           writer.WriteLine($"Type,  Name,  Value");
-           var factTests = ruleDB.CreateFlattenedFactTestListWithNoDuplicateFactIDS();
-           for (int i = 0; i < factTests.Count; i++)
-           {
-               var factTest = factTests[i];
-               var rawValue = _factValues[factTest.factID];
-               var value = factTest.compareType == FactValueType.String ? ruleDB.GetStringFromStringID((int)rawValue) : $"{rawValue}";
-               writer.WriteLine($"{factTest.compareType},  {factTest.factName},  {value}");  
-           }
-       }   
+        string problemsString = "";
+        RuleScriptParsingProblems ruleScriptParsingProblems = new();
+        using StreamWriter writer = new(filename);
+        writer.WriteLine($"Type,  Name,  Value");
+        var factTests = ruleDB.CreateFlattenedFactTestListWithNoDuplicateFactIDS();
+        for (int i = 0; i < factTests.Count; i++)
+        {
+            try
+            {
+                var factTest = factTests[i];
+                var rawValue = _factValues[factTest.factID];
+                var value = factTest.compareType == FactValueType.String ? ruleDB.GetStringFromStringID((int)rawValue) : $"{rawValue}";
+                writer.WriteLine($"{factTest.compareType},  {factTest.factName},  {value}");
+            }
+            catch (Exception e)
+            {
+                problemsString += $"Error while saving to CSV file,\nfactID is ({factTests[i].factID})\nException is: ({e})";
+            }
+        }
+        return problemsString;
     }
     
-    public void LoadFromCSV(string filename)
+    public string LoadFromCSV(string filename)
     {
+        RuleScriptParsingProblems ruleScriptParsingProblems = new();
+        string problemString = "";
         var lines = File.ReadAllLines(filename).Skip(1);
         foreach (var csvLine in lines)
         {
@@ -89,7 +98,12 @@ public class FactMatcher
                     SetFact(factID, float.Parse(keyValType[2]));
                 }
             }
+            else
+            {
+                problemString += $"factID == -1";
+            }
         }
+        return problemString;
     }
     
     public string PrintableFactValueFromFactTest(RuleDBFactTestEntry factTest)

@@ -421,7 +421,7 @@ namespace FactMatching
                             //Report problem
                             ProblemEntry problem = new()
                             {
-                                ProblemType = RuleScriptParsingProblems.ProblemType.Error.ToString(),
+                                ProblemType = RuleScriptParsingProblems.ProblemType.Error,
                                 ProblemMessage =
                                 $"Bucket problem, cannot add {factTest.factName} as bucket because our bucket is already {bucket}"
                             };
@@ -546,7 +546,7 @@ namespace FactMatching
             if (!freshBucket && !areWeSameBucketButDifferentOrder && bucketPartNamesList.Count > 0)
             {
                 anyProblem = new ProblemEntry();
-                anyProblem.ProblemType = RuleScriptParsingProblems.ProblemType.Error.ToString();
+                anyProblem.ProblemType = RuleScriptParsingProblems.ProblemType.Error;
                 anyProblem.ProblemMessage = "Bucket problem!";
             }
 

@@ -7,7 +7,6 @@ using FactMatching;
 using UnityEditor;
 #endif
 using UnityEngine;
-using UnityEngine.UI;
 
 public enum FactValueType
 {
@@ -39,6 +38,9 @@ public class RuleScriptParsingProblems
     private static readonly List<ProblemEntry> problems = new();
     public enum ProblemType { Error, Warning }
 
+    public void AddNewProblem(ProblemEntry problemEntry)
+    { problems.Add(problemEntry); }
+
     /// <summary>
     /// Reports new problem (user defined problem type)
     /// </summary>
@@ -47,22 +49,17 @@ public class RuleScriptParsingProblems
     /// <param name="lineNumber"></param>
     /// <param name="problemType"></param>
     public void ReportNewProblem(string problemMessage, TextAsset file, int lineNumber, ProblemType problemType)
-    { problems.Add(new ProblemEntry() { File = file, LineNumber = lineNumber, ProblemMessage = problemMessage, ProblemType = problemType.ToString() }); }
-
-    public void AddNewProblem(ProblemEntry problemEntry)
-    {
-        problems.Add(problemEntry); 
-    }
+    { problems.Add(new ProblemEntry() { File = file, LineNumber = lineNumber, ProblemMessage = problemMessage, ProblemType = problemType }); }
 
     /// <summary>
     /// Reports new problem (auto error user can change)
     /// </summary>
     /// <param name="problemMessage"></param>
-    /// <param name="filename"></param>
+    /// <param name="file"></param>
     /// <param name="lineNumber"></param>
     /// <param name="problemType"></param>
-    public void ReportNewError(string problemMessage, TextAsset filename, int lineNumber, ProblemType problemType = ProblemType.Error)
-    { problems.Add(new ProblemEntry() { File = filename, LineNumber = lineNumber, ProblemMessage = problemMessage, ProblemType = problemType.ToString() }); }
+    public void ReportNewError(string problemMessage, TextAsset file, int lineNumber, ProblemType problemType = ProblemType.Error)
+    { problems.Add(new ProblemEntry() { File = file, LineNumber = lineNumber, ProblemMessage = problemMessage, ProblemType = problemType}); }
 
     /// <summary>
     /// Reports new problem (auto warning user can change)
@@ -72,13 +69,20 @@ public class RuleScriptParsingProblems
     /// <param name="lineNumber"></param>
     /// <param name="problemType"></param>
     public void ReportNewWarning(string problemMessage, TextAsset filename, int lineNumber, ProblemType problemType = ProblemType.Warning)
-    { problems.Add(new ProblemEntry() { File = filename, LineNumber = lineNumber, ProblemMessage = problemMessage, ProblemType = problemType.ToString() }); }
+    { problems.Add(new ProblemEntry() { File = filename, LineNumber = lineNumber, ProblemMessage = problemMessage, ProblemType = problemType }); }
     
-    public bool ContainsErrors()
+
+    /// <summary>
+    /// Checks if there is any error in the List of problems
+    /// </summary>
+    /// <param name="problemEntries">If this is left empty it will check the active list in RuleScriptParsingProblems but will check any ProblemEntry list given</param>
+    /// <returns>True if the list contains at least one error</returns>
+    public bool ContainsError(List<ProblemEntry> problemEntries = null)
     {
-        foreach (var problem in problems)
+        problemEntries ??= problems;
+        foreach (var problem in problemEntries)
         {
-            if (problem.ProblemType == ProblemType.Error.ToString())
+            if (problem.ProblemType == ProblemType.Error)
             {
                 return true;
             }
@@ -86,11 +90,17 @@ public class RuleScriptParsingProblems
         return false;
     }
 
-    public bool ContainsWarnings()
+    /// <summary>
+    /// Checks if there is any warning in the List of problems
+    /// </summary>
+    /// <param name="problemEntries">If this is left empty it will check the active list in RuleScriptParsingProblems but will check any ProblemEntry list given</param>
+    /// <returns>True if the list contains at least one warning</returns>
+    public bool ContainsWarning(List<ProblemEntry> problemEntries = null)
     {
-        foreach (var problem in problems)
+        problemEntries ??= problems;
+        foreach (var problem in problemEntries)
         {
-            if (problem.ProblemType == ProblemType.Warning.ToString())
+            if (problem.ProblemType == ProblemType.Warning)
             {
                 return true;
             }
@@ -98,11 +108,17 @@ public class RuleScriptParsingProblems
         return false;
     }
 
-    public bool ContainsErrorsOrWarnings()
+    /// <summary>
+    /// Checks if there is any warning or error in the List of problems
+    /// </summary>
+    /// <param name="problemEntries">If this is left empty it will check the active list in RuleScriptParsingProblems but will check any ProblemEntry list given</param>
+    /// <returns>True if the list contains at least one warning or error</returns>
+    public bool ContainsErrorOrWarning(List<ProblemEntry> problemEntries = null)
     {
-        foreach (var problem in problems)
+        problemEntries ??= problems;
+        foreach (var problem in problemEntries)
         {
-            if (problem.ProblemType == ProblemType.Error.ToString() || problem.ProblemType == ProblemType.Warning.ToString())
+            if (problem.ProblemType == ProblemType.Error || problem.ProblemType == ProblemType.Warning)
             {
                 return true;
             }
@@ -110,24 +126,59 @@ public class RuleScriptParsingProblems
         return false;
     }
 
-    public List<ProblemEntry> GetListOfProblems() // Returns the list of problems and clear the previews problems
+    /// <summary>
+    /// Returns the list of problems and clears the previews problems
+    /// </summary>
+    /// <returns>List of ProblemEntry's</returns>
+    public List<ProblemEntry> GetListOfProblems()
     {
-        List<ProblemEntry> listOfProblems = new (problems);
+        List<ProblemEntry> listOfProblems = new(problems);
         problems.Clear();
         return listOfProblems;
+    }
+
+    /// <summary>
+    /// Returns the list of problems ass a string and clears the previews problems
+    /// </summary>
+    /// <returns>String of ProbmelEntry</returns>
+    public string GetListOfProblemsAsString()
+    {
+        List<ProblemEntry> listOfProblems = new(problems);
+        problems.Clear();
+        string listOfProblemsString = "";
+        foreach (var problem in listOfProblems)
+        {
+            listOfProblemsString += problem;
+        }
+        return listOfProblemsString;
     }
 }
 
 [Serializable]
 public class ProblemEntry
 {
-    //todo ProblemType should be enum instead of string
-    public string ProblemType;
+    public RuleScriptParsingProblems.ProblemType ProblemType;
     public TextAsset File;
     public int LineNumber;
     public string ProblemMessage;
+    public Exception Exception;
     public override string ToString()
-    { return $"{ProblemType} occurred in the file: {File}, at line: {LineNumber}, whit the message:\n{ProblemMessage}"; }
+    {
+        return 
+            $"{ProblemType} occurred {(File ? $"in the file:  {File.name} , at line: {LineNumber}," : string.Empty)} " +
+            $"whit the message:\n{ProblemMessage}" +
+            $"{(Exception != null ? $"\nException message: {Exception}" : string.Empty)}";
+    }
+
+    public bool IsError()
+    {
+        throw new NotImplementedException("Working in detecting if is error");
+    }
+
+    public bool IsWarning()
+    {
+        throw new NotImplementedException("Working in detecting if is warning");
+    }
 
     public bool Equals(ProblemEntry other)
     {
@@ -313,6 +364,7 @@ public class RuleDBEntry
 [CreateAssetMenu(fileName = "RulesDB", menuName = "FactMatcher/RulesDB", order = 1)]
 public class RulesDB : ScriptableObject
 {
+    [NonSerialized]
     public List<ProblemEntry> problemList;
     [Space(10)]
     public bool PickMultipleBestRules = false;
@@ -396,7 +448,7 @@ public class RulesDB : ScriptableObject
     public List<ProblemEntry> CreateRulesFromRulescripts()
     {
         RuleScriptParsingProblems problems = new();
-        problemList.Clear();
+        problemList?.Clear();
         if (generateFrom.Count != 0)
         {
             rules.Clear();
@@ -437,7 +489,7 @@ public class RulesDB : ScriptableObject
             }
 
             InitFactWriteIndexers(ref addedFactIDS);
-            if (!problems.ContainsErrors())
+            if (!problems.ContainsError())
             {
                 /*
                  * We need to sort on our buckets, so that we can use bucketSlices (slices of the array)
@@ -457,8 +509,12 @@ public class RulesDB : ScriptableObject
                 problems.ReportNewError("generateFrom == null", null, -1);
             }
         }
+        else
+        {
+            problems.ReportNewError("There is noting to generate from", null, -1);
+        }
         return problemList = problems.GetListOfProblems();
-    } 
+    }
     
     //FactWrites that are referencing another factID - must now be converted to their factIDS.
     void InitFactWriteIndexers(ref Dictionary<string, int> addedFactIDS)

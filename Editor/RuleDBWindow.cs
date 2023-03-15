@@ -62,7 +62,7 @@ public class RuleDBWindow : EditorWindow
         _factFileField = content.Q<TextField>("FactFileLocation");
         _ruleFilterField = content.Q<TextField>("RuleFilter");
         _ruleListView = content.Q<ListView>("RuleList");
-        _factListView= content.Q<ListView>("FactList");
+        _factListView = content.Q<ListView>("FactList");
         
         rulesDBField.objectType = typeof(RulesDB);
         rulesDBField.RegisterCallback<ChangeEvent<Object>>(evt => { OnRuleDBFieldChanged(evt, content); });
@@ -166,15 +166,13 @@ public class RuleDBWindow : EditorWindow
         _ruleScriptSelector.visible = false;
         _openTextFileButton.visible = false;
         _ruleFilterField.visible = false;
-        content.Q<Button>("SaveRuleScript").visible = false;
         content.Q<Button>("PickRuleButton").visible = false;
         content.Q<ListView>("FactList").visible = false;
         content.Q<TextField>("FactFilter").visible = false;
         content.Q<ListView>("RuleList").visible = false;
         content.Q<Button>("SaveToFile").visible = false;
         content.Q<Button>("LoadFromFile").visible = false;
-        content.Q<Button>("SaveRuleScript").visible = false;
-        content.Q<Button>("SaveRuleScriptReload").visible = false;
+        content.Q<Button>("ReparseAndReload").visible = false;
         content.Q<Button>("RefreshFactValues").visible = false;
     }
 
@@ -189,7 +187,7 @@ public class RuleDBWindow : EditorWindow
     {
         _factMatcher = factMatcher;
         var rulesDB = _factMatcher.ruleDB;
-        var button = content.Q<Button>("PickRuleButton");
+        var pickRuleButton = content.Q<Button>("PickRuleButton");
 
         rulesDB.OnRulesParsed += OnRulesParsed;
         _factMatcher.OnRulePicked += OnRulePicked;
@@ -198,15 +196,13 @@ public class RuleDBWindow : EditorWindow
         _ruleScriptSelector.visible = true;
         _openTextFileButton.visible = true;
         _ruleFilterField.visible = true;
-        content.Q<Button>("SaveRuleScript").visible = true;
         content.Q<Button>("PickRuleButton").visible = true;
         content.Q<ListView>("FactList").visible = true;
         content.Q<TextField>("FactFilter").visible = true;
         content.Q<ListView>("RuleList").visible = true;
         content.Q<Button>("SaveToFile").visible = true;
         content.Q<Button>("LoadFromFile").visible = true;
-        content.Q<Button>("SaveRuleScript").visible = true;
-        content.Q<Button>("SaveRuleScriptReload").visible = true;
+        content.Q<Button>("ReparseAndReload").visible = true;
         content.Q<Button>("RefreshFactValues").visible = true;
 
         var ruleScriptChoices = new List<string>();
@@ -229,37 +225,31 @@ public class RuleDBWindow : EditorWindow
             AssetDatabase.OpenAsset(_currentRuleScript);
         });
 
-
-        var saveScriptAndReload = content.Q<Button>("SaveRuleScript");
-        var saveScriptAndReloadIncludingFacts = content.Q<Button>("SaveRuleScriptReload");
-
-        saveScriptAndReload.RegisterCallback<ClickEvent>(evt => // When save and reload button is pressed
+        var reparseAndReload = content.Q<Button>("ReparseAndReload");
+        reparseAndReload.RegisterCallback<ClickEvent>(evt => // When save script and reload including facts button is pressed
         {
-            _factMatcher.LoadFromCSV(_factFileField.value);
-            UpdateListView();
-        });
-        saveScriptAndReloadIncludingFacts.RegisterCallback<ClickEvent>(evt => // When save script and reload including facts button is pressed
-        {
-            _factMatcher.SaveToCSV(_factFileField.value);
-
+            string fileName = "_factMatcher_temp_fact_values" + ".csv";
+            string problemSaving = _factMatcher.SaveToCSV(fileName);
             _factMatcher.Reload();
-            _factMatcher.LoadFromCSV(_factFileField.value);
+            problemSaving += '\n' + _factMatcher.LoadFromCSV(fileName);
+            _lastPickedRule.text = problemSaving == null || problemSaving.Trim('\n', '\r') == "" ? "No problems found" : "Problems:\n" + problemSaving;
+            UpdateListViewRules();
             UpdateListView();
         });
 
 
-        button.RegisterCallback<ClickEvent>(evt => // When pickRuleButton is pressed
+        pickRuleButton.RegisterCallback<ClickEvent>(evt => // When pickRuleButton is pressed
         {
             _factMatcher.PickRules();
         });
 
         var saveButton = content.Q<Button>("SaveToFile");
-        saveButton.RegisterCallback<ClickEvent>(evt => { _factMatcher.SaveToCSV(_factFileField.value); });
+        saveButton.RegisterCallback<ClickEvent>(evt => { _ = _factMatcher.SaveToCSV(_factFileField.value); });
 
         var loadButton = content.Q<Button>("LoadFromFile");
         loadButton.RegisterCallback<ClickEvent>(evt =>
         {
-            _factMatcher.LoadFromCSV(_factFileField.value);
+            _ = _factMatcher.LoadFromCSV(_factFileField.value);
             UpdateListView();
         });
         
@@ -333,6 +323,13 @@ public class RuleDBWindow : EditorWindow
             _factMatcher.DisposeData();
         }
         _factMatcher.Init();
+        var problems = _factMatcher.ruleDB.problemList;
+        string problemsString = "";
+        foreach ( var problem in problems ) 
+        {
+            problemsString += problem;
+        }
+        //_lastPickedRule.text = problemsString;
     }
 
     private void OnInited()

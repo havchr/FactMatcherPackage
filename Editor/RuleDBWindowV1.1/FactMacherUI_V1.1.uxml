@@ -20,8 +20,7 @@
         <ui:VisualElement class="autoVisual" style="margin-left: 5px; margin-right: 5px; max-width: none;">
             <ui:DropdownField label="RuleScript" index="-1" choices="System.Collections.Generic.List`1[System.String]" name="RuleScriptSelector" class="autoWrap" />
             <ui:Button text="Open File" display-tooltip-when-elided="true" name="OpenTextFile" class="autoWrap" />
-            <ui:Button text="SaveReload" display-tooltip-when-elided="true" name="SaveRuleScript" class="autoWrap" />
-            <ui:Button text="SaveStateAndReload" display-tooltip-when-elided="true" name="SaveRuleScriptReload" class="autoWrap" />
+            <ui:Button text="Reparse and reload" display-tooltip-when-elided="true" name="ReparseAndReload" class="autoWrap" />
             <ui:TextField picking-mode="Ignore" label="RuleFilter" name="RuleFilter" class="autoWrap" style="max-width: 350px;" />
             <ui:ListView focusable="true" name="RuleList" show-border="true" show-bound-collection-size="true" horizontal-scrolling="true" class="autoWrap" style="max-height: none;" />
         </ui:VisualElement>
