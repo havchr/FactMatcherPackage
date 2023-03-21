@@ -136,9 +136,9 @@ namespace FactMatching
                             {
                                 currentReader = HandleTheTemplateFile(templatePath, templateArguments);
                             }
-                            catch (Exception ex)
+                            catch (Exception e)
                             {
-                               problems.ReportNewError($"Problem reading template file {templatePath}, {ex}", file, _lineNumber); 
+                               problems.ReportNewError($"Problem reading template file {templatePath}", file, _lineNumber, e); 
                             }
                             state = RuleScriptParserEnum.LookingForRule;
                             continue;
@@ -223,6 +223,14 @@ namespace FactMatching
                                         currentRule.factTests.Add(copyFactTest);
                                     }
                                 }
+                                else
+                                {
+                                    problems.ReportNewWarning($"Could not find {derived} inside of parsedFactTest.", file, _lineNumber);
+                                }
+                            }
+                            else
+                            {
+                                problems.ReportNewWarning($"deriver.Length = ({derived.Length}), so there is noting to derive", file, _lineNumber);
                             }
                             currentRule.startLine = _lineNumber;
                         }
@@ -336,8 +344,11 @@ namespace FactMatching
                             payload.Append(line);
                         }
                     }
-
                 }
+            }
+            catch (Exception e)
+            {
+                problems.ReportNewError($"Failed to generate rules", file, _lineNumber, e);
             }
             finally
             {
@@ -421,7 +432,7 @@ namespace FactMatching
                             //Report problem
                             ProblemEntry problem = new()
                             {
-                                ProblemType = RuleScriptParsingProblems.ProblemType.Error,
+                                ProblemType = ProblemEntry.ProblemTypes.Error,
                                 ProblemMessage =
                                 $"Bucket problem, cannot add {factTest.factName} as bucket because our bucket is already {bucket}"
                             };
@@ -546,7 +557,7 @@ namespace FactMatching
             if (!freshBucket && !areWeSameBucketButDifferentOrder && bucketPartNamesList.Count > 0)
             {
                 anyProblem = new ProblemEntry();
-                anyProblem.ProblemType = RuleScriptParsingProblems.ProblemType.Error;
+                anyProblem.ProblemType = ProblemEntry.ProblemTypes.Error;
                 anyProblem.ProblemMessage = "Bucket problem!";
             }
 

@@ -19,6 +19,7 @@ namespace FactMatching
         our rules does not contain any tests that uses some_fact
         */
         public const int FactIDDevNull = 0;
+        public const int RuleIDNonExisting = -1;
     }
     
     public struct Settings 
@@ -242,7 +243,23 @@ namespace FactMatching
                 }
 
             }
+        }
+        
+        public static int[] CreateStringIDSFromEnum(FactMatcher factMatcher,Type enumType)
+        {
+            var names = Enum.GetNames(enumType);
+            int[] stringIDS = new int[names.Length];
+            for (int i = 0; i < names.Length; i++)
+            {
+                int sid = factMatcher.StringID(names[i]);
+                if (sid == -1)
+                {
+                    Debug.LogWarning($"Could not find {names[i]} in the FactMatcher database");
+                }
+                stringIDS[i] = sid;
+            }
 
+            return stringIDS;
         }
         
         public static bool Predicate(in FactCompare comp,float x)

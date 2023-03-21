@@ -36,10 +36,11 @@ public class RuleDBFactWrite
 public class RuleScriptParsingProblems
 {
     private static readonly List<ProblemEntry> problems = new();
-    public enum ProblemType { Error, Warning }
 
-    public void AddNewProblem(ProblemEntry problemEntry)
-    { problems.Add(problemEntry); }
+    public void ClearList()
+    {
+        problems?.Clear();
+    }
 
     /// <summary>
     /// Reports new problem (user defined problem type)
@@ -48,8 +49,11 @@ public class RuleScriptParsingProblems
     /// <param name="file"></param>
     /// <param name="lineNumber"></param>
     /// <param name="problemType"></param>
-    public void ReportNewProblem(string problemMessage, TextAsset file, int lineNumber, ProblemType problemType)
-    { problems.Add(new ProblemEntry() { File = file, LineNumber = lineNumber, ProblemMessage = problemMessage, ProblemType = problemType }); }
+    public void ReportNewProblem(string problemMessage, TextAsset file, int lineNumber, ProblemEntry.ProblemTypes problemType, Exception Exception = null)
+    { problems.Add(new ProblemEntry() { File = file, LineNumber = lineNumber, ProblemMessage = problemMessage, Exception = Exception, ProblemType = problemType }); }
+
+    public void AddNewProblem(ProblemEntry problemEntry)
+    { problems.Add(problemEntry); }
 
     /// <summary>
     /// Reports new problem (auto error user can change)
@@ -58,18 +62,18 @@ public class RuleScriptParsingProblems
     /// <param name="file"></param>
     /// <param name="lineNumber"></param>
     /// <param name="problemType"></param>
-    public void ReportNewError(string problemMessage, TextAsset file, int lineNumber, ProblemType problemType = ProblemType.Error)
-    { problems.Add(new ProblemEntry() { File = file, LineNumber = lineNumber, ProblemMessage = problemMessage, ProblemType = problemType}); }
+    public void ReportNewError(string problemMessage, TextAsset file, int lineNumber, Exception Exception = null, ProblemEntry.ProblemTypes problemType = ProblemEntry.ProblemTypes.Error)
+    { problems.Add(new ProblemEntry() { ProblemMessage = problemMessage, File = file, LineNumber = lineNumber, Exception = Exception, ProblemType = problemType }); }
 
     /// <summary>
     /// Reports new problem (auto warning user can change)
     /// </summary>
     /// <param name="problemMessage"></param>
-    /// <param name="filename"></param>
+    /// <param name="file"></param>
     /// <param name="lineNumber"></param>
     /// <param name="problemType"></param>
-    public void ReportNewWarning(string problemMessage, TextAsset filename, int lineNumber, ProblemType problemType = ProblemType.Warning)
-    { problems.Add(new ProblemEntry() { File = filename, LineNumber = lineNumber, ProblemMessage = problemMessage, ProblemType = problemType }); }
+    public void ReportNewWarning(string problemMessage, TextAsset file, int lineNumber, Exception Exception = null, ProblemEntry.ProblemTypes problemType = ProblemEntry.ProblemTypes.Warning)
+    { problems.Add(new ProblemEntry() { File = file, LineNumber = lineNumber, ProblemMessage = problemMessage, Exception = Exception, ProblemType = problemType }); }
     
 
     /// <summary>
@@ -82,7 +86,7 @@ public class RuleScriptParsingProblems
         problemEntries ??= problems;
         foreach (var problem in problemEntries)
         {
-            if (problem.ProblemType == ProblemType.Error)
+            if (problem.IsError())
             {
                 return true;
             }
@@ -100,7 +104,7 @@ public class RuleScriptParsingProblems
         problemEntries ??= problems;
         foreach (var problem in problemEntries)
         {
-            if (problem.ProblemType == ProblemType.Warning)
+            if (problem.IsWarning())
             {
                 return true;
             }
@@ -118,7 +122,7 @@ public class RuleScriptParsingProblems
         problemEntries ??= problems;
         foreach (var problem in problemEntries)
         {
-            if (problem.ProblemType == ProblemType.Error || problem.ProblemType == ProblemType.Warning)
+            if (problem.IsError() || problem.IsWarning())
             {
                 return true;
             }
@@ -137,14 +141,69 @@ public class RuleScriptParsingProblems
         return listOfProblems;
     }
 
-    /// <summary>
-    /// Returns the list of problems ass a string and clears the previews problems
-    /// </summary>
-    /// <returns>String of ProbmelEntry</returns>
-    public string GetListOfProblemsAsString()
+    public bool ContainsErrorsOutErrorsAmountErrorsString(out int errors, out string errorsString)
+    {
+        errors = 0;
+        errorsString = string.Empty;
+        for (int i = 0; i < problems.Count; i++)
+        {
+            ProblemEntry problem = problems[i];
+            if (problem.IsError())
+            {
+                errorsString += "\n\n" + problem.ToString();
+                errors++;
+                problems.RemoveAt(i);
+            }
+        }
+        return errors > 0;
+    }
+
+    public bool ContainsWarningsOutWarningsAmountWarningsString(out int warnings, out string warningsString)
+    {
+        warnings = 0;
+        warningsString = string.Empty;
+        for (int i = 0; i < problems.Count; i++)
+        {
+            ProblemEntry problem = problems[i];
+            if (problem.IsWarning())
+            {
+                warningsString += "\n\n" + problem.ToString();
+                warnings++;
+                problems.RemoveAt(i);
+            }
+        }
+        return warnings > 0;
+    }
+
+    public bool ContainsWarningsAndErrorsOutWarningsAndErrorsAmountWarningsAndErrorsString(out int errors, out string errorsString, out int warnings, out string warningsString)
+    {
+        errors = 0;
+        errorsString = string.Empty;
+        warnings = 0;
+        warningsString = string.Empty;
+        for (int i = 0; i < problems.Count; i++)
+        {
+            ProblemEntry problem = problems[i];
+            if (problem.IsError())
+            {
+                errorsString += "\n\n" + problem.ToString();
+                errors++;
+                problems.RemoveAt(i);
+            }
+            else if (problem.IsWarning())
+            {
+                warningsString += "\n\n" + problem.ToString();
+                warnings++;
+                problems.RemoveAt(i);
+            }
+        }
+        return errors > 0 || warnings > 0;
+    }
+
+    public override string ToString()
     {
         List<ProblemEntry> listOfProblems = new(problems);
-        problems.Clear();
+        problems?.Clear();
         string listOfProblemsString = "";
         foreach (var problem in listOfProblems)
         {
@@ -157,7 +216,9 @@ public class RuleScriptParsingProblems
 [Serializable]
 public class ProblemEntry
 {
-    public RuleScriptParsingProblems.ProblemType ProblemType;
+    public enum ProblemTypes { Error, Warning }
+
+    public ProblemTypes ProblemType;
     public TextAsset File;
     public int LineNumber;
     public string ProblemMessage;
@@ -165,29 +226,16 @@ public class ProblemEntry
     public override string ToString()
     {
         return 
-            $"{ProblemType} occurred {(File ? $"in the file:  {File.name} , at line: {LineNumber}," : string.Empty)} " +
-            $"whit the message:\n{ProblemMessage}" +
-            $"{(Exception != null ? $"\nException message: {Exception}" : string.Empty)}";
+            $"{ProblemType} occurred {(File ? $"in the file:  {File.name}, at line: {LineNumber}," : string.Empty)} " +
+            $"with the message:\n{ProblemMessage}" +
+            $"{(Exception == null ? string.Empty : $"\nException message: {Exception}")}";
     }
 
     public bool IsError()
-    {
-        throw new NotImplementedException("Working in detecting if is error");
-    }
+    { return ProblemType == ProblemTypes.Error; }
 
     public bool IsWarning()
-    {
-        throw new NotImplementedException("Working in detecting if is warning");
-    }
-
-    public bool Equals(ProblemEntry other)
-    {
-        if (other == null)
-        {
-            return false;
-        }
-        return (LineNumber.Equals(other.LineNumber));
-    }
+    { return ProblemType == ProblemTypes.Warning; }
 }
 
 [Serializable]
@@ -366,15 +414,15 @@ public class RulesDB : ScriptableObject
 {
     [NonSerialized]
     public List<ProblemEntry> problemList;
-    [Space(10)]
     public bool PickMultipleBestRules = false;
     public bool FactWriteToAllThatMatches = false;
-    private Dictionary<string, int> FactIdsMap;
-    private Dictionary<string, int> RuleStringMap;
+    private Dictionary<string, int> _factIDsMap;
+    private Dictionary<string, int> _ruleIDsMap;
+    private Dictionary<string, int> _stringIDsMap;
    
     private Dictionary<string, BucketSlice> _bucketSlices;
     
-    private Dictionary<int, RuleDBEntry> RuleMap;
+    private Dictionary<int, RuleDBEntry> _ruleMap;
     public List<TextAsset> generateFrom;
     public List<RuleDBEntry> rules;
     public Action OnRulesParsed;
@@ -383,9 +431,10 @@ public class RulesDB : ScriptableObject
 
     public void InitRuleDB()
     {
-        RuleStringMap = RuleStringIDs(this);
-        RuleMap = CreateEntryFromIDDic(this);
-        FactIdsMap = CreateFactIds();
+        _stringIDsMap = CreateStringIDs(rules);
+        _ruleIDsMap = CreateRuleIDs(rules);
+        _ruleMap = CreateEntryFromIDDic(rules);
+        _factIDsMap = CreateFactIDs(rules);
         _bucketSlices = CreateBucketSlices();
     }
 
@@ -445,7 +494,7 @@ public class RulesDB : ScriptableObject
         return ruleAtoms;
     }
 
-    public List<ProblemEntry> CreateRulesFromRulescripts()
+    public RuleScriptParsingProblems CreateRulesFromRulescripts()
     {
         RuleScriptParsingProblems problems = new();
         problemList?.Clear();
@@ -506,15 +555,18 @@ public class RulesDB : ScriptableObject
             }
             else
             {
+                rules.Clear();
                 problems.ReportNewError("generateFrom == null", null, -1);
             }
         }
         else
         {
+            rules.Clear();
             problems.ReportNewError("There is noting to generate from", null, -1);
         }
-        return problemList = problems.GetListOfProblems();
-    }
+
+        return problems;
+    } 
     
     //FactWrites that are referencing another factID - must now be converted to their factIDS.
     void InitFactWriteIndexers(ref Dictionary<string, int> addedFactIDS)
@@ -544,7 +596,7 @@ public class RulesDB : ScriptableObject
         }
     }
 
-    private Dictionary<string, int> CreateFactIds()
+    private static Dictionary<string, int> CreateFactIDs(List<RuleDBEntry> rules)
     {
         var result = new Dictionary<string, int>();
         foreach (var rule in rules)
@@ -563,16 +615,27 @@ public class RulesDB : ScriptableObject
 
         return result;
     }
+    
+    private static Dictionary<string, int> CreateRuleIDs(List<RuleDBEntry> rules)
+    {
+        var result = new Dictionary<string, int>();
+        foreach (var rule in rules)
+        {
+            result[rule.ruleName] = rule.RuleID;
+        }
+
+        return result;
+    }
 
     public int StringId(string str)
     {
-        if (RuleStringMap == null)
+        if (_stringIDsMap == null)
         {
             InitRuleDB();
         }
 
         int id = -1;
-        if (!RuleStringMap.TryGetValue(str, out id))
+        if (!_stringIDsMap.TryGetValue(str, out id))
         {
             id = -1;
             Debug.Log($"did not find stringID {id} for string {str}");
@@ -596,13 +659,13 @@ public class RulesDB : ScriptableObject
 
     public int FactId(string str)
     {
-        if (FactIdsMap == null)
+        if (_factIDsMap == null)
         {
             InitRuleDB();
         }
 
         int id = Consts.FactIDDevNull;
-        if (!FactIdsMap.TryGetValue(str, out id))
+        if (!_factIDsMap.TryGetValue(str, out id))
         {
             id = Consts.FactIDDevNull;
             Debug.Log($"did not find factID {id} for fact {str}");
@@ -614,10 +677,31 @@ public class RulesDB : ScriptableObject
 
         return id;
     }
+    
+    public int RuleID(string str)
+    {
+        if (_ruleIDsMap == null)
+        {
+            InitRuleDB();
+        }
+
+        int id = Consts.RuleIDNonExisting;
+        if (!_ruleIDsMap.TryGetValue(str, out id))
+        {
+            id = Consts.RuleIDNonExisting;
+            Debug.Log($"did not find ruleID {id} for rule {str}");
+        }
+        else
+        {
+            //Debug.Log($"Found ruleID {id} for rule {str}");
+        }
+
+        return id;
+    }
 
     public string GetFactVariabelNameFromFactID(int factID)
     {
-        foreach (var strVal in FactIdsMap)
+        foreach (var strVal in _factIDsMap)
         {
             if (strVal.Value == factID)
                 return strVal.Key;
@@ -644,12 +728,12 @@ public class RulesDB : ScriptableObject
 
     public string GetStringFromStringID(int stringID)
     {
-        if (RuleStringMap == null)
+        if (_stringIDsMap == null)
         {
             return "Non-inited";
         }
 
-        foreach (var strVal in RuleStringMap)
+        foreach (var strVal in _stringIDsMap)
         {
             if (strVal.Value == stringID)
                 return strVal.Key;
@@ -660,13 +744,13 @@ public class RulesDB : ScriptableObject
 
     public RuleDBEntry RuleFromID(int id)
     {
-        if (RuleMap == null)
+        if (_ruleMap == null)
         {
             InitRuleDB();
         }
 
         RuleDBEntry rule;
-        if (!RuleMap.TryGetValue(id, out rule))
+        if (!_ruleMap.TryGetValue(id, out rule))
         {
             rule = null;
         }
@@ -674,10 +758,10 @@ public class RulesDB : ScriptableObject
         return rule;
     }
 
-    private static Dictionary<int, RuleDBEntry> CreateEntryFromIDDic(RulesDB current)
+    private static Dictionary<int, RuleDBEntry> CreateEntryFromIDDic(List<RuleDBEntry> rules)
     {
         Dictionary<int, RuleDBEntry> dic = new Dictionary<int, RuleDBEntry>();
-        foreach (var rule in current.rules)
+        foreach (var rule in rules)
         {
             var id = rule.RuleID;
             dic[id] = rule;
@@ -686,7 +770,7 @@ public class RulesDB : ScriptableObject
         return dic;
     }
 
-    private static Dictionary<string, int> RuleStringIDs(RulesDB current)
+    private static Dictionary<string, int> CreateStringIDs(List<RuleDBEntry> rules)
     {
         Dictionary<string, int> dic = new Dictionary<string, int>();
 
@@ -698,9 +782,9 @@ public class RulesDB : ScriptableObject
         dic.Add("True", FactMatching.Consts.True);
         dic.Add("true", FactMatching.Consts.True);
         id = FactMatching.Consts.True + 1;
-        for (int i = 0; i < current.rules.Count; i++)
+        for (int i = 0; i < rules.Count; i++)
         {
-            var rule = current.rules[i];
+            var rule = rules[i];
             if (!dic.ContainsKey(rule.payload))
             {
                 dic[rule.payload] = id;

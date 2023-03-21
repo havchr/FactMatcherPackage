@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using UnityEditor;
+using UnityEditor.PackageManager;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -18,51 +19,59 @@ public class RuleDBEditor : Editor
         _rulesDB = (RulesDB)target;
     }
 
-    List<ProblemEntry> problems = new();
+    RuleScriptParsingProblems problems = new();
+    bool errorDetected = false;
+    int savedErrors = 0;
+    string savedErrorsString = string.Empty;
+    
+    bool warningDetected = false;
+    int savedWarnings = 0;
+    string savedWarningsString = string.Empty;
+
+    bool chckedForProblems = false;
+
     public override void OnInspectorGUI()
     {
         base.OnInspectorGUI();
-        if(GUILayout.Button("Parse Rulescripts")) 
+        if (GUILayout.Button("Parse Rulescripts"))
         {
             problems = ParseRuleScripts();
             EditorUtility.SetDirty(this);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
+
+
+            if (problems.ContainsErrorsOutErrorsAmountErrorsString(out int errors, out string errorsString))
+            {
+                errorDetected = true;
+                savedErrors = errors;
+                savedErrorsString = errorsString;
+            }
+            if (problems.ContainsWarningsOutWarningsAmountWarningsString(out int warnings, out string warningsString))
+            {
+                warningDetected = true;
+                savedWarnings = warnings;
+                savedWarningsString = warningsString;
+            }
+            chckedForProblems = true;
         }
+
         if (GUILayout.Button("Parse to C#") && _rulesDB.generateFrom != null)
         {
             GenerateFactIDS();
         }
 
-        int errors = 0;
-        string errorsString = string.Empty;
-        int warnings = 0;
-        string warningsString = string.Empty;
-        foreach (var problem in problems)
+        if (errorDetected)
         {
-            if (problem.ProblemType == RuleScriptParsingProblems.ProblemType.Warning)
-            {
-                warningsString += '\n' + problem.ToString();
-                warnings++;
-            }
-            else if (problem.ProblemType == RuleScriptParsingProblems.ProblemType.Error)
-            {
-                errorsString += '\n' + problem.ToString();
-                errors++;
-            }
+            EditorGUILayout.HelpBox($"Encounter {savedErrors} error{(savedErrors > 1 ? "s" : "")}.{savedErrorsString}", MessageType.Error);
         }
-
-        if (errors > 0)
+        if (warningDetected)
         {
-            EditorGUILayout.HelpBox($"Encounter {errors} error{(errors > 1 ? "s" : "")}.{errorsString}", MessageType.Error);
+            EditorGUILayout.HelpBox($"Encounter {savedWarnings} warning{(savedWarnings > 1 ? "s" : "")}.{savedWarningsString}", MessageType.Warning);
         }
-        if (warnings > 0)
+        else if (!errorDetected && chckedForProblems)
         {
-            EditorGUILayout.HelpBox($"Encounter {warnings} warning{(warnings > 1 ? "s" : "")}.{warningsString}", MessageType.Warning);
-        }
-        else if (!(errors > 0))
-        {
-            EditorGUILayout.HelpBox($"Encountered no warning or error", MessageType.Info);
+            EditorGUILayout.HelpBox($"Encountered no warnings or errors", MessageType.Info);
         }
     }
 
@@ -264,7 +273,7 @@ public class RuleDBEditor : Editor
     }
 
 	
-    private List<ProblemEntry> ParseRuleScripts()
+    private RuleScriptParsingProblems ParseRuleScripts()
     {
         var rulesProperty = serializedObject.FindProperty("rules");
         rulesProperty.ClearArray();
@@ -303,6 +312,7 @@ public class RuleDBEditor : Editor
         if (fileName != "")
         {
             FactMatcherCodeGenerator.GenerateFactIDS(fullFilePath, GetNameSpaceName(), _rulesDB);
+            AssetDatabase.Refresh();
         }
     }
 

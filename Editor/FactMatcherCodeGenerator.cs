@@ -2,207 +2,279 @@
 
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
-using UnityEditor;
 using UnityEngine;
 
-public class FactMatcherCodeGenerator  
+public class FactMatcherCodeGenerator
 {
-
-	//Todo write test cases
-    
     public static void GenerateFactIDS(string fullFilePath,string namespaceName,RulesDB rulesDB)
     {
-	    
-		var allKnownFacts = ExtractAllKnownFacts(rulesDB);
-		var allKnownRules= ExtractAllKnownRules(rulesDB);
-		var classContents = BuildClassContents(namespaceName, allKnownFacts, allKnownRules);
+		List<string> allKnownFacts = ExtractAllKnownFactNames(rulesDB);
+		List<string> allKnownFactStrings = ExtractAllKnownFactStrings(rulesDB);
+        List<string> allKnownRules= ExtractAllKnownRuleNames(rulesDB);
+		string classContents = BuildClassContents(namespaceName, allKnownFacts, allKnownRules, allKnownFactStrings);
 
 		string directoryPath = Path.GetDirectoryName(fullFilePath);
 		string fileName = Path.GetFileName(fullFilePath);
+
 		// The following is needed if you are using Windows
 		#if UNITY_EDITOR_WIN
 		fullFilePath = fullFilePath.Replace("/", "\\");
 		#endif
+
 		File.WriteAllText(fullFilePath, classContents);
     }
 
-    private static List<(string,int)> ExtractAllKnownRules(RulesDB rulesDB)
+    private static List<string> ExtractAllKnownRuleNames(RulesDB rulesDB)
 	{
-		 List<(string,int)> allKnownRules = new List<(string,int)>();
+		 List<string> allKnownRules = new();
 		foreach (var rule in rulesDB.rules)
 		{
-			var ruleName = GenRuleName(rule);
-			allKnownRules.Add((ruleName,rule.RuleID));
+			string ruleName = GenVarName(rule.ruleName);
+			allKnownRules.Add(ruleName);
 		}
-
 		return allKnownRules;
 	}
 
-	public static string GenRuleName(RuleDBEntry rule)
+	public static string GenVarName(string currentName)
 	{
-		var ruleName = rule.ruleName.Replace(".", "_");
-		ruleName = ruleName.Trim('_');
-		return ruleName;
+		string resultName = currentName.Replace(".", "_");
+		resultName = resultName.Trim('_');
+		return resultName;
 	}
 
-	private static Dictionary<string, List<(string,int)>> ExtractAllKnownFacts(RulesDB rulesDB)
+    private static List<string> ExtractAllKnownFactNames(RulesDB rulesDB)
+    {
+        List<string> factNames = new();
+        foreach (var rule in rulesDB.rules)
+        {
+            foreach (var fact in rule.factTests)
+            {
+                string factName = GenVarName(fact.factName);
+                factNames.Add(factName);
+            }
+        }
+        return factNames;
+    }
+
+	private static List<string> ExtractAllKnownFactStrings(RulesDB rulesDB)
 	{
-		Dictionary<string, List<(string,int) >> allKnownFacts = new Dictionary<string, List<(string,int)>>();
-		//Todo handle clashing keys , for instance  A.FactDB with global and B.FactDB also with global
-		//extract all facts..
+		List<string> factStringNames = new();
 		foreach (var rule in rulesDB.rules)
 		{
-			if (!allKnownFacts.ContainsKey(rule.ruleName))
+			foreach(var fact in rule.factTests)
 			{
-				allKnownFacts[rule.ruleName] = new List<(string,int)>();
-			}
-
-
-			foreach (var atom in rule.factTests)
-			{
-				//Parsing out atom.factName which is expected to be in form namespace.fact , for instance player.health is namespace player and fact health.
-				if (atom.factName!=null && atom.factName.Length > 1)
+				if (fact.compareType == FactValueType.String)
 				{
-					var genNames = CreateFactVariableNameFromFact(atom.factName);
-					var key = genNames.Item1;
-					var factName  = genNames.Item2;
-					if (!allKnownFacts.ContainsKey(key))
-					{
-						allKnownFacts[ key ] = new List<(string,int)>();
-					}
-
-					if (!allKnownFacts[key].Contains((factName,atom.factID)))
-					{
-						allKnownFacts[ key ].Add((factName,atom.factID));
-					}
-						
-				}
-			}
-
-			foreach (var factWrite in rule.factWrites)
-			{
-				
-				if (factWrite.factName !=null && factWrite.factName.Length > 1)
-				{
-					var genNames = CreateFactVariableNameFromFact(factWrite.factName);
-
-					var key = genNames.Item1;
-					var factName  = genNames.Item2;
-					
-					if (!allKnownFacts.ContainsKey(key))
-					{
-						allKnownFacts[ key ] = new List<(string,int)>();
-					}
-
-					if (!allKnownFacts[key].Contains((factName,factWrite.factID)))
-					{
-						allKnownFacts[ key ].Add((factName,factWrite.factID));
-					}
-					
+					factStringNames.Add(fact.matchString);
 				}
 			}
 		}
-
-		return allKnownFacts;
+		return factStringNames;
 	}
 
-	public static (string,string) CreateFactVariableNameFromFact(string factName)
-	{
-		
-		var className = factName;
-		var variableName = factName;
-		var splitted = factName.Split('.');
-		if (splitted.Length <= 2)
-		{
-			className = splitted[Mathf.Max(splitted.Length - 2, 0)];
-			variableName = splitted[Mathf.Max(splitted.Length - 1, 0)];
-
-			if (className.Equals(factName))
-			{
-				className = "Global";
-			}
-		}
-		else
-		{
-			Debug.LogError("Format of a fact should be \"namespace.fact\" or just \"fact\"");
-		}
-		return (className + "Facts", variableName);
-	}
-
-	/// <summary>
-    /// Creates a string with the contents of the class beginning with namespace and classname
-    /// then it iterates over all the enum values and creates a const string for each of them.
-    /// Finally, it creates a method containing a huge switch case where you can retreive said const strings easily.
-    /// </summary>
-    /// <param name="enumType"></param>
-    /// <param name="namespaceName"></param>
-    /// <param name="enumName"></param>
-    /// <returns></returns>
-    private static string BuildClassContents(string namespaceName, Dictionary<string, List<(string,int)> > facts, List<(string,int)>  rules)
-	{
-		//tabs is four spaces
-		string tabs = "    ";
-        var stringBuilder = new StringBuilder();
-        stringBuilder.AppendLine("using Unity.Collections;");
+	private static string BuildClassContents(string namespaceName, List<string> facts, List<string> rules, List<string> factStrings)
+    {
+        string tabs = "\t";
+        StringBuilder stringBuilder = new();
+        string[] usings = { "FactMatching" };
+        stringBuilder.AppendLine(GenerateUsing(usings));
         stringBuilder.AppendLine();
-            
-        bool isUsingNamespace = !string.IsNullOrEmpty(namespaceName);
-        if (isUsingNamespace)
+        stringBuilder.AppendLine(GeneratePublicClassStart(namespaceName ?? "GenericClassName"));
+        stringBuilder.AppendLine();
+
+        Dictionary<string, List<string>> structs = new()
         {
-            stringBuilder.AppendLine("namespace " + namespaceName);
-            stringBuilder.AppendLine("{");
+            { "FactIDS", facts.Distinct().ToList() },
+			{ "StringIDS", factStrings.Distinct().ToList() },
+			{ "RuleIDS", rules.Distinct().ToList() }
+        };
+
+		Dictionary<string, List<string>> variables = new();
+        foreach (string structName in structs.Keys)
+        {
+            variables.Add(structName, new List<string>());
         }
 
+        stringBuilder.AppendLine(GenerateStructs(structs, tabs));
+		stringBuilder.AppendLine();
 
-		stringBuilder.AppendLine((isUsingNamespace ? tabs : "") + "public static class " + "RuleIDs");
-		stringBuilder.AppendLine((isUsingNamespace ? tabs : "") + "{");
-			
-        for (int ruleIndex = 0; ruleIndex < rules.Count; ruleIndex++)
-        {
-	        var rule = rules[ruleIndex].Item1;
-	        stringBuilder.AppendLine((isUsingNamespace ? tabs : "") + "\tpublic const int " + rule + " = " + rules[ruleIndex].Item2+ ";");
-        }
-		
-        stringBuilder.AppendLine((isUsingNamespace ? tabs : "") + "}").AppendLine();
-            
-        int index = 0;
-        foreach (var factContainer in facts)
-        {
-	        if (factContainer.Value.Count >= 1)
-	        {
-				stringBuilder.AppendLine((isUsingNamespace ? tabs : "") + "public static class " + char.ToUpper(factContainer.Key[0]) + factContainer.Key[1..]);
-				stringBuilder.AppendLine((isUsingNamespace ? tabs : "") + "{");
-				foreach (var nameAndID in factContainer.Value)
-				{
-					stringBuilder.AppendLine((isUsingNamespace ? tabs : "") + $"{tabs}public const int " + nameAndID.Item1 + " = " + nameAndID.Item2 + ";");
-					index++;
-				}
-				
-				stringBuilder.AppendLine((isUsingNamespace ? tabs : "") + "}").AppendLine();
-	        }
-        }
-        
+		stringBuilder.AppendLine(GeneratePublicVariables(variables, out List<string> variableNames));
+		stringBuilder.AppendLine();
 
-        
-		stringBuilder.AppendLine((isUsingNamespace ? tabs : "") + "public static class FactMatcherData");
-		stringBuilder.AppendLine((isUsingNamespace ? tabs : "") + "{");
-		stringBuilder.AppendLine((isUsingNamespace ? tabs : "") + $"{tabs}public static NativeArray<float> CreateFactValues()"); 
-		stringBuilder.AppendLine((isUsingNamespace ? tabs : "") + tabs + "{"); 
-		stringBuilder.AppendLine((isUsingNamespace ? tabs : "") + $"{tabs}{tabs}return new NativeArray<float>({index},Allocator.Persistent);");
-		stringBuilder.AppendLine((isUsingNamespace ? tabs : "") + tabs + "}"); 
-		
-		stringBuilder.AppendLine((isUsingNamespace ? tabs : "") + "}");
-        
-        if (isUsingNamespace)
-        {
-            stringBuilder.AppendLine("}");
-        }
+		List<string> assignVariablesTo = new();
+		foreach (string variableName in variables.Keys)
+		{
+			assignVariablesTo.Add($"new {variableName}(factMatcher)");
+		}
+		List<string> variableAssignments = GenerateVariableAssignments(variableNames, assignVariablesTo);
+		stringBuilder.AppendLine(GeneratePublicFunction(namespaceName, "FactMatcher factMatcher", variableAssignments, tabs));
 
-
+        stringBuilder.AppendLine("}");
         string classContents = stringBuilder.ToString();
         return classContents;
     }
-}
 
+    private static string GenerateUsing(string[] usings)
+	{
+		string usingString = "";
+		foreach (var item in usings)
+		{
+			usingString += $"using {item};";
+		}
+		return usingString;
+	}
+
+    private static string GeneratePublicClassStart(string className, string tabs = "")
+    {
+		string result = string.Empty;
+        result += tabs + $"public class {className}";
+        result += tabs + "\n{";
+        return result;
+    }
+
+	private static string GenerateStructs(Dictionary<string, List<string>> structs, string tabs = "\t")
+    {
+		string result = string.Empty;
+		foreach(var function in structs)
+		{
+			string functionName = function.Key;
+            List<string> variableNames = structs[functionName].ToList();
+            List<string> contains = GeneratePublicInts(variableNames);
+			List<string> variableAssignment = GenerateGetGivenFromFactMatcher(variableNames, functionName.Remove(functionName.Length - 1));
+			contains.Add("\n" + GeneratePublicFunction(functionName, "FactMatcher factMatcher", variableAssignment, tabs + tabs));
+			result += "\n\n" + GeneratePublicStruct(tabs, functionName, contains);
+		}
+		return result.TrimStart('\n');
+    }
+
+    private static string GeneratePublicStruct(string tabs, string structName, List<string> contains)
+    {
+        string contain = string.Empty;
+        foreach (var content in contains)
+        {
+            contain += '\n' + tabs + "\t" + content;
+        }
+        contain = contain.TrimStart('\n');
+
+        return
+            tabs + $"public struct {structName}\n" +
+            tabs + "{\n" +
+            contain + '\n' +
+            tabs + "}";
+    }
+
+	private static List<string> GeneratePublicInts(List<string> intVariableNames)
+	{
+        List<string> result = new();
+        foreach (var name in intVariableNames)
+        {
+			string resultString;
+			if (name == "true" || name == "false")
+			{
+                resultString = $"public int _{name.Replace(' ', '_')};";
+            }
+			else
+			{
+				resultString = $"public int {name.Replace(' ', '_')};"; 
+			}
+			result.Add(resultString);
+        }
+        return result;
+    }
+	
+    private static string GeneratePublicFunction(string functionName, string functionParam, List<string> contains, string tabs = "\t")
+	{
+		string contain = string.Empty;
+		foreach (var content in contains)
+		{
+			contain += '\n' + tabs + "\t" + content;
+		}
+		contain = contain.TrimStart('\n');
+
+		return
+			$"{tabs}public {functionName.Replace(' ', '_')}({functionParam})\n" +
+			tabs + "{\n" +
+			contain + '\n' +
+			tabs + "}";
+	}
+
+	private static List<string> GenerateGetGivenFromFactMatcher(List<string> variableNames, string factMatcherFunction)
+	{
+        List<string> result = new();
+        foreach (var name in variableNames)
+        {
+			if(name == "true" || name == "false")
+			{
+                result.Add($"_{name.Replace(' ', '_')} = factMatcher.{factMatcherFunction}(\"{name}\");");
+            }
+			else
+			{
+				result.Add($"{name.Replace(' ', '_')} = factMatcher.{factMatcherFunction}(\"{name}\");"); 
+			}
+        }
+        return result;
+    }
+	
+	private static List<string> GenerateVariableAssignments(List<string> variableNames, List<string> assignments)
+	{
+        List<string> result = new();
+        for (int i = 0; i < variableNames.Count; i++)
+        {
+            string name = variableNames[i];
+			string assignAs = assignments[i];
+			if (assignAs == null || assignAs == "")
+			{
+				result.Add("// Error while adding assignment");
+				break;
+			}
+			if (name == "true" || name == "false")
+			{
+                result.Add($"_{name.Replace(' ', '_')} = {assignAs};");
+            }
+			else
+			{
+				result.Add($"{name.Replace(' ', '_')} = {assignAs};"); 
+			}
+        }
+        return result;
+    }
+
+	private static string GeneratePublicVariables(Dictionary<string, List<string>> variables, out List<string> variableNames, string tabs = "\t")
+	{
+		string result = string.Empty;
+		variableNames = new List<string>();
+		foreach (var variable in variables)
+		{
+			foreach (var variableName in variable.Value)
+			{
+				string newVariableName = variableName.Replace(' ', '_');
+				string variableKey = variable.Key.Replace(' ', '_');
+				if (variableName != "")
+				{
+					variableNames.Add(newVariableName);
+                    result += '\n' + tabs + $"public {variableKey} {newVariableName};";
+                }
+				else
+				{
+					string theVariableName = char.ToLower(variableKey[0]) + variableKey[1..];
+                    variableNames.Add(theVariableName);
+                    result += '\n' + tabs + $"public {variableKey} {theVariableName};";
+				}
+			}
+			if (variable.Value == null || variable.Value.Count <= 0)
+			{
+                string theVariableName = char.ToLower(variable.Key[0]) + variable.Key[1..];
+                variableNames.Add(theVariableName);
+                result += '\n' + tabs + $"public {variable.Key} {theVariableName};";
+			}
+		}
+		if (result == string.Empty)
+		{
+			result += tabs + "// Failed to generate publicVariables";
+		}
+		return result.TrimStart('\n');
+	}
+}
 #endif

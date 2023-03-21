@@ -229,7 +229,8 @@ public class RuleDBWindow : EditorWindow
         reparseAndReload.RegisterCallback<ClickEvent>(evt => // When save script and reload including facts button is pressed
         {
             string fileName = "_factMatcher_temp_fact_values" + ".csv";
-            string problemSaving = _factMatcher.SaveToCSV(fileName);
+            RuleScriptParsingProblems problems = _factMatcher.SaveToCSV(fileName);
+            string problemSaving = problems.ToString();
             _factMatcher.Reload();
             problemSaving += '\n' + _factMatcher.LoadFromCSV(fileName);
             _lastPickedRule.text = problemSaving == null || problemSaving.Trim('\n', '\r') == "" ? "No problems found" : "Problems:\n" + problemSaving;
@@ -244,12 +245,12 @@ public class RuleDBWindow : EditorWindow
         });
 
         var saveButton = content.Q<Button>("SaveToFile");
-        saveButton.RegisterCallback<ClickEvent>(evt => { _ = _factMatcher.SaveToCSV(_factFileField.value); });
+        saveButton.RegisterCallback<ClickEvent>(evt => { _factMatcher.SaveToCSV(_factFileField.value); });
 
         var loadButton = content.Q<Button>("LoadFromFile");
         loadButton.RegisterCallback<ClickEvent>(evt =>
         {
-            _ = _factMatcher.LoadFromCSV(_factFileField.value);
+            _factMatcher.LoadFromCSV(_factFileField.value);
             UpdateListView();
         });
         
@@ -329,7 +330,7 @@ public class RuleDBWindow : EditorWindow
         {
             problemsString += problem;
         }
-        //_lastPickedRule.text = problemsString;
+        _lastPickedRule.text = problemsString;
     }
 
     private void OnInited()

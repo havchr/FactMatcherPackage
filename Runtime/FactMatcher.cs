@@ -49,10 +49,9 @@ public class FactMatcher
         this.ruleDB = ruleDB;
     }
 
-    public string SaveToCSV(string filename)
+    public RuleScriptParsingProblems SaveToCSV(string filename)
     {
-        string problemsString = "";
-        RuleScriptParsingProblems ruleScriptParsingProblems = new();
+        RuleScriptParsingProblems problems = new();
         using StreamWriter writer = new(filename);
         writer.WriteLine($"Type,  Name,  Value");
         var factTests = ruleDB.CreateFlattenedFactTestListWithNoDuplicateFactIDS();
@@ -67,10 +66,10 @@ public class FactMatcher
             }
             catch (Exception e)
             {
-                problemsString += $"Error while saving to CSV file,\nfactID is ({factTests[i].factID})\nException is: ({e})";
+                problems.ReportNewError($"Error while saving to CSV file,\nfactID is ({factTests[i].factID})", null, -1, e);
             }
         }
-        return problemsString;
+        return problems;
     }
     
     public string LoadFromCSV(string filename)
@@ -424,6 +423,12 @@ public class FactMatcher
     {
         return ruleDB.FactId(str);
     }
+
+    public int RuleID(string str)
+    {
+        return ruleDB.RuleID(str);
+    }
+
     public BucketSlice BucketSlice(string str)
     {
         var bucketSlice = ruleDB.GetSliceForBucket(str);
