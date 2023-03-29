@@ -66,7 +66,9 @@ public class FactMatcher
             }
             catch (Exception e)
             {
-                problems.ReportNewError($"Error while saving to CSV file,\nfactID is ({factTests[i].factID})", null, -1, e);
+                //problems.ReportNewError($"Error while saving to CSV file,\nfactID is ({factTests[i].factID})", null, -1, e);
+                problems?.ClearList();
+                throw e;
             }
         }
         return problems;
@@ -202,8 +204,12 @@ public class FactMatcher
         {
             return 0;
         }
-        bucketSlice.ApplyBucket(this);
-        return PickRules(true, true, bucketSlice.startIndex, bucketSlice.endIndex);
+        if (!bucketSlice.IsNullBucket())
+        {
+            bucketSlice.ApplyBucket(this);
+            return PickRules(true, true, bucketSlice.startIndex, bucketSlice.endIndex);
+        }
+        return 0;
     }
     public RuleDBEntry PickRuleInBucket(BucketSlice bucketSlice)
     {
@@ -218,6 +224,11 @@ public class FactMatcher
     public int PickRules(bool factWrites=true,bool fireListener=true,int startIndex=0,int endIndex=-1) // Pick the best matching rule
     {
         if (_inReload)
+        {
+            return 0;
+        }
+
+        if (startIndex < 0)
         {
             return 0;
         }
@@ -444,9 +455,8 @@ public class FactMatcher
             bucketSlice.Init(this);
             return bucketSlice;
         }
-            
-        Debug.LogError($"Could not find FactMatcher Bucket {str} - choosing bucket of all rules [{0}:{_rules.Length-1}] instead");
-        return new BucketSlice(0, _rules.Length - 1, "");
+        Debug.LogError($"Could not find FactMatcher Bucket {str} - choosing null-bucket instead");
+        return global::BucketSlice.CreateNullBucket();
     }
     
     public RuleDBEntry GetRuleFromRuleID(int ruleID)

@@ -38,9 +38,13 @@ public class RuleScriptParsingProblems
     private static readonly List<ProblemEntry> problems = new();
 
     public void ClearList()
-    {
-        problems?.Clear();
-    }
+    { problems?.Clear(); }
+
+    public void AddNewProblem(ProblemEntry problemEntry)
+    { problems.Add(problemEntry); }
+
+    public void AddNewProblemList(List<ProblemEntry> problemEntrys)
+    { problems.AddRange(problemEntrys); }
 
     /// <summary>
     /// Reports new problem (user defined problem type)
@@ -51,9 +55,6 @@ public class RuleScriptParsingProblems
     /// <param name="problemType"></param>
     public void ReportNewProblem(string problemMessage, TextAsset file, int lineNumber, ProblemEntry.ProblemTypes problemType, Exception Exception = null)
     { problems.Add(new ProblemEntry() { File = file, LineNumber = lineNumber, ProblemMessage = problemMessage, Exception = Exception, ProblemType = problemType }); }
-
-    public void AddNewProblem(ProblemEntry problemEntry)
-    { problems.Add(problemEntry); }
 
     /// <summary>
     /// Reports new problem (auto error user can change)
@@ -134,7 +135,7 @@ public class RuleScriptParsingProblems
     /// Returns the list of problems and clears the previews problems
     /// </summary>
     /// <returns>List of ProblemEntry's</returns>
-    public List<ProblemEntry> GetListOfProblems()
+    public List<ProblemEntry> ToList()
     {
         List<ProblemEntry> listOfProblems = new(problems);
         problems.Clear();
@@ -225,8 +226,8 @@ public class ProblemEntry
     public Exception Exception;
     public override string ToString()
     {
-        return 
-            $"{ProblemType} occurred {(File ? $"in the file:  {File.name}, at line: {LineNumber}," : string.Empty)} " +
+        return
+            $"{ProblemType} occurred {(File ? $"in the file:  {File.name},{(LineNumber > 0 ? $" at line: {LineNumber}," : "")}" : string.Empty)} " +
             $"with the message:\n{ProblemMessage}" +
             $"{(Exception == null ? string.Empty : $"\nException message: {Exception}")}";
     }
@@ -408,6 +409,64 @@ public class RuleDBEntry
     }
 }
 
+[Serializable]
+public class FactInDocument
+{
+    public string FactName;
+    [TextArea]
+    public string FactSummary;
+    public List<string> FactCanBe;
+
+    public bool FactCanBeContains(string canBe)
+    {
+        if (canBe == null)
+        {
+            return true;
+        }
+        return FactCanBe.Contains(canBe.Trim());
+    }
+}
+
+[Serializable]
+public class DocumentEntry
+{
+    public string DocumentName;
+    [TextArea(1, 5)]
+    public string Summary;
+    public List<FactInDocument> Facts;
+    public int StartLine;
+    public TextAsset TextFile;
+
+    public bool IsFactInDoc(string factName)
+    {
+        foreach (var fact in Facts)
+        {
+            if (fact.FactName == factName.Trim())
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public bool CanFactBe(string factName, string canBe)
+    {
+        if (canBe != null)
+        {
+            foreach (var fact in Facts)
+            {
+                if (fact.FactName == factName.Trim() && fact.FactCanBeContains(canBe))
+                {
+                    return true;
+                }
+            } 
+        }
+
+        return false;
+    }
+}
+
 
 [CreateAssetMenu(fileName = "RulesDB", menuName = "FactMatcher/RulesDB", order = 1)]
 public class RulesDB : ScriptableObject
@@ -416,6 +475,7 @@ public class RulesDB : ScriptableObject
     public List<ProblemEntry> problemList;
     public bool PickMultipleBestRules = false;
     public bool FactWriteToAllThatMatches = false;
+    public bool ignoreDocumentationDemand = false;
     private Dictionary<string, int> _factIDsMap;
     private Dictionary<string, int> _ruleIDsMap;
     private Dictionary<string, int> _stringIDsMap;
@@ -423,6 +483,11 @@ public class RulesDB : ScriptableObject
     private Dictionary<string, BucketSlice> _bucketSlices;
     
     private Dictionary<int, RuleDBEntry> _ruleMap;
+    [Space(10)]
+    public List<TextAsset> generateDocumentationFrom;
+    public List<DocumentEntry> documentations;
+    public Action OnDocumentationParsed;
+    [Space(10)]
     public List<TextAsset> generateFrom;
     public List<RuleDBEntry> rules;
     public Action OnRulesParsed;
@@ -498,6 +563,12 @@ public class RulesDB : ScriptableObject
     {
         RuleScriptParsingProblems problems = new();
         problemList?.Clear();
+
+        if (!ignoreDocumentationDemand)
+        {
+            problems = CreateRulesFromDocumentation();
+        }
+
         if (generateFrom.Count != 0)
         {
             rules.Clear();
@@ -511,7 +582,7 @@ public class RulesDB : ScriptableObject
             {
                 var parser = new RuleScriptParser();
                 var path = "";
-#if UNITY_EDITOR
+                #if UNITY_EDITOR
                 path = AssetDatabase.GetAssetPath(ruleScript);
                 var lastIndexOf = path.LastIndexOf('/');
                 if (lastIndexOf == -1)
@@ -523,7 +594,7 @@ public class RulesDB : ScriptableObject
                 {
                     path = path.Substring(0, lastIndexOf + 1);
                 }
-#endif
+                #endif
                 parser.GenerateFromText(ruleScript.text, 
                                         rules,
                                         ref factID,
@@ -534,7 +605,8 @@ public class RulesDB : ScriptableObject
                                         ref ruleID,
                                         path,
                                         ruleScript, 
-                                        ref problems);
+                                        ref problems,
+                                        ignoreDocumentationDemand ? null : documentations);
             }
 
             InitFactWriteIndexers(ref addedFactIDS);
@@ -555,18 +627,57 @@ public class RulesDB : ScriptableObject
             }
             else
             {
-                rules.Clear();
-                problems.ReportNewError("generateFrom == null", null, -1);
+                rules?.Clear();
             }
         }
         else
         {
-            rules.Clear();
+            rules?.Clear();
             problems.ReportNewError("There is noting to generate from", null, -1);
         }
 
         return problems;
-    } 
+    }
+    
+    public RuleScriptParsingProblems CreateRulesFromDocumentation()
+    {
+        RuleScriptParsingProblems problems = new();
+        problemList?.Clear();
+        if (generateDocumentationFrom.Count != 0)
+        {
+            documentations.Clear();
+            foreach (var document in generateDocumentationFrom)
+            {
+                #if UNITY_EDITOR
+                var path = "";
+                path = AssetDatabase.GetAssetPath(document);
+                var lastIndexOf = path.LastIndexOf('/');
+                if (lastIndexOf == -1)
+                {
+                    lastIndexOf = path.LastIndexOf('\\');
+                }
+
+                if (lastIndexOf != -1)
+                {
+                    path = path[..(lastIndexOf + 1)];
+                }
+                #endif
+                RuleDocumentationParser parser = new();
+                documentations.AddRange(parser.GenerateFromText(ref problems, document));
+            }
+
+            if (problems.ContainsError())
+            {
+                documentations?.Clear();
+            }
+        }
+        else
+        {
+            documentations?.Clear();
+            problems.ReportNewError("There is noting to generate from", null, -1);
+        }
+        return problems;
+    }
     
     //FactWrites that are referencing another factID - must now be converted to their factIDS.
     void InitFactWriteIndexers(ref Dictionary<string, int> addedFactIDS)

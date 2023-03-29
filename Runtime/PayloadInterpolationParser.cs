@@ -1,7 +1,5 @@
-using System.Collections;
 using System.Collections.Generic;
 using System.Text;
-using UnityEngine;
 
 public class PayloadInterpolationParser  
 {
@@ -16,6 +14,7 @@ public class PayloadInterpolationParser
         AddingStringIterpolation,
         AddingValueInterpolation
     }
+
     private struct StateTransformer
     {
         public StateTransformer(char keyword, State requirement)
@@ -27,18 +26,21 @@ public class PayloadInterpolationParser
         public char keyword;
         public State stateRequirement;
     }
+
     public void Parsey(RuleDBEntry ruleDBEntry,ref Dictionary<string, int> addedFactIDS)
     {
         State state = State.ReadingString;
-        Dictionary<StateTransformer, State> parser = new Dictionary<StateTransformer, State>();
-        parser.Add(new StateTransformer('#',State.ReadingString),State.PotentialValueInterpolation);
-        parser.Add(new StateTransformer('{',State.PotentialValueInterpolation),State.InValueInterpolation);
-        parser.Add(new StateTransformer('}',State.InValueInterpolation),State.InValueFormatInterpolation);
-        parser.Add(new StateTransformer(' ',State.InValueFormatInterpolation),State.AddingValueInterpolation);
-        
-        parser.Add(new StateTransformer('$',State.ReadingString),State.PotentialStringInterpolation);
-        parser.Add(new StateTransformer('{',State.PotentialStringInterpolation),State.InStringInterpolation);
-        parser.Add(new StateTransformer('}',State.InStringInterpolation),State.AddingStringIterpolation);
+        Dictionary<StateTransformer, State> parser = new()
+        {
+            { new StateTransformer('#', State.ReadingString), State.PotentialValueInterpolation },
+            { new StateTransformer('{', State.PotentialValueInterpolation), State.InValueInterpolation },
+            { new StateTransformer('}', State.InValueInterpolation), State.InValueFormatInterpolation },
+            { new StateTransformer(' ', State.InValueFormatInterpolation), State.AddingValueInterpolation },
+
+            { new StateTransformer('$', State.ReadingString), State.PotentialStringInterpolation },
+            { new StateTransformer('{', State.PotentialStringInterpolation), State.InStringInterpolation },
+            { new StateTransformer('}', State.InStringInterpolation), State.AddingStringIterpolation }
+        };
 
         ruleDBEntry.interpolations = new List<RulePayloadInterpolation>();
         RulePayloadInterpolation payloadInterpolation = null;
@@ -77,7 +79,7 @@ public class PayloadInterpolationParser
             HandleNewState(ruleDBEntry, addedFactIDS,  state, interpolationVariable, ruleDBEntry.payload.Length-1, valueFormatInterpolation, ref payloadInterpolation);
         }
     }
-
+    
     private static State HandleNewState(RuleDBEntry ruleDBEntry, Dictionary<string, int> addedFactIDS, 
         State state, StringBuilder interpolationVariable, int i,
         StringBuilder valueFormatInterpolation, ref RulePayloadInterpolation payloadInterpolation)
@@ -87,7 +89,7 @@ public class PayloadInterpolationParser
             case State.InStringInterpolation:
             case State.InValueInterpolation:
                 interpolationVariable.Clear();
-                payloadInterpolation = new RulePayloadInterpolation();
+                payloadInterpolation = new();
                 payloadInterpolation.payLoadStringStartIndex = i-1;
                 payloadInterpolation.type =
                     state == State.InStringInterpolation ? FactValueType.String : FactValueType.Value;
@@ -118,7 +120,7 @@ public class PayloadInterpolationParser
 
         return state;
     }
-
+    
     private static bool AddPayLoadInterpolation(RuleDBEntry ruleDBEntry, Dictionary<string, int> addedFactIDS,
         RulePayloadInterpolation payloadInterpolation, int i, StringBuilder interpolationVariable)
     {
@@ -133,4 +135,5 @@ public class PayloadInterpolationParser
         ruleDBEntry.interpolations.Add(payloadInterpolation);
         return true;
     }
+    
 }

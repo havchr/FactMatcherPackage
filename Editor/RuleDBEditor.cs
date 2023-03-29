@@ -19,41 +19,35 @@ public class RuleDBEditor : Editor
         _rulesDB = (RulesDB)target;
     }
 
-    RuleScriptParsingProblems problems = new();
-    bool errorDetected = false;
-    int savedErrors = 0;
-    string savedErrorsString = string.Empty;
-    
-    bool warningDetected = false;
-    int savedWarnings = 0;
-    string savedWarningsString = string.Empty;
+    private RuleScriptParsingProblems problems = new();
+    private bool errorDetected = false;
+    private int savedErrors = 0;
+    private string savedErrorsString = string.Empty;
 
-    bool chckedForProblems = false;
+    private bool warningDetected = false;
+    private int savedWarnings = 0;
+    private string savedWarningsString = string.Empty;
+
+    private bool checkedForProblems = false;
 
     public override void OnInspectorGUI()
     {
         base.OnInspectorGUI();
+        //if (GUILayout.Button("Parse Documentation"))
+        //{
+        //    problems?.ClearList();
+        //    problems = _rulesDB.CreateRulesFromDocumentation();
+        //    CheckProblems();
+        //}
+
         if (GUILayout.Button("Parse Rulescripts"))
         {
+            problems?.ClearList();
             problems = ParseRuleScripts();
             EditorUtility.SetDirty(this);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-
-
-            if (problems.ContainsErrorsOutErrorsAmountErrorsString(out int errors, out string errorsString))
-            {
-                errorDetected = true;
-                savedErrors = errors;
-                savedErrorsString = errorsString;
-            }
-            if (problems.ContainsWarningsOutWarningsAmountWarningsString(out int warnings, out string warningsString))
-            {
-                warningDetected = true;
-                savedWarnings = warnings;
-                savedWarningsString = warningsString;
-            }
-            chckedForProblems = true;
+            CheckProblems();
         }
 
         if (GUILayout.Button("Parse to C#") && _rulesDB.generateFrom != null)
@@ -69,17 +63,99 @@ public class RuleDBEditor : Editor
         {
             EditorGUILayout.HelpBox($"Encounter {savedWarnings} warning{(savedWarnings > 1 ? "s" : "")}.{savedWarningsString}", MessageType.Warning);
         }
-        else if (!errorDetected && chckedForProblems)
+        else if (!errorDetected && checkedForProblems)
         {
             EditorGUILayout.HelpBox($"Encountered no warnings or errors", MessageType.Info);
         }
+    }
+
+    private void CheckProblems()
+    {
+        if (problems.ContainsErrorsOutErrorsAmountErrorsString(out int errors, out string errorsString))
+        {
+            errorDetected = true;
+            savedErrors = errors;
+            savedErrorsString = errorsString;
+            Debug.LogError($"Encounter {savedErrors} error{(savedErrors > 1 ? "s" : "")}.{savedErrorsString}");
+        }
+        else
+        {
+            errorDetected = false;
+            savedErrors = errors;
+            savedErrorsString = errorsString;
+        }
+        if (problems.ContainsWarningsOutWarningsAmountWarningsString(out int warnings, out string warningsString))
+        {
+            warningDetected = true;
+            savedWarnings = warnings;
+            savedWarningsString = warningsString;
+            Debug.LogWarning($"Encounter {savedWarnings} warning{(savedWarnings > 1 ? "s" : "")}.{savedWarningsString}");
+        }
+        else
+        {
+            warningDetected = false;
+            savedWarnings = warnings;
+            savedWarningsString = warningsString;
+        }
+        checkedForProblems = true;
+    }
+
+    private static readonly string documentationContent = @"
+-- .DOCS %label starts a documentation block
+.DOCS trick_sequence
+Documentation about all things related to trick sequences.
+As much text as you want to, until you reach .. on a single line, which indicates the end
+of free form text.
+..
+
+--.FACT %fact_name starts documentation of a fact , contains a block of text until .. with
+--as much text as you want.
+.FACT trick_sequence_counter
+as much text as you want here.
+..
+
+--newlines are ignored
+
+--if we have a .IT CAN BE block after a .FACT block
+--we list up the valid names for the previous fact
+--see example below
+.FACT trick_sequence_link
+this is skater-states that can link trinks into a sequence, like grinds etc.
+related to skater-states, taken from the SkaterState enum in Skater.cs
+..
+
+.IT CAN BE
+	ManualLeft
+	ManualRight
+	WallRide
+	GrindFiftyFifty
+	GrindNoseSlide
+	GrindTailSlide
+	GrindBluntSlide
+	GrindNoseBluntSlide
+	GrindNoseGrind
+	GrindCrookedGrind
+	GrindFiveOGrind
+	GrindSmithGrind
+	GrindBoardSlide
+	GrindLipSlide
+..
+.END
+";
+
+    [MenuItem("Assets/Create/FactMatcher/Documentation")]
+    private static void CreateDocumentationScript(MenuCommand command)
+    {
+        var fileName = "Documentation_";
+        File.WriteAllText(GetCreateAssetPathWithVersioningCounter(fileName, "dfmrs"), documentationContent.TrimStart());
+        AssetDatabase.Refresh();
     }
 
     [MenuItem("Assets/Create/FactMatcher/RuleScript")]
     private static void CreateRuleScript(MenuCommand command)
     {
         var fileName = "ruleScript_";
-        File.WriteAllText(GetCreateAssetPathWithVersioningCounter(fileName), GetDefaultRuleScriptContent());
+        File.WriteAllText(GetCreateAssetPathWithVersioningCounter(fileName, "fmrs"), GetDefaultRuleScriptContent());
         AssetDatabase.Refresh();
 		
     }
@@ -88,7 +164,7 @@ public class RuleDBEditor : Editor
     private static void CreateRuleScriptMassiveTest1000(MenuCommand command)
     {
         var fileName = "ruleScript_massive_test";
-        File.WriteAllText(GetCreateAssetPathWithVersioningCounter(fileName), GetMassiveTestRuleScriptContent(1000,10,20));
+        File.WriteAllText(GetCreateAssetPathWithVersioningCounter(fileName, "fmrs"), GetMassiveTestRuleScriptContent(1000,10,20));
         AssetDatabase.Refresh();
 		
     }
@@ -97,7 +173,7 @@ public class RuleDBEditor : Editor
     private static void CreateRuleScriptMassiveTest10000(MenuCommand command)
     {
         var fileName = "ruleScript_massive_test";
-        File.WriteAllText(GetCreateAssetPathWithVersioningCounter(fileName), GetMassiveTestRuleScriptContent(10000,10,30));
+        File.WriteAllText(GetCreateAssetPathWithVersioningCounter(fileName, "fmrs"), GetMassiveTestRuleScriptContent(10000,10,30));
         AssetDatabase.Refresh();
 		
     }
@@ -172,7 +248,7 @@ public class RuleDBEditor : Editor
         return writer.ToString();
     }
 
-    private static string GetCreateAssetPathWithVersioningCounter(string fileName)
+    private static string GetCreateAssetPathWithVersioningCounter(string fileName, string fileExtension)
     {
         var dirPath = AssetDatabase.GetAssetPath(Selection.activeObject);
         var path = dirPath +"/" + fileName ;
@@ -205,7 +281,7 @@ public class RuleDBEditor : Editor
 
         }
         fileNumber++;
-        var finalPath = path + $"{fileNumber}.fmrs.txt";
+        var finalPath = path + $"{fileNumber}.{fileExtension}.txt";
         return Application.dataPath + finalPath.Split(new[] {"Assets"}, StringSplitOptions.RemoveEmptyEntries)[0];
     }
 
@@ -256,9 +332,9 @@ public class RuleDBEditor : Editor
                     "you matched the rule , player.height is above 150 and/or street_smart is above 15\n" +
                     ".END\n\n\n";
         
-        var commentPayloads= "-- You can use the .THEN PAYLOAD keyword to list locations of Scriptable object resources\n" +
-                             "-- Unity will then parse and make accessible that payload as a scriptable object when a rule is picked\n" +
-                             "-- \n\n\n"; 
+        //var commentPayloads= "-- You can use the .THEN PAYLOAD keyword to list locations of Scriptable object resources\n" +
+        //                     "-- Unity will then parse and make accessible that payload as a scriptable object when a rule is picked\n" +
+        //                     "-- \n\n\n"; 
         
         var rule4 = ".rule_payload_example IF\n" +
                     "   player.height > 180\n" +
@@ -293,7 +369,6 @@ public class RuleDBEditor : Editor
 
         return problems;
     }
-
     
     private void GenerateFactIDS()
     {

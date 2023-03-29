@@ -13,9 +13,18 @@ public class BucketSlice
         factIds = new List<int>();
         factValues = new List<float>();
     }
+
+    public static BucketSlice CreateNullBucket()
+    {
+        return new BucketSlice(-1, -1, null);
+    }
     
     public void Init(FactMatcher fm)
     {
+        if (bucketLine == null)
+        {
+            return;
+        }
         var splits = bucketLine.Split(",");
         for (int i = 0; i < splits.Length; i++)
         {
@@ -40,9 +49,12 @@ public class BucketSlice
 
     public void ApplyBucket(FactMatcher fm)
     {
-        for (int i = 0; i < factIds.Count; i++)
+        if (bucketLine!=null)
         {
-            fm[factIds[i]] = factValues[i];
+            for (int i = 0; i < factIds.Count; i++)
+            {
+                fm[factIds[i]] = factValues[i];
+            }
         }
     }
     public int startIndex;
@@ -51,6 +63,11 @@ public class BucketSlice
     public List<int> factIds;
     public List<float> factValues;
     private Dictionary<string, float> factMap;
+
+    public bool IsNullBucket()
+    {
+        return startIndex == -1;
+    }
 }
 
 public class BucketSlicer  

@@ -12,7 +12,7 @@ public class FactMatcherCodeGenerator
     {
 		List<string> allKnownFacts = ExtractAllKnownFactNames(rulesDB);
 		List<string> allKnownFactStrings = ExtractAllKnownFactStrings(rulesDB);
-        List<string> allKnownRules= ExtractAllKnownRuleNames(rulesDB);
+        List<string> allKnownRules = ExtractAllKnownRuleNames(rulesDB);
 		string classContents = BuildClassContents(namespaceName, allKnownFacts, allKnownRules, allKnownFactStrings);
 
 		string directoryPath = Path.GetDirectoryName(fullFilePath);
@@ -34,6 +34,7 @@ public class FactMatcherCodeGenerator
 			string ruleName = GenVarName(rule.ruleName);
 			allKnownRules.Add(ruleName);
 		}
+		allKnownRules.Sort();
 		return allKnownRules;
 	}
 
@@ -55,23 +56,25 @@ public class FactMatcherCodeGenerator
                 factNames.Add(factName);
             }
         }
-        return factNames;
+		factNames.Sort();
+		return factNames;
     }
 
 	private static List<string> ExtractAllKnownFactStrings(RulesDB rulesDB)
 	{
-		List<string> factStringNames = new();
+		List<string> factListNames = new();
 		foreach (var rule in rulesDB.rules)
 		{
 			foreach(var fact in rule.factTests)
 			{
 				if (fact.compareType == FactValueType.String)
 				{
-					factStringNames.Add(fact.matchString);
+					factListNames.Add(fact.matchString);
 				}
 			}
 		}
-		return factStringNames;
+        factListNames.Sort();
+        return factListNames;
 	}
 
 	private static string BuildClassContents(string namespaceName, List<string> facts, List<string> rules, List<string> factStrings)
