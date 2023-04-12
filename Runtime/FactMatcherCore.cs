@@ -245,14 +245,14 @@ namespace FactMatching
             }
         }
         
-        public static int[] CreateStringIDSFromEnum(FactMatcher factMatcher,Type enumType)
+        public static int[] CreateStringIDSFromEnum(FactMatcher factMatcher,Type enumType,bool logNotFoundWarning=false)
         {
             var names = Enum.GetNames(enumType);
             int[] stringIDS = new int[names.Length];
             for (int i = 0; i < names.Length; i++)
             {
                 int sid = factMatcher.StringID(names[i]);
-                if (sid == -1)
+                if (sid == -1 && logNotFoundWarning)
                 {
                     Debug.LogWarning($"Could not find {names[i]} in the FactMatcher database");
                 }

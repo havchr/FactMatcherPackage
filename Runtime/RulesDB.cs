@@ -476,6 +476,7 @@ public class RulesDB : ScriptableObject
     public bool PickMultipleBestRules = false;
     public bool FactWriteToAllThatMatches = false;
     public bool ignoreDocumentationDemand = false;
+    public bool debugLogMissingIDS = false;
     private Dictionary<string, int> _factIDsMap;
     private Dictionary<string, int> _ruleIDsMap;
     private Dictionary<string, int> _stringIDsMap;
@@ -749,11 +750,10 @@ public class RulesDB : ScriptableObject
         if (!_stringIDsMap.TryGetValue(str, out id))
         {
             id = -1;
-            Debug.Log($"did not find stringID {id} for string {str}");
-        }
-        else
-        {
-            //Debug.Log($"Found stringID {id} for string {str}");
+            if (debugLogMissingIDS)
+            {
+                Debug.Log($"did not find stringID {id} for string {str}");
+            }
         }
 
         return id;
@@ -779,11 +779,10 @@ public class RulesDB : ScriptableObject
         if (!_factIDsMap.TryGetValue(str, out id))
         {
             id = Consts.FactIDDevNull;
-            Debug.Log($"did not find factID {id} for fact {str}");
-        }
-        else
-        {
-            //Debug.Log($"Found factID {id} for fact {str}");
+            if (debugLogMissingIDS)
+            {
+                Debug.Log($"did not find factID {id} for fact {str}");
+            }
         }
 
         return id;
@@ -800,11 +799,11 @@ public class RulesDB : ScriptableObject
         if (!_ruleIDsMap.TryGetValue(str, out id))
         {
             id = Consts.RuleIDNonExisting;
-            Debug.Log($"did not find ruleID {id} for rule {str}");
-        }
-        else
-        {
-            //Debug.Log($"Found ruleID {id} for rule {str}");
+            
+            if (debugLogMissingIDS)
+            {
+                Debug.Log($"did not find ruleID {id} for rule {str}");
+            }
         }
 
         return id;
