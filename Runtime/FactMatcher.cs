@@ -42,7 +42,7 @@ public class FactMatcher
     public bool _hasBeenInited = false;
     public bool _inReload = false;
     
-   public bool IsInited => _hasBeenInited;
+    public bool IsInited => _hasBeenInited;
 
     public FactMatcher(RulesDB ruleDB)
     {
@@ -216,7 +216,7 @@ public class FactMatcher
         int result = PickRulesInBucket(bucketSlice);
         if (result > 0)
         {
-           return GetRuleFromMatches(0);
+            return GetRuleFromMatches(0);
         }
         return null;
     }
@@ -440,7 +440,7 @@ public class FactMatcher
         return ruleDB.RuleID(str);
     }
 
-    public BucketSlice BucketSlice(string str)
+    public BucketSlice BucketSlice(string str,bool logNullBucket=true)
     {
         var bucketSlice = ruleDB.GetSliceForBucket(str);
         if (bucketSlice != null)
@@ -451,11 +451,18 @@ public class FactMatcher
         bucketSlice = ruleDB.GetSliceForBucket("default");
         if (bucketSlice != null)
         {
-            Debug.LogError($"Could not find FactMatcher Bucket {str} - choosing default bucket [{bucketSlice.startIndex}:{bucketSlice.endIndex}] instead");
+            if (logNullBucket)
+            {
+                Debug.LogError($"Could not find FactMatcher Bucket {str} - choosing default bucket [{bucketSlice.startIndex}:{bucketSlice.endIndex}] instead");
+            }
             bucketSlice.Init(this);
             return bucketSlice;
         }
-        Debug.LogError($"Could not find FactMatcher Bucket {str} - choosing null-bucket instead");
+
+        if (logNullBucket)
+        {
+            Debug.LogError($"Could not find FactMatcher Bucket {str} - choosing null-bucket instead");
+        }
         return global::BucketSlice.CreateNullBucket();
     }
     
