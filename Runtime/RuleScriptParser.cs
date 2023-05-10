@@ -26,14 +26,17 @@ namespace FactMatching
         
         public enum RuleScriptParserKeywordEnum
         {
-            KeywordEND,KeywordRESPONSE,KeywordWRITE,KeywordPAYLOAD,NoKeyword,KeywordTEMPLATE,KeywordTEMPLATE_END,
+            KeywordEND,KeywordRESPONSE,KeywordWRITE,KeywordPAYLOAD,NoKeyword,KeywordTEMPLATE,KeywordTEMPLATE_END,KeywordTEMPLATE_ADD_TEST,
         }
 
-        static private Dictionary<string, RuleScriptParserKeywordEnum> _keywordEnums;
+        private static TextAsset currentFile;
+
+        static readonly private Dictionary<string, RuleScriptParserKeywordEnum> _keywordEnums;
         const string template_keyword = ".template";
         private static int _lineNumber = 0;
         private static int _templateLineNumber = 0;
         private const string BucketIndicator = "@";
+        private bool templateEnded = true;
 
         static RuleScriptParser()
         {
@@ -44,7 +47,8 @@ namespace FactMatching
                 [".then response"] = RuleScriptParserKeywordEnum.KeywordRESPONSE,
                 [".then payload"] = RuleScriptParserKeywordEnum.KeywordPAYLOAD,
                 [template_keyword] = RuleScriptParserKeywordEnum.KeywordTEMPLATE,
-                [".template_end"] = RuleScriptParserKeywordEnum.KeywordTEMPLATE_END
+                [$"{template_keyword} add test"] = RuleScriptParserKeywordEnum.KeywordTEMPLATE_ADD_TEST,
+                [$"{template_keyword}_end"] = RuleScriptParserKeywordEnum.KeywordTEMPLATE_END,
             };
         }
 
@@ -95,17 +99,19 @@ namespace FactMatching
             return false;
         }
         
-        public void GenerateFromText(string text,List<RuleDBEntry> rules,ref int factID,
-                                     ref Dictionary<string,int> addedFactIDNames,
-                                     ref Dictionary<string,BucketSlice> conceptBucket,
-                                     ref Dictionary<string,string> bucketPartNames,
-                                     ref int bucketID,
-                                     ref int ruleID,
-                                     string folderPath,
-                                     TextAsset file,
-                                     ref RuleScriptParsingProblems problems,
-                                     List<DocumentEntry> docs)
+        public void GenerateFromText(string text, List<RuleDBEntry> rules, ref int factID,
+            ref Dictionary<string,int> addedFactIDNames,
+            ref Dictionary<string,BucketSlice> conceptBucket,
+            ref Dictionary<string,string> bucketPartNames,
+            ref int bucketID,
+            ref int ruleID,
+            string folderPath,
+            TextAsset file,
+            ref RuleScriptParsingProblems problems,
+            List<DocumentEntry> docs)
         {
+            templateEnded = true;
+            currentFile = file;
             RuleScriptParserEnum state = RuleScriptParserEnum.LookingForRule;
             Dictionary<string,List<RuleDBFactTestEntry>> parsedFactTests = new Dictionary<string, List<RuleDBFactTestEntry>>();
             RuleDBEntry currentRule = null;
@@ -113,6 +119,8 @@ namespace FactMatching
             ScriptableObject payloadObject = null;
             string templatePath = "";
             Dictionary<string,string> templateArguments = new Dictionary<string, string>();
+            Dictionary<string, List<string>> templateRuleArguments = new();
+            string lastTemplateAddTest = "";
             List<RuleDBFactTestEntry> derivedFactTests = new List<RuleDBFactTestEntry>();
             
             //If a RuleScript references a template file, we replace the currentReader with reading from the
@@ -143,6 +151,12 @@ namespace FactMatching
                     {
                         _templateLineNumber++;
                     }
+
+                    if (line == "")
+                    {
+                        continue;
+                    }
+
                     //-- in ruleScript is a comment , except if we are parsing a response..
                     if (state != RuleScriptParserEnum.ParsingResponse)
                     {
@@ -157,23 +171,46 @@ namespace FactMatching
                         var keyword = LookForKeywordInLine(line);
                         if (keyword != RuleScriptParserKeywordEnum.KeywordTEMPLATE_END)
                         {
-                            if (line.StartsWith("%"))
+                            if (keyword == RuleScriptParserKeywordEnum.KeywordTEMPLATE_ADD_TEST)
                             {
+                                string[] splits = line.Split("%");
 
+                                foreach (var keyVal in templateArguments)
+                                {
+                                    line = line.Replace(keyVal.Key, keyVal.Value);
+                                }
+
+                                lastTemplateAddTest = '.' + line.Split(" ").Last();
+                                templateRuleArguments.Add(lastTemplateAddTest, new());
+
+                                continue;
+                            }
+                            else if (line.StartsWith("%"))
+                            {
                                 var templateVariable = line.Split("=")[0].Trim();
                                 var argument = line.Split("=")[1].Trim();
                                 templateArguments[templateVariable] = argument;
+                            }
+                            else if (keyword == RuleScriptParserKeywordEnum.NoKeyword && lastTemplateAddTest != "")
+                            {
+                                try
+                                {
+                                    templateRuleArguments[lastTemplateAddTest].Add(line.Trim());
+                                }
+                                catch (Exception)
+                                {
+                                    problems.ReportNewWarning($"The template did not contain ({lastTemplateAddTest}).", file, _lineNumber);
+                                }
                             }
                         }
                         else
                         {
                             try
                             {
-                                currentReader = HandleTheTemplateFile(templatePath, templateArguments);
+                                currentReader = HandleTheTemplateFile(templatePath, templateArguments, templateRuleArguments);
                             }
                             catch (Exception e)
                             {
-                               //problems.ReportNewError($"Problem reading template file {templatePath}", file, _lineNumber, e);
                                 problems?.ClearList();
                                 throw e;
                             }
@@ -194,8 +231,10 @@ namespace FactMatching
                             _templateLineNumber = 0;
                         }
 
-                        if (noKeyword && line.Length > 0 && line[0] == '.')
+                        if (noKeyword && line.Length > 0 && line[0] == '.' && templateEnded)
                         {
+                            templateEnded = false;
+
                             derivedFactTests.Clear();
                             //Todo - Rules should start with .
                             //Should give error if not the case... 
@@ -236,14 +275,22 @@ namespace FactMatching
                                     }
                                     else
                                     {
-                                        problems.ReportNewError($"derived is ({derived}) and foundDerived is ({foundDerived})", file, _lineNumber);
+                                        problems.ReportNewError(
+                                            $"derived is ({derived}) and foundDerived is ({foundDerived})", file,
+                                            _lineNumber);
                                     }
                                 }
 
                                 lastIndex--;
                             }
 
-                            currentRule = new RuleDBEntry { factTests = new List<RuleDBFactTestEntry>(), factWrites = new List<RuleDBFactWrite>(), ruleName = finalName.ToString() };
+                            //Debug.Log($"Adding factTests from derived ({derived})");
+                            //Debug.Log($"Adding factTests from derived {derived}");
+                            currentRule = new RuleDBEntry
+                            {
+                                factTests = new List<RuleDBFactTestEntry>(), factWrites = new List<RuleDBFactWrite>(),
+                                ruleName = finalName.ToString()
+                            };
 
                             //Debug.Log($"Adding factTests from derived {derived}");
                             //Grab factTests from derived
@@ -263,17 +310,22 @@ namespace FactMatching
                                 }
                                 else
                                 {
-                                    problems.ReportNewWarning($"Could not find {derived} inside of parsedFactTest.", file, _lineNumber);
+                                    problems.ReportNewWarning($"Could not find {derived} inside of parsedFactTest.",
+                                        file, _lineNumber);
                                 }
                             }
                             currentRule.startLine = _lineNumber;
+                        }
+                        else if (noKeyword && line.Length > 0 && line[0] == '.')
+                        {
+                            problems.ReportNewError("Did not detect .END", file, _lineNumber);
                         }
                     }
 
                     if (state == RuleScriptParserEnum.ParsingRule)
                     {
 
-                        ParseFactTests(line, currentRule, ref orGroupID,ref derivedFactTests);
+                        ParseFactTests(line, currentRule, ref orGroupID,ref derivedFactTests, problems);
                         switch (LookForKeywordInLine(line))
                         {
                             case RuleScriptParserKeywordEnum.KeywordWRITE:
@@ -293,7 +345,7 @@ namespace FactMatching
                     else if (state == RuleScriptParserEnum.ParsingFactWrite)
                     {
 
-                        ParseFactWrites(line, currentRule);
+                        ParseFactWrites(line, _lineNumber, currentRule,problems);
                         switch (LookForKeywordInLine(line))
                         {
                             case RuleScriptParserKeywordEnum.KeywordRESPONSE:
@@ -336,6 +388,8 @@ namespace FactMatching
                         var keyword = LookForKeywordInLine(line);
                         if (keyword == RuleScriptParserKeywordEnum.KeywordEND)
                         {
+                            templateEnded = true;
+
                             //Store rule...
                             state = RuleScriptParserEnum.LookingForRule;
                             currentRule.payload = payload.ToString();
@@ -351,7 +405,6 @@ namespace FactMatching
                                 ProblemEntry anyProblem = SetFactIDsAndBucketForFactsInRule(currentRule, ref addedFactIDNames,ref conceptBucket,ref bucketPartNames, ref factID,ref bucketID, ruleID, ref docs);
                                 if (anyProblem != null)
                                 {
-                                    anyProblem.LineNumber = _lineNumber;
                                     anyProblem.File = file;
                                     problems.AddNewProblem(anyProblem);
                                 }
@@ -373,6 +426,10 @@ namespace FactMatching
                                 parsedFactTests[currentRule.ruleName].Add(factTest);
                             }
                         }
+                        else if (keyword != RuleScriptParserKeywordEnum.NoKeyword)
+                        {
+                            problems.ReportNewError($"Keyword in payload : {keyword}, did you forget a .END ?", file, _lineNumber);
+                        }
                         else
                         {
                             payload.Append(line);
@@ -382,7 +439,6 @@ namespace FactMatching
             }
             catch (Exception e)
             {
-                //problems.ReportNewError($"Failed to generate rules", file, _lineNumber, e);
                 problems?.ClearList();
                 throw e;
             }
@@ -397,37 +453,50 @@ namespace FactMatching
             {
                 rule.factTests.Sort((factTest1, factTest2) => factTest1.orGroupRuleID - factTest2.orGroupRuleID);
             }
-
         }
 
 
-        private StringReader HandleTheTemplateFile(string templatePath, Dictionary<string, string> templateArguments)
+        private StringReader HandleTheTemplateFile(string templatePath, Dictionary<string, string> templateArguments, Dictionary<string, List<string>> templateRuleArguments)
         {
-
-                StringBuilder builder = new StringBuilder();
-                using (FileStream fs = File.Open(templatePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                using (BufferedStream bs = new BufferedStream(fs))
-                using (StreamReader sr = new StreamReader(bs))
+            StringBuilder builder = new();
+            using (FileStream fs = File.Open(templatePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (BufferedStream bs = new(fs))
+            using (StreamReader sr = new(bs))
+            {
+                string line;
+                while ((line = sr.ReadLine()) != null)
                 {
-                    string line;
-                    while ((line = sr.ReadLine()) != null)
+                    if (line.TrimStart().StartsWith("--") || line == "")
                     {
-                        if (line.TrimStart().StartsWith("--"))
+                        continue;
+                    }
+
+                    line = ReplaceStringWithTemplateArguments(templateArguments, line);
+
+                    builder.AppendLine(line);
+
+                    foreach (var arg in templateRuleArguments)
+                    {
+                        if (line.Split().First().Trim() == arg.Key.Trim())
                         {
-                            continue;
+                            foreach (var argVal in arg.Value)
+                            {
+                                builder.AppendLine(ReplaceStringWithTemplateArguments(templateArguments, argVal));
+                            }
                         }
-
-                        foreach (var keyVal in templateArguments)
-                        {
-                            line = line.Replace(keyVal.Key, keyVal.Value);
-
-                        }
-
-                        builder.AppendLine(line);
                     }
                 }
+            }
+            return new(builder.ToString());
 
-                return new StringReader(builder.ToString());
+            static string ReplaceStringWithTemplateArguments(Dictionary<string, string> templateArguments, string line)
+            {
+                foreach (var keyVal in templateArguments)
+                {
+                    line = line.Replace(keyVal.Key, keyVal.Value);
+                }
+                return line;
+            }
         }
 
 
@@ -445,9 +514,9 @@ namespace FactMatching
             int bucketIdForRule = 0;
             ProblemEntry anyProblem = null;
 
-            List<String> bucketPartNamesList = new List<string>();
-            StringBuilder bucket = new StringBuilder();
-            StringBuilder bucketFacts = new StringBuilder();
+            List<string> bucketPartNamesList = new();
+            StringBuilder bucket = new();
+            StringBuilder bucketFacts = new();
             bool ruleHasBucketNames = false;
             if (currentRule.factTests != null)
             {
@@ -464,7 +533,7 @@ namespace FactMatching
                             {
                                 ProblemType = ProblemEntry.ProblemTypes.Error,
                                 ProblemMessage =
-                                $"Bucket problem, cannot add {factTest.factName} as bucket because our bucket is already {bucket}"
+                                    $"Bucket problem, cannot add {factTest.factName} as bucket because our bucket is already {bucket}"
                             };
                             return problem;
                         }
@@ -496,6 +565,7 @@ namespace FactMatching
                             return new()
                             {
                                 ProblemType = ProblemEntry.ProblemTypes.Error,
+                                LineNumber = factTest.lineNumber,
                                 ProblemMessage = $"Could not find the fact name \"{factTest.factName}\" inside of the documentation.",
                             };
                         }
@@ -504,46 +574,46 @@ namespace FactMatching
                             return new()
                             {
                                 ProblemType = ProblemEntry.ProblemTypes.Error,
+                                LineNumber = factTest.lineNumber,
                                 ProblemMessage = $"Could not find the value \"{factTest.matchString}\" inside of the documentation to {factTest.factName}.",
                             };
-                        } 
-                    
+                        }
                     }
                 }
             }
 
             if(currentRule.factTests!=null)
-            foreach (var factTest in currentRule.factTests)
-            {
-                if (!addedFactIDNames.ContainsKey(factTest.factName))
+                foreach (var factTest in currentRule.factTests)
                 {
-                    factTest.factID = factID;
-                    addedFactIDNames[factTest.factName] = factID;
-                    factID++;
+                    if (!addedFactIDNames.ContainsKey(factTest.factName))
+                    {
+                        factTest.factID = factID;
+                        addedFactIDNames[factTest.factName] = factID;
+                        factID++;
+                    }
+                    else
+                    {
+                        factTest.factID = addedFactIDNames[factTest.factName];
+                    }
+                    factTest.ruleOwnerID = ruleID;
                 }
-                else
-                {
-                    factTest.factID = addedFactIDNames[factTest.factName];
-                }
-                factTest.ruleOwnerID = ruleID;
-            }
 
 
             if(currentRule.factWrites!=null)
-            foreach (var factWrite in currentRule.factWrites)
-            {
+                foreach (var factWrite in currentRule.factWrites)
+                {
                 
-                if (!addedFactIDNames.ContainsKey(factWrite.factName))
-                {
-                    factWrite.factID = factID;
-                    addedFactIDNames[factWrite.factName] = factID;
-                    factID++;
+                    if (!addedFactIDNames.ContainsKey(factWrite.factName))
+                    {
+                        factWrite.factID = factID;
+                        addedFactIDNames[factWrite.factName] = factID;
+                        factID++;
+                    }
+                    else
+                    {
+                        factWrite.factID = addedFactIDNames[factWrite.factName];
+                    }
                 }
-                else
-                {
-                    factWrite.factID = addedFactIDNames[factWrite.factName];
-                }
-            }
             anyProblem = CheckForBucketProblems(currentRule, conceptBucket, bucketPartNames, ref bucketID, bucketPartNamesList, bucketFacts, anyProblem,ref bucket);
             currentRule.bucket = bucket.Length == 0 ? "default" : bucket.ToString();
             if (!conceptBucket.ContainsKey(currentRule.bucket))
@@ -607,16 +677,18 @@ namespace FactMatching
 
             if (!freshBucket && !areWeSameBucketButDifferentOrder && bucketPartNamesList.Count > 0)
             {
-                anyProblem = new ProblemEntry();
-                anyProblem.ProblemType = ProblemEntry.ProblemTypes.Error;
-                anyProblem.ProblemMessage = "Bucket problem!";
+                anyProblem = new ProblemEntry
+                {
+                    ProblemType = ProblemEntry.ProblemTypes.Error,
+                    ProblemMessage = "Bucket problem!"
+                };
             }
 
             return anyProblem;
         }
 
         private static bool SameBucketButDifferentOrder(Dictionary<string, string> bucketPartNames,
-                                                                    List<string> bucketPartNamesList, StringBuilder bucketFacts)
+            List<string> bucketPartNamesList, StringBuilder bucketFacts)
         {
             
             foreach (var bucketPart in bucketPartNamesList)
@@ -657,7 +729,7 @@ namespace FactMatching
             return false;
         }
 
-        private static void ParseFactWrites(string line, RuleDBEntry currentRule)
+        private static void ParseFactWrites(string line, int lineNumber, RuleDBEntry currentRule, RuleScriptParsingProblems problems)
         {
             var operands = new List<(string, RuleDBFactWrite.WriteMode)>
             {
@@ -679,15 +751,18 @@ namespace FactMatching
                     var splits = line.Split(new[] {operand.Item1}, StringSplitOptions.RemoveEmptyEntries);
                     if (splits.Length != 2)
                     {
-                        Debug.LogError("Error case - Operand split trouble");
+                        problems.ReportNewError("Error case - Operand split trouble", currentFile, _lineNumber);
+                        //Debug.LogError("Error case - Operand split trouble");
                     }
                     else
                     {
-                        RuleDBFactWrite factWrite = new RuleDBFactWrite();
+                        RuleDBFactWrite factWrite = new()
+                        {
+                            lineNumber = lineNumber,
+                            writeMode = operand.Item2,
+                            factName = splits[0].Trim(),
+                        };
                         
-                        factWrite.writeMode = operand.Item2;
-                        
-                        factWrite.factName = splits[0].Trim();
                         var valueMatch = splits[1].Trim();
                         if (float.TryParse(valueMatch, out float floatVal))
                         {
@@ -706,7 +781,8 @@ namespace FactMatching
                                 || factWrite.writeMode == RuleDBFactWrite.WriteMode.SubtractValue
                             )
                             {
-                               Debug.LogError("Using wrong operand for string. Only = supported, or (=) (+=) or (-=)"); 
+                                problems.ReportNewError("Using wrong operand for string. Only = supported, or (=) (+=) or (-=)", currentFile, _lineNumber);
+                                //Debug.LogError("Using wrong operand for string. Only = supported, or (=) (+=) or (-=)"); 
                             }
                             factWrite.writeString = valueMatch;
                         }
@@ -719,7 +795,7 @@ namespace FactMatching
             
         }
 
-        private static void ParseFactTests(string line, RuleDBEntry currentRule, ref int orGroupID, ref List<RuleDBFactTestEntry> derived)
+        private static void ParseFactTests(string line, RuleDBEntry currentRule, ref int orGroupID, ref List<RuleDBFactTestEntry> derived, RuleScriptParsingProblems problems)
         {
             var operands = new List<(string, RuleDBFactTestEntry.Comparision)>
             {
@@ -742,12 +818,15 @@ namespace FactMatching
                     //var splits = line.Split(new[] {operand.Item1}, StringSplitOptions.RemoveEmptyEntries);
                     if (splits.Length != 2)
                     {
-                        Debug.LogError($"Error case - Operand split trouble , lineNumber = {_lineNumber} and templateLineNumber {_templateLineNumber}");
+                        problems.ReportNewError($"Error case - Operand split trouble , lineNumber = {_lineNumber} and templateLineNumber {_templateLineNumber}", currentFile, _lineNumber);
+                        //Debug.LogError($"Error case - Operand split trouble , lineNumber = {_lineNumber} and templateLineNumber {_templateLineNumber}");
                     }
                     else
                     {
-                        RuleDBFactTestEntry factTestEntry = new RuleDBFactTestEntry();
-                        factTestEntry.compareMethod = operand.Item2;
+                        RuleDBFactTestEntry factTestEntry = new()
+                        {
+                            compareMethod = operand.Item2,
+                        };
                         var factNameOrLogicCandidate = splits[0].Trim();
                         
                         var startsWithQuestion = factNameOrLogicCandidate.StartsWith("?");

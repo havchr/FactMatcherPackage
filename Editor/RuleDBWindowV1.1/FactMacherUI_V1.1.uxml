@@ -22,7 +22,7 @@
             <ui:Button text="Open File" display-tooltip-when-elided="true" name="OpenTextFile" class="autoWrap" />
             <ui:Button text="Reparse and reload" display-tooltip-when-elided="true" name="ReparseAndReload" class="autoWrap" />
             <ui:TextField picking-mode="Ignore" label="RuleFilter" name="RuleFilter" class="autoWrap" style="max-width: 350px;" />
-            <ui:ListView focusable="true" name="RuleList" show-border="true" show-bound-collection-size="true" horizontal-scrolling="true" class="autoWrap" style="max-height: none;" />
+            <ui:ListView name="RuleList" show-border="true" show-bound-collection-size="true" horizontal-scrolling="true" class="autoWrap" style="max-height: none;" />
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

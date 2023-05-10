@@ -1,14 +1,10 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
 using FactMatching;
 using Unity.Collections;
 using Debug = UnityEngine.Debug;
-using Unity.Jobs;
 using UnityEngine;
 
 public interface FactMatcherProvider

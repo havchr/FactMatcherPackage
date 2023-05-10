@@ -1,12 +1,14 @@
-﻿using System;
+﻿using TextAsset = UnityEngine.TextAsset;
 using System.Collections.Generic;
+using FactMatching;
 using System.Linq;
 using System.Text;
-using FactMatching;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
 using UnityEngine;
+using System;
+
 
 public enum FactValueType
 {
@@ -17,17 +19,36 @@ public enum FactValueType
 public class RuleDBFactWrite
 {
     
-    public int factID;
     public string factName;
+    public int factID;
     public string writeString;
     public float writeValue;
     public WriteMode writeMode = WriteMode.SetString;
+    public int lineNumber;
 
     public enum WriteMode
     {
         SetString,SetValue,IncrementValue,SubtractValue,SetToOtherFactValue,IncrementByOtherFactValue,SubtractByOtherFactValue
     }
-    
+
+    public override string ToString()
+    {
+        string result = $"{factName}";
+
+        result += writeMode switch
+        {
+            WriteMode.SetString => $" = {writeString}",
+            WriteMode.SetValue => $" = {writeValue}",
+            WriteMode.IncrementValue => $" += {writeValue}",
+            WriteMode.SubtractValue => $" -= {writeValue}",
+            WriteMode.SetToOtherFactValue => $" (=) {writeString}",
+            WriteMode.IncrementByOtherFactValue => $" (+=) {writeString}",
+            WriteMode.SubtractByOtherFactValue => $" (-=) {writeString}",
+            _ => "",
+        };
+
+        return result;
+    }
 }
 
 /// <summary>
@@ -249,10 +270,10 @@ public class RuleDBFactTestEntry
     }
     public RuleDBFactTestEntry(RuleDBFactTestEntry rhs)
     {
+        factName = rhs.factName;
         isStrict = rhs.isStrict;
         orGroupRuleID = rhs.orGroupRuleID;
         factID = rhs.factID;
-        factName = rhs.factName;
         matchString = rhs.matchString;
         matchValue = rhs.matchValue;
         compareMethod = rhs.compareMethod;
@@ -260,10 +281,10 @@ public class RuleDBFactTestEntry
         ruleOwnerID = rhs.ruleOwnerID;
         lineNumber = rhs.lineNumber;
     }
+    public string factName;
     public bool isStrict;
     public int orGroupRuleID;
     public int factID;
-    public string factName;
     public string matchString;
     public float matchValue;
     public Comparision compareMethod;
@@ -292,6 +313,8 @@ public class RuleDBFactTestEntry
                 return ">";
             case Comparision.MoreThanEqual:
                 return ">=";
+            default:
+                break;
         }
         return "";
     }
@@ -322,6 +345,11 @@ public class RuleDBFactTestEntry
         }
         return FactMatching.FactCompare.Equals(val);
     }
+
+    public override string ToString()
+    {
+        return $"{(isStrict ? "" : " ? ")}{factName} {CompareMethodPrintable()} {MatchValuePrintable()}";
+    }
 }
 
 [Serializable]
@@ -337,9 +365,9 @@ public class RulePayloadInterpolation
 [Serializable]
 public class RuleDBEntry
 {
+    public string ruleName;
     public int RuleID;
     public string bucket;
-    public string ruleName;
     public string payload;
     [NonSerialized]
     public int payloadStringID;
@@ -356,10 +384,7 @@ public class RuleDBEntry
     {
         if (matcher.IsInited)
         {
-            if (stringBuilder == null)
-            {
-                stringBuilder = new StringBuilder();
-            }
+            stringBuilder ??= new StringBuilder();
             stringBuilder.Clear();
             int currentInterpolationIndex = 0;
             if( currentInterpolationIndex < interpolations.Count )
@@ -413,17 +438,71 @@ public class RuleDBEntry
 public class FactInDocument
 {
     public string FactName;
+    public int FactID;
+    public int LineNumber;
     [TextArea]
     public string FactSummary;
+    public bool IgnoreNumber;
     public List<string> FactCanBe;
+
+    public FactInDocument(FactInDocument fact = null)
+    {
+        if (fact != null)
+        {
+            FactName = fact.FactName;
+            FactID = fact.FactID;
+            LineNumber = fact.LineNumber;
+            FactSummary = fact.FactSummary;
+            IgnoreNumber = fact.IgnoreNumber;
+            FactCanBe = fact.FactCanBe; 
+        }
+    }
 
     public bool FactCanBeContains(string canBe)
     {
-        if (canBe == null)
+        if (canBe.IsNullOrWhitespace() && FactCanBe.IsNullOrEmpty())
         {
             return true;
         }
-        return FactCanBe.Contains(canBe.Trim());
+        return FactCanBe != null && FactCanBe.Contains(canBe.Trim());
+    }
+
+    public override string ToString()
+    {
+        string result = $"FactName: {FactName}";
+        result += $"{(FactSummary.IsNullOrWhitespace() ? "" : $"\nSummary: {FactSummary}")}" +
+                  $"\nAt line {LineNumber}";
+
+        if (!FactCanBe.IsNullOrEmpty())
+        {
+            result += "\n\nFact can be:";
+            foreach (var factCanBe in FactCanBe)
+            {
+                result += "\n\t" + factCanBe;
+            }
+            result += "\n";
+        }
+
+        return result.Trim();
+    }
+
+    public string ToFactDocumentationString()
+    {
+        string result = $".FACT {FactName}";
+        result += $"{(FactSummary.IsNullOrWhitespace() ? "" : $"\n{FactSummary}")}\n..";
+
+        if (!FactCanBe.IsNullOrEmpty())
+        {
+            result += "\n\n.IT CAN BE";
+            foreach (var factCanBe in FactCanBe)
+            {
+                result += "\n\t" + factCanBe;
+            }
+            result += "\n..";
+            result += "\n";
+        }
+
+        return result.Trim();
     }
 }
 
@@ -431,19 +510,53 @@ public class FactInDocument
 public class DocumentEntry
 {
     public string DocumentName;
+    public int DocID;
     [TextArea(1, 5)]
     public string Summary;
     public List<FactInDocument> Facts;
     public int StartLine;
     public TextAsset TextFile;
 
+    public DocumentEntry(DocumentEntry documentEntry = null)
+    {
+        if (documentEntry != null)
+        {
+            DocumentName = documentEntry.DocumentName;
+            DocID = documentEntry.DocID;
+            Summary = documentEntry.Summary;
+            Facts = documentEntry.Facts;
+            StartLine = documentEntry.StartLine;
+            TextFile = documentEntry.TextFile; 
+        }
+    }
+
+    public FactInDocument GetFactInDocumentByName(string factName)
+    {
+        foreach (var currentFact in Facts)
+        {
+            if (CompareStringsIgnoringNumbers(currentFact.FactName, factName))
+            {
+                return currentFact;
+            }
+        }
+
+        return null;
+    }
+
     public bool IsFactInDoc(string factName)
     {
-        foreach (var fact in Facts)
+        foreach (var currentFact in Facts)
         {
-            if (fact.FactName == factName.Trim())
+            if (currentFact.FactName == factName.Trim())
             {
                 return true;
+            }
+            else if (currentFact.IgnoreNumber)
+            {
+                if (CompareStringsIgnoringNumbers(currentFact.FactName, factName))
+                {
+                    return true;
+                }
             }
         }
 
@@ -452,21 +565,110 @@ public class DocumentEntry
 
     public bool CanFactBe(string factName, string canBe)
     {
-        if (canBe != null)
+        if (!canBe.IsNullOrWhitespace())
         {
-            foreach (var fact in Facts)
+            foreach (var currentFact in Facts)
             {
-                if (fact.FactName == factName.Trim() && fact.FactCanBeContains(canBe))
+                if (currentFact.FactName == factName.Trim() && currentFact.FactCanBeContains(canBe))
                 {
                     return true;
                 }
-            } 
+                else if (currentFact.IgnoreNumber)
+                {
+                    if (CompareStringsIgnoringNumbers(currentFact.FactName, factName))
+                    {
+                        return true;
+                    }
+                }
+            }
         }
 
         return false;
     }
-}
 
+    public static bool CompareStringsIgnoringNumbers(string targetString, string stringToTest)
+    {
+        int y = 0;
+        int j = 0;
+        bool result = false;
+        while (y < targetString.Length && j < stringToTest.Length)
+        {
+            if (targetString[y] == '#')
+            {
+                while (y < targetString.Length && targetString[y] == '#')
+                {
+                    targetString = targetString?.Remove(y, 1); 
+                }
+
+                if (!char.IsDigit(stringToTest[j]))
+                {
+                    result = false;
+                    break;
+                }
+
+                if (y < targetString.Length && char.IsDigit(targetString[y]))
+                {
+                    throw new Exception("Detected numb after #");
+                }
+                while (j < stringToTest.Length && char.IsDigit(stringToTest[j]))
+                {
+                    stringToTest = stringToTest.Remove(j, 1);
+                }
+            }
+            else if (targetString[y] == stringToTest[j])
+            {
+                y++;
+                j++;
+            }
+            else
+            {
+                break;
+            }
+
+            if (targetString == stringToTest)
+            {
+                result = true;
+            }
+        }
+
+        return result;
+    }
+
+    public override string ToString()
+    {
+        string result = DocumentName;
+        result += $"{(Summary == "" ? "" : $"\nSummary: {Summary}")}" +
+                  $"\nDocID: {DocID}" +
+                  $"\nStart line {StartLine}" +
+                  $"{(TextFile != null ? $"\nText file: {TextFile.name}" : "")}";
+        if (Facts != null)
+        {
+            result += $"\n\nFacts:";
+            foreach (var fact in Facts)
+            {
+                result += "\n\n" + fact.ToString();
+            } 
+        }
+
+        return result;
+    }
+
+    public string ToDocumentationString()
+    {
+        string result = $".DOCS {DocumentName}";
+        result += $"{(Summary.IsNullOrWhitespace() ? "" : $"\n{Summary}")}\n..";
+        if (Facts != null)
+        {
+            foreach (var fact in Facts)
+            {
+                result += "\n\n" + fact.ToFactDocumentationString();
+            } 
+        }
+        result += "\n\n.END";
+
+        return result;
+    }
+}
 
 [CreateAssetMenu(fileName = "RulesDB", menuName = "FactMatcher/RulesDB", order = 1)]
 public class RulesDB : ScriptableObject
@@ -482,14 +684,15 @@ public class RulesDB : ScriptableObject
     private Dictionary<string, int> _stringIDsMap;
    
     private Dictionary<string, BucketSlice> _bucketSlices;
-    
     private Dictionary<int, RuleDBEntry> _ruleMap;
+
     [Space(10)]
     public List<TextAsset> generateDocumentationFrom;
     public List<DocumentEntry> documentations;
     public Action OnDocumentationParsed;
+
     [Space(10)]
-    public List<TextAsset> generateFrom;
+    public List<TextAsset> generateRuleFrom;
     public List<RuleDBEntry> rules;
     public Action OnRulesParsed;
     
@@ -502,6 +705,18 @@ public class RulesDB : ScriptableObject
         _ruleMap = CreateEntryFromIDDic(rules);
         _factIDsMap = CreateFactIDs(rules);
         _bucketSlices = CreateBucketSlices();
+    }
+
+    public DocumentEntry GetDocumentEntryByName(string nameOfDoc)
+    {
+        foreach (var doc in documentations)
+        {
+            if (doc.DocumentName == nameOfDoc)
+            {
+                return doc;
+            }
+        }
+        return null;
     }
 
     private Dictionary<string, BucketSlice> CreateBucketSlices()
@@ -526,8 +741,8 @@ public class RulesDB : ScriptableObject
     /// </returns>
     public List<RuleDBFactTestEntry> CreateFlattenedFactTestListWithNoDuplicateFactIDS(Func<RuleDBFactTestEntry, bool> filter = null)
     {
-        List<RuleDBFactTestEntry> factTests = new List<RuleDBFactTestEntry>();
-        List<int> usedIDs = new List<int>();
+        List<RuleDBFactTestEntry> factTests = new();
+        List<int> usedIDs = new();
         foreach (var rule in rules)
         {
             foreach (var factTest in rule.factTests)
@@ -567,10 +782,18 @@ public class RulesDB : ScriptableObject
 
         if (!ignoreDocumentationDemand)
         {
-            problems = CreateRulesFromDocumentation();
+            problems = CreateDocumentations();
+            if (documentations == null)
+            {
+                problems.ReportNewWarning("Documentations is null", null, -1);
+            }
+        }
+        else
+        {
+            problems.ReportNewWarning("Ignore documentation demand is on", null, -1);
         }
 
-        if (generateFrom.Count != 0)
+        if (generateRuleFrom.Count != 0)
         {
             rules.Clear();
             int factID = Consts.FactIDDevNull + 1;
@@ -579,11 +802,11 @@ public class RulesDB : ScriptableObject
             Dictionary<string, int> addedFactIDS = new Dictionary<string, int>();
             Dictionary<string, BucketSlice> slicesForBuckets = new Dictionary<string, BucketSlice>();
             Dictionary<string, string> bucketPartNames = new Dictionary<string, string>();
-            foreach (var ruleScript in generateFrom)
+            foreach (var ruleScript in generateRuleFrom)
             {
                 var parser = new RuleScriptParser();
                 var path = "";
-                #if UNITY_EDITOR
+#if UNITY_EDITOR
                 path = AssetDatabase.GetAssetPath(ruleScript);
                 var lastIndexOf = path.LastIndexOf('/');
                 if (lastIndexOf == -1)
@@ -593,21 +816,21 @@ public class RulesDB : ScriptableObject
 
                 if (lastIndexOf != -1)
                 {
-                    path = path.Substring(0, lastIndexOf + 1);
+                    path = path[..(lastIndexOf + 1)];
                 }
-                #endif
-                parser.GenerateFromText(ruleScript.text, 
-                                        rules,
-                                        ref factID,
-                                        ref addedFactIDS,
-                                        ref slicesForBuckets,
-                                        ref bucketPartNames,
-                                        ref bucketID,
-                                        ref ruleID,
-                                        path,
-                                        ruleScript, 
-                                        ref problems,
-                                        ignoreDocumentationDemand ? null : documentations);
+#endif
+                parser.GenerateFromText(ruleScript.text,
+                    rules,
+                    ref factID,
+                    ref addedFactIDS,
+                    ref slicesForBuckets,
+                    ref bucketPartNames,
+                    ref bucketID,
+                    ref ruleID,
+                    path,
+                    ruleScript, 
+                    ref problems,
+                    ignoreDocumentationDemand ? null : documentations);
             }
 
             InitFactWriteIndexers(ref addedFactIDS);
@@ -640,16 +863,16 @@ public class RulesDB : ScriptableObject
         return problems;
     }
     
-    public RuleScriptParsingProblems CreateRulesFromDocumentation()
+    public RuleScriptParsingProblems CreateDocumentations()
     {
         RuleScriptParsingProblems problems = new();
         problemList?.Clear();
         if (generateDocumentationFrom.Count != 0)
         {
-            documentations.Clear();
+            documentations?.Clear();
             foreach (var document in generateDocumentationFrom)
             {
-                #if UNITY_EDITOR
+#if UNITY_EDITOR
                 var path = "";
                 path = AssetDatabase.GetAssetPath(document);
                 var lastIndexOf = path.LastIndexOf('/');
@@ -662,9 +885,9 @@ public class RulesDB : ScriptableObject
                 {
                     path = path[..(lastIndexOf + 1)];
                 }
-                #endif
-                RuleDocumentationParser parser = new();
-                documentations.AddRange(parser.GenerateFromText(ref problems, document));
+#endif
+                documentations ??= new();
+                documentations.AddRange(RuleDocumentationParser.GenerateFromText(ref problems, document));
             }
 
             if (problems.ContainsError())
@@ -746,8 +969,7 @@ public class RulesDB : ScriptableObject
             InitRuleDB();
         }
 
-        int id = -1;
-        if (!_stringIDsMap.TryGetValue(str, out id))
+        if (!_stringIDsMap.TryGetValue(str, out int id))
         {
             id = -1;
             if (debugLogMissingIDS)
@@ -775,8 +997,7 @@ public class RulesDB : ScriptableObject
             InitRuleDB();
         }
 
-        int id = Consts.FactIDDevNull;
-        if (!_factIDsMap.TryGetValue(str, out id))
+        if (!_factIDsMap.TryGetValue(str, out int id))
         {
             id = Consts.FactIDDevNull;
             if (debugLogMissingIDS)
@@ -795,8 +1016,7 @@ public class RulesDB : ScriptableObject
             InitRuleDB();
         }
 
-        int id = Consts.RuleIDNonExisting;
-        if (!_ruleIDsMap.TryGetValue(str, out id))
+        if (!_ruleIDsMap.TryGetValue(str, out int id))
         {
             id = Consts.RuleIDNonExisting;
             
@@ -859,8 +1079,7 @@ public class RulesDB : ScriptableObject
             InitRuleDB();
         }
 
-        RuleDBEntry rule;
-        if (!_ruleMap.TryGetValue(id, out rule))
+        if (!_ruleMap.TryGetValue(id, out RuleDBEntry rule))
         {
             rule = null;
         }
@@ -882,16 +1101,16 @@ public class RulesDB : ScriptableObject
 
     private static Dictionary<string, int> CreateStringIDs(List<RuleDBEntry> rules)
     {
-        Dictionary<string, int> dic = new Dictionary<string, int>();
-
-        int id = 0;
-        dic.Add("FALSE", FactMatching.Consts.False);
-        dic.Add("False", FactMatching.Consts.False);
-        dic.Add("false", FactMatching.Consts.False);
-        dic.Add("TRUE", FactMatching.Consts.True);
-        dic.Add("True", FactMatching.Consts.True);
-        dic.Add("true", FactMatching.Consts.True);
-        id = FactMatching.Consts.True + 1;
+        Dictionary<string, int> dic = new()
+        {
+            { "FALSE", FactMatching.Consts.False },
+            { "False", FactMatching.Consts.False },
+            { "false", FactMatching.Consts.False },
+            { "TRUE", FactMatching.Consts.True },
+            { "True", FactMatching.Consts.True },
+            { "true", FactMatching.Consts.True }
+        };
+        int id = FactMatching.Consts.True + 1;
         for (int i = 0; i < rules.Count; i++)
         {
             var rule = rules[i];

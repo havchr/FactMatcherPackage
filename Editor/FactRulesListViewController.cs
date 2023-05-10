@@ -145,13 +145,13 @@ public class FactRulesListViewController
         if (!data.isRule)
         {
             RuleDBFactTestEntry factTest = factMatcher.ruleDB.GetFactTestFromFactIDAndRuleID(data.factIndex, data.ruleIndex);
-            lineNum = factTest.lineNumber; 
+            lineNum = factTest.lineNumber;
         }
         else { lineNum = rule.startLine; }
     }
 
     private static int orGroup = -1;
-    private static bool lastOrFactResult = false;
+    //private static bool lastOrFactResult = false;
 
 
     public void Publish(Data data, FactMatcher factMatcher)

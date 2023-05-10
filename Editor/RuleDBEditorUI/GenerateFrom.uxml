@@ -1,0 +1,5 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="True">
+    <ui:Box style="flex-direction: row; width: 100%; flex-wrap: nowrap;">
+        <uie:ObjectField type="UnityEngine.TextAsset, UnityEngine.CoreModule" allow-scene-objects="false" name="generateFrom" style="flex-grow: 1; flex-shrink: 1; flex-wrap: wrap; flex-direction: row-reverse;" />
+    </ui:Box>
+</ui:UXML>

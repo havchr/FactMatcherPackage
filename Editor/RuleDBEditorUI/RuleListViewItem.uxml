@@ -1,0 +1,8 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="project://database/Packages/no.agens.factmatcher/Editor/RuleDBListViewItem.uss?fileID=7433441132597879392&amp;guid=3778693f918b64cd69ecc98c6257407e&amp;type=3#RuleDBListViewItem" />
+    <ui:VisualElement style="height: 20px; width: 100%; flex-direction: row;">
+        <ui:Button text="Ping rule" display-tooltip-when-elided="true" name="pingButton" style="flex-direction: row;" />
+        <ui:Button text="Get doc" display-tooltip-when-elided="true" name="pingDocButton" style="flex-direction: row;" />
+        <ui:Label tabindex="-1" name="Label" display-tooltip-when-elided="true" text="Sample text" style="flex-grow: 1; flex-shrink: 0; width: auto; white-space: normal; -unity-text-align: middle-left; color: rgb(255, 255, 255);" />
+    </ui:VisualElement>
+</ui:UXML>

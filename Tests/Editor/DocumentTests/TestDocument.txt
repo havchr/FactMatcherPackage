@@ -1,0 +1,47 @@
+-- .DOCS %label starts a documentation block
+.DOCS rule_name
+Documentation about all things related to rule_name.
+As much text as you want to, until you reach .. on a single line, which indicates the end
+of free form text.
+..
+
+--.FACT %fact_name starts documentation of a fact , contains a block of text until .. with
+--as much text as you want.
+.FACT player.age
+as much text as you want here.
+..
+
+--newlines are ignored
+
+--if we have a .IT CAN BE block after a .FACT block
+--we list up the valid names for the previous fact
+--see example below
+.FACT player.name
+this is player.name that can link names into a sequence, like Johnny, Bob, etc.
+related to player.name
+..
+
+.IT CAN BE
+	Johnny Lemon
+    Bob Jonson
+..
+-- Use .. to end IT CAN BE
+
+.FACT player.height
+as much text as you want here.
+..
+
+.FACT player.health
+as much text as you want here.
+..
+
+.FACT player.street_smart
+as much text as you want here.
+..
+
+.FACT player.intelligence_level
+as much text as you want here.
+..
+
+.END
+    -- .END indicates the end of the document.

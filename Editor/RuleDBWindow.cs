@@ -13,7 +13,6 @@ using TextAsset = UnityEngine.TextAsset;
 /// </summary>
 public class RuleDBWindow : EditorWindow 
 {
-    
     public VisualTreeAsset RuleVisAss;
     public VisualTreeAsset FactItemVisAss;
     public VisualTreeAsset RuleListViewItemAss;
@@ -107,8 +106,7 @@ public class RuleDBWindow : EditorWindow
                 Component[] comps = gob.GetComponents<MonoBehaviour>(); // Creates array whit all monoBehaviours in game
                 foreach (var comp in comps)
                 {
-                    FactMatcherProvider provider = comp as FactMatcherProvider; 
-                    if (provider != null) // Is there a FactmacherProvider in the current comp
+                    if (comp is FactMatcherProvider provider) // Is there a FactmacherProvider in the current comp
                     {
                         _factMatcherProvider = provider;
                         if (_factMatcher != null && _factMatcher.HasDataToDispose() && _factMatcherSelfAllocated) // If we have a _factMatcher and _factMatcher has data to dispose and _factMatcherSelfAllocated
@@ -117,9 +115,9 @@ public class RuleDBWindow : EditorWindow
                             _factMatcher = null;
                         }
                         _factMatcherSelfAllocated = false;
-                        if (provider.GetFactMatcher()!=null && provider.GetFactMatcher().IsInited) // If provider.GetFactMatcher != null && provider.GetFactMacher.IsInited
+                        if (provider.GetFactMatcher() != null && provider.GetFactMatcher().IsInited) // If provider.GetFactMatcher != null && provider.GetFactMacher.IsInited
                         {
-                            InitUIWithFactMatcher(content,provider.GetFactMatcher()); // Initiate the UI whit the FactMatcher and the visual element
+                            InitUIWithFactMatcher(content, provider.GetFactMatcher()); // Initiate the UI whit the FactMatcher and the visual element
                         }
                         break;
                     }
@@ -192,7 +190,7 @@ public class RuleDBWindow : EditorWindow
         rulesDB.OnRulesParsed += OnRulesParsed;
         _factMatcher.OnRulePicked += OnRulePicked;
         _factMatcher.OnInited += OnInited;
-        
+
         _ruleScriptSelector.visible = true;
         _openTextFileButton.visible = true;
         _ruleFilterField.visible = true;
@@ -206,18 +204,18 @@ public class RuleDBWindow : EditorWindow
         content.Q<Button>("RefreshFactValues").visible = true;
 
         var ruleScriptChoices = new List<string>();
-        foreach (var textAsset in rulesDB.generateFrom)
+        foreach (var textAsset in rulesDB.generateRuleFrom)
         {
             ruleScriptChoices.Add(textAsset.name);
             _currentRuleScript = textAsset;
             _ruleScriptSelector.SetValueWithoutNotify(textAsset.name);
         }
 
-        ((INotifyValueChanged<string>) _ruleScriptSelector.labelElement).SetValueWithoutNotify("ScriptFile:");
+        ((INotifyValueChanged<string>)_ruleScriptSelector.labelElement).SetValueWithoutNotify("ScriptFile:");
         _ruleScriptSelector.RegisterCallback<ChangeEvent<string>>(ev => // When the _ruleScriptSelector is updated (changed RuleScript)
         {
             var index = Mathf.Max(0, ruleScriptChoices.IndexOf(ev.newValue)); // index = the largest number.
-            _currentRuleScript = rulesDB.generateFrom[index];
+            _currentRuleScript = rulesDB.generateRuleFrom[index];
         });
         _ruleScriptSelector.choices = ruleScriptChoices;
         _openTextFileButton.RegisterCallback<ClickEvent>(ev =>
@@ -253,7 +251,7 @@ public class RuleDBWindow : EditorWindow
             _factMatcher.LoadFromCSV(_factFileField.value);
             UpdateListView();
         });
-        
+
         content.Q<Button>("RefreshFactValues").RegisterCallback<ClickEvent>(evt =>
         {
             UpdateListView();
@@ -267,11 +265,10 @@ public class RuleDBWindow : EditorWindow
         UpdateListView();
         _factListView.fixedItemHeight = 22.0f;
 
-
         _ruleListView.makeItem = () => FactRulesListViewController.MakeItem(RuleListViewItemAss);
         _ruleListView.bindItem = (element, i) => FactRulesListViewController.BindItem(element, i, _rulesDatas, _factMatcher);
         _ruleListView.itemsSource = CreateRuleDatas();
-        
+
         _ruleFilterField.RegisterCallback<ChangeEvent<string>>(evt => { UpdateListViewRules(); });
         UpdateListViewRules();
         _ruleListView.fixedItemHeight = 18.0f;
@@ -319,18 +316,24 @@ public class RuleDBWindow : EditorWindow
 
     private void OnRulesParsed()
     {
-        if (_factMatcher.HasDataToDispose())
+        if (_factMatcher != null)
         {
-            _factMatcher.DisposeData();
+            if (_factMatcher.HasDataToDispose())
+            {
+                _factMatcher.DisposeData();
+            }
+            _factMatcher.Init();
+            if (_factMatcher.ruleDB.problemList != null)
+            {
+                var problems = _factMatcher.ruleDB.problemList;
+                string problemsString = "";
+                foreach (var problem in problems)
+                {
+                    problemsString += problem;
+                }
+                _lastPickedRule.text = problemsString;
+            } 
         }
-        _factMatcher.Init();
-        var problems = _factMatcher.ruleDB.problemList;
-        string problemsString = "";
-        foreach ( var problem in problems ) 
-        {
-            problemsString += problem;
-        }
-        _lastPickedRule.text = problemsString;
     }
 
     private void OnInited()
@@ -359,9 +362,6 @@ public class RuleDBWindow : EditorWindow
         UpdateListView();
     }
 
-    /// <summary>
-    /// Update the list view whit the current info tests
-    /// </summary>
     void UpdateListView()
     {
         if (_factMatcher != null && _factMatcher.ruleDB != null)
@@ -372,7 +372,7 @@ public class RuleDBWindow : EditorWindow
                 bool include = false;
                 for (int i = 0; i < splits.Length; i++)
                 {
-                    if (entry.factName.Contains(splits[i]))
+                    if (entry.factName.ToLower().Contains(splits[i].ToLower()))
                     {
                         include = true;
                         break;

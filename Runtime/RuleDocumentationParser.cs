@@ -1,8 +1,8 @@
 ﻿using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System;
 using UnityEngine;
+using System.Linq;
+using System.IO;
+using System;
 
 namespace FactMatching
 {
@@ -27,7 +27,7 @@ namespace FactMatching
             };
         }
 
-        RuleDocParserKeyword LookForKeywordInLine(string line)
+        private static RuleDocParserKeyword LookForKeywordInLine(string line)
         {
             line = line.Trim();
             if (line.StartsWith('.'))
@@ -54,7 +54,7 @@ namespace FactMatching
             return RuleDocParserKeyword.NoKeyword;
         }
 
-        private bool IsKeywordInLine(string line, RuleDocParserKeyword lookFor, out string restOfLine)
+        private static bool IsKeywordInLine(string line, RuleDocParserKeyword lookFor, out string restOfLine)
         {
             line = line.Trim();
             if (LookForKeywordInLine(line) == lookFor)
@@ -67,24 +67,25 @@ namespace FactMatching
             return false;
         }
 
-        private RuleDocParserKeyword WhatIsNextParser()
+        private static RuleDocParserKeyword WhatIsNextParser()
         {
             string originalString = stringReader.ReadToEnd();
             stringReader = new(originalString);
             StringReader newReader = new(originalString);
+            return ReadLineInStringReader(newReader);
 
-            while (newReader.Peek() != -1)
+            static RuleDocParserKeyword ReadLineInStringReader(StringReader localStringReader)
             {
-                string line = newReader.ReadLine().ToUpper();
-
+                string line;
+                while ((line = localStringReader.ReadLine()) != null && (line.TrimStart().StartsWith("--") || line == ""))
+                { }
                 return LookForKeywordInLine(line);
             }
-            return RuleDocParserKeyword.EndOfFile;
         }
 
-        private StringReader stringReader;
-        private int _lineNumber;
-        private string NextLine()
+        private static StringReader stringReader;
+        private static int _lineNumber;
+        private static string NextLine()
         {
             string line;
             while ((line = stringReader.ReadLine()) != null && (line.TrimStart().StartsWith("--") || line == ""))
@@ -95,11 +96,12 @@ namespace FactMatching
             return line;
         }
 
-        private RuleScriptParsingProblems localProblems;
-        private TextAsset currentFile;
-        public bool parsingDoc = false;
-        public List<DocumentEntry> GenerateFromText(ref RuleScriptParsingProblems problems, TextAsset file)
+        private static RuleScriptParsingProblems localProblems;
+        private static TextAsset currentFile;
+        public static bool parsingDoc = false;
+        public static List<DocumentEntry> GenerateFromText(ref RuleScriptParsingProblems problems, TextAsset file)
         {
+            parsingDoc = false;
             List<DocumentEntry> entries = new();
             stringReader = new(file.text);
             currentFile = file;
@@ -107,6 +109,7 @@ namespace FactMatching
 
             try
             {
+                int docID = 0;
                 string line;
                 while ((line = NextLine()) != null)
                 {
@@ -122,6 +125,7 @@ namespace FactMatching
                         {
                             StartLine = _lineNumber,
                             DocumentName = nameOfDoc,
+                            DocID = docID++,
                             Summary = ParseSummary(),
                             TextFile = currentFile,
                             Facts = GetFactsInDocument(),
@@ -132,15 +136,13 @@ namespace FactMatching
             }
             catch (Exception e)
             {
-                //localProblems.ReportNewError("Failed to generate from given text", file, -1, e);
                 localProblems?.ClearList();
                 throw e;
             }
-
             return entries;
         }
 
-        private string ParseSummary()
+        private static string ParseSummary()
         {
             string summary = "";
 
@@ -156,21 +158,27 @@ namespace FactMatching
             return summary.TrimStart('\n');
         }
 
-        private List<FactInDocument> GetFactsInDocument()
+        private static readonly char ignoreNumSymbol = '#'; 
+        private static List<FactInDocument> GetFactsInDocument()
         {
             List<FactInDocument> facts = new();
 
+            int factID = 0;
             string line;
             RuleDocParserKeyword keywordInLine;
             while ((line = NextLine().Trim()) != null && (keywordInLine = LookForKeywordInLine(line)) != RuleDocParserKeyword.KeywordEND)
             {
                 if (keywordInLine == RuleDocParserKeyword.KeywordFACT)
                 {
-                    var lineSplit = line.Split(' ');
+                    string[] lineSplit = line.Split(' ');
+                    string factName = string.Join("_", lineSplit.Skip(1));
                     facts.Add(new()
                     {
-                        FactName = string.Join("_", lineSplit.Skip(1)),
+                        FactName = factName,
+                        LineNumber = _lineNumber,
+                        FactID = factID++,
                         FactSummary = ParseSummary(),
+                        IgnoreNumber = factName.Contains(ignoreNumSymbol),
                         FactCanBe = GetListOfFactCanBe(),
                     });
                 }
@@ -178,7 +186,7 @@ namespace FactMatching
             return facts;
         }
 
-        private List<string> GetListOfFactCanBe()
+        private static List<string> GetListOfFactCanBe()
         {
             if (WhatIsNextParser() == RuleDocParserKeyword.KeywordFACT_CAN_BE)
             {

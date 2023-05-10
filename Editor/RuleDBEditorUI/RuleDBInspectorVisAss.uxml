@@ -1,0 +1,23 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="True">
+    <ui:VisualElement>
+        <ui:Label text="RuleDB" display-tooltip-when-elided="true" name="title" style="font-size: 30px; -unity-text-align: middle-center; border-bottom-color: rgb(47, 47, 47); border-bottom-width: 5px; text-shadow: -1px 1px 1px rgba(0, 0, 0, 0.62); flex-shrink: 1; flex-grow: 1; -unity-font-style: bold; letter-spacing: 1px; margin-bottom: 5px;" />
+        <ui:VisualElement class="autoVisual" style="font-size: 13px;">
+            <ui:Toggle label="Pick multiple best rules" name="multipleBestRules" class="autoWrap" style="flex-direction: row-reverse;" />
+            <ui:Toggle label="Fact write to all that matches" name="writeToAllMatches" binding-path="FactWriteToAllThatMatchesFactWriteToAllThatMatches" class="autoWrap" style="flex-direction: row-reverse;" />
+            <ui:Toggle label="Ignore Documentation Demand" name="ignoreDoc" class="autoWrap" style="flex-direction: row-reverse;" />
+            <ui:Toggle label="Debug Log Missing IDS" name="debugLogMissingIDS" class="autoWrap" style="flex-direction: row-reverse;" />
+            <ui:ListView virtualization-method="DynamicHeight" reorder-mode="Animated" show-add-remove-footer="true" show-foldout-header="true" header-title="Generate documentation from" name="generateDocFrom" show-border="true" style="padding-bottom: 10px;" />
+            <ui:Foldout text="Rules" name="rulesFoldout">
+                <ui:ListView virtualization-method="DynamicHeight" reorder-mode="Animated" show-add-remove-footer="true" show-border="true" show-foldout-header="true" header-title="Generate rules from" name="generateRuleFrom" style="padding-bottom: 10px;" />
+                <ui:TextField picking-mode="Ignore" label="Search for item" value="filler text" name="ruleFilter" />
+                <ui:ListView virtualization-method="FixedHeight" reorder-mode="Simple" show-add-remove-footer="false" show-border="true" show-foldout-header="true" header-title="Generated rules" name="rules" reorderable="false" selection-type="None" fixed-item-height="20" style="padding-bottom: 10px; max-height: 500px;" />
+            </ui:Foldout>
+            <ui:Button text="Parse Rule-scripts" display-tooltip-when-elided="true" name="parseRuleScripts" />
+            <ui:Button text="Parse to C#" display-tooltip-when-elided="true" name="parseToCS" />
+            <ui:VisualElement name="infoBoxes" style="flex-direction: column; flex-wrap: nowrap;">
+                <ui:HelpBox text="UXML Error Box" message-type="Error" name="errorBox" picking-mode="Ignore" style="flex-wrap: nowrap; flex-grow: 1; max-height: 500px;" />
+                <ui:HelpBox text="UXML Warning Box" message-type="Warning" name="warningBox" picking-mode="Ignore" style="flex-wrap: nowrap; flex-grow: 1; max-height: 500px;" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
