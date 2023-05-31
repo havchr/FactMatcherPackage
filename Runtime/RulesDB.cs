@@ -370,6 +370,8 @@ public class RuleDBEntry
     public string ruleName;
     public int RuleID;
     public string bucket;
+
+    public string PayloadRaw => payload.RawText;
     public Payload payload;
     [NonSerialized]
     public int payloadStringID;
