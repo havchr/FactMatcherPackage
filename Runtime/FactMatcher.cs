@@ -72,7 +72,7 @@ public class FactMatcher
     
     public string LoadFromCSV(string filename)
     {
-        RuleScriptParsingProblems ruleScriptParsingProblems = new();
+        //RuleScriptParsingProblems ruleScriptParsingProblems = new();
         string problemString = "";
         var lines = File.ReadAllLines(filename).Skip(1);
         foreach (var csvLine in lines)
@@ -138,7 +138,7 @@ public class FactMatcher
        
         //if we have four rules that all match with 2 - and that is our best match - four is stored in _noOfRulesWithBestMatch
         _noOfRulesWithBestMatch = new NativeArray<int>(1,Allocator.Persistent);
-        //folowing that same example - _bestRuleMatches is 2
+        //following that same example - _bestRuleMatches is 2
         _bestRuleMatches = new NativeArray<int>(1,Allocator.Persistent);
         //to read out these four rules from our example - expect to find their indices in _allRulesMatches[0 - 3]
         _allRulesMatches = new NativeArray<int>(_rules.Length,Allocator.Persistent);
@@ -382,7 +382,7 @@ public class FactMatcher
     {
         for (int i = 0; i < _factValues.Length; i++)
         {
-            var factName = ruleDB.GetFactVariabelNameFromFactID(i);
+            var factName = ruleDB.GetFactVariableNameFromFactID(i);
             if (_factValues[i] < 0f)
             {
                 Debug.Log($"fact {factName} is {_factValues[i]}");

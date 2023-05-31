@@ -11,7 +11,7 @@ public class PayloadInterpolationParser
         InValueFormatInterpolation,
         InStringInterpolation,
         ReadingString,
-        AddingStringIterpolation,
+        AddingStringInterpolation,
         AddingValueInterpolation
     }
 
@@ -39,20 +39,20 @@ public class PayloadInterpolationParser
 
             { new StateTransformer('$', State.ReadingString), State.PotentialStringInterpolation },
             { new StateTransformer('{', State.PotentialStringInterpolation), State.InStringInterpolation },
-            { new StateTransformer('}', State.InStringInterpolation), State.AddingStringIterpolation }
+            { new StateTransformer('}', State.InStringInterpolation), State.AddingStringInterpolation }
         };
 
         ruleDBEntry.interpolations = new List<RulePayloadInterpolation>();
         RulePayloadInterpolation payloadInterpolation = null;
         //The interpolationVariable , i.e what is inside the interpolation example,
         //${this_is_inside} , expect this_is_inside after parsing
-        StringBuilder interpolationVariable = new StringBuilder();
-        StringBuilder valueFormatInterpolation = new StringBuilder();
+        StringBuilder interpolationVariable = new();
+        StringBuilder valueFormatInterpolation = new();
         
-        for (int i = 0; i < ruleDBEntry.payload.Length; i++)
+        for (int i = 0; i < ruleDBEntry.payload.StrippedText.Length; i++)
         {
-            char theChar = ruleDBEntry.payload[i];
-            StateTransformer stateTransformer = new StateTransformer(theChar, state);
+            char theChar = ruleDBEntry.payload.StrippedText[i];
+            StateTransformer stateTransformer = new(theChar, state);
             if (parser.ContainsKey(stateTransformer))
             {
                 state = parser[stateTransformer];
@@ -76,7 +76,7 @@ public class PayloadInterpolationParser
         if (state == State.InValueFormatInterpolation)
         {
             state = State.AddingValueInterpolation; 
-            HandleNewState(ruleDBEntry, addedFactIDS,  state, interpolationVariable, ruleDBEntry.payload.Length-1, valueFormatInterpolation, ref payloadInterpolation);
+            HandleNewState(ruleDBEntry, addedFactIDS,  state, interpolationVariable, ruleDBEntry.payload.StrippedText.Length-1, valueFormatInterpolation, ref payloadInterpolation);
         }
     }
     
@@ -89,15 +89,17 @@ public class PayloadInterpolationParser
             case State.InStringInterpolation:
             case State.InValueInterpolation:
                 interpolationVariable.Clear();
-                payloadInterpolation = new();
-                payloadInterpolation.payLoadStringStartIndex = i-1;
-                payloadInterpolation.type =
-                    state == State.InStringInterpolation ? FactValueType.String : FactValueType.Value;
+                payloadInterpolation = new()
+                {
+                    payLoadStringStartIndex = i - 1,
+                    type =
+                    state == State.InStringInterpolation ? FactValueType.String : FactValueType.Value
+                };
                 break;
             case State.InValueFormatInterpolation:
                 valueFormatInterpolation.Clear();
                 break;
-            case State.AddingStringIterpolation:
+            case State.AddingStringInterpolation:
                 if (!AddPayLoadInterpolation(ruleDBEntry, addedFactIDS, payloadInterpolation, i,
                         interpolationVariable))
                 {

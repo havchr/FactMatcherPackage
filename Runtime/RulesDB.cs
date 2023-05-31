@@ -8,7 +8,8 @@ using UnityEditor;
 #endif
 using UnityEngine;
 using System;
-
+using System.Threading;
+using System.ComponentModel;
 
 public enum FactValueType
 {
@@ -342,6 +343,7 @@ public class RuleDBFactTestEntry
                 return FactMatching.FactCompare.MoreThan(val);
             case Comparision.MoreThanEqual:
                 return FactMatching.FactCompare.MoreThanEquals(val);
+            default: break;
         }
         return FactMatching.FactCompare.Equals(val);
     }
@@ -368,7 +370,7 @@ public class RuleDBEntry
     public string ruleName;
     public int RuleID;
     public string bucket;
-    public string payload;
+    public Payload payload;
     [NonSerialized]
     public int payloadStringID;
     public ScriptableObject PayloadObject;
@@ -390,14 +392,14 @@ public class RuleDBEntry
             if( currentInterpolationIndex < interpolations.Count )
             {
                 RulePayloadInterpolation interpolation = interpolations[currentInterpolationIndex];
-                for (int i = 0; i < payload.Length; i++)
+                for (int i = 0; i < payload.StrippedText.Length; i++)
                 {
                     if (interpolation!= null && i >= interpolation.payLoadStringStartIndex && i <= interpolation.payLoadStringEndIndex)
                     {
                     }
                     else
                     {
-                        stringBuilder.Append(payload[i]);
+                        stringBuilder.Append(payload.StrippedText[i]);
                     }
                     if (interpolation!=null && i == interpolation.payLoadStringEndIndex)
                     {
@@ -430,7 +432,7 @@ public class RuleDBEntry
                 return stringBuilder.ToString();
             }
         }
-        return payload;
+        return payload.StrippedText;
     }
 }
 
@@ -695,8 +697,6 @@ public class RulesDB : ScriptableObject
     public List<TextAsset> generateRuleFrom;
     public List<RuleDBEntry> rules;
     public Action OnRulesParsed;
-    
-    private StringBuilder _interpolationBuilder; 
 
     public void InitRuleDB()
     {
@@ -760,7 +760,7 @@ public class RulesDB : ScriptableObject
     
     public List<RuleDBFactTestEntry> CreateFlattenedRuleAtomListWithPotentiallyDuplicateFactIDS(Func<RuleDBFactTestEntry, bool> filter = null)
     {
-        List<RuleDBFactTestEntry> ruleAtoms = new List<RuleDBFactTestEntry>();
+        List<RuleDBFactTestEntry> ruleAtoms = new();
         foreach (var rule in rules)
         {
             foreach (var factTest in rule.factTests)
@@ -799,9 +799,9 @@ public class RulesDB : ScriptableObject
             int factID = Consts.FactIDDevNull + 1;
             int ruleID = 0;
             int bucketID = 0;
-            Dictionary<string, int> addedFactIDS = new Dictionary<string, int>();
-            Dictionary<string, BucketSlice> slicesForBuckets = new Dictionary<string, BucketSlice>();
-            Dictionary<string, string> bucketPartNames = new Dictionary<string, string>();
+            Dictionary<string, int> addedFactIDS = new();
+            Dictionary<string, BucketSlice> slicesForBuckets = new();
+            Dictionary<string, string> bucketPartNames = new();
             foreach (var ruleScript in generateRuleFrom)
             {
                 var parser = new RuleScriptParser();
@@ -842,7 +842,7 @@ public class RulesDB : ScriptableObject
                  */
                 rules = SortListByBucketIndexThenDescendingFactCounts(rules);
                 rules = BucketSlicer.SliceIntoBuckets(rules); 
-                PayloadInterpolationParser payloadInterpolationParser = new PayloadInterpolationParser();
+                PayloadInterpolationParser payloadInterpolationParser = new();
                 foreach (var rule in rules)
                 {
                     payloadInterpolationParser.Parsey(rule, ref addedFactIDS);
@@ -1029,7 +1029,7 @@ public class RulesDB : ScriptableObject
         return id;
     }
 
-    public string GetFactVariabelNameFromFactID(int factID)
+    public string GetFactVariableNameFromFactID(int factID)
     {
         foreach (var strVal in _factIDsMap)
         {
@@ -1089,7 +1089,7 @@ public class RulesDB : ScriptableObject
 
     private static Dictionary<int, RuleDBEntry> CreateEntryFromIDDic(List<RuleDBEntry> rules)
     {
-        Dictionary<int, RuleDBEntry> dic = new Dictionary<int, RuleDBEntry>();
+        Dictionary<int, RuleDBEntry> dic = new();
         foreach (var rule in rules)
         {
             var id = rule.RuleID;
@@ -1114,15 +1114,15 @@ public class RulesDB : ScriptableObject
         for (int i = 0; i < rules.Count; i++)
         {
             var rule = rules[i];
-            if (!dic.ContainsKey(rule.payload))
+            if (!dic.ContainsKey(rule.payload.StrippedText))
             {
-                dic[rule.payload] = id;
+                dic[rule.payload.StrippedText] = id;
                 rule.payloadStringID = id;
                 id++;
             }
             else
             {
-                rule.payloadStringID = dic[rule.payload];
+                rule.payloadStringID = dic[rule.payload.StrippedText];
             }
 
             foreach (var factWrite in rule.factWrites)

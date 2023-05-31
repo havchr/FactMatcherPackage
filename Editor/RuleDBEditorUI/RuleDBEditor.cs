@@ -471,7 +471,7 @@ as much text as you want here.
         
         var floatTest = new string[]{"<",">","=","<=",">="};
         var stringTest= new string[]{"="};
-        StringWriter writer = new StringWriter();
+        StringWriter writer = new();
         for (int i = 0; i < numRules; i++)
         {
             writer.WriteLine($".test_rule_{i}");
@@ -681,7 +681,7 @@ as much text as you want here.
         try
         {
             var stripEm = new[] {' ', '.'};
-            StringBuilder genName = new StringBuilder();
+            StringBuilder genName = new();
             foreach (var strippy in stripEm)
             {
                 genName.Clear();
@@ -700,7 +700,7 @@ as much text as you want here.
         }
         catch (Exception e)
         {
-            Debug.LogError($"Failed Stripping Name Into Camel case for {name} with exception {e.ToString()}");
+            Debug.LogError($"Failed Stripping Name Into Camel case for {name} with exception {e}");
             return name;
         }
     }
