@@ -72,7 +72,7 @@ public class FactMatcher
     
     public string LoadFromCSV(string filename)
     {
-        RuleScriptParsingProblems ruleScriptParsingProblems = new();
+        ProblemReporting ruleScriptParsingProblems = new();
         string problemString = "";
         var lines = File.ReadAllLines(filename).Skip(1);
         foreach (var csvLine in lines)

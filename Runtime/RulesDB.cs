@@ -31,6 +31,20 @@ public class RuleDBFactWrite
         SetString,SetValue,IncrementValue,SubtractValue,SetToOtherFactValue,IncrementByOtherFactValue,SubtractByOtherFactValue
     }
 
+    public bool TryGetOtherFactIDOther(ref int otherFactID)
+    {
+        switch (writeMode)
+        {
+           case WriteMode.IncrementByOtherFactValue: 
+           case WriteMode.SubtractByOtherFactValue: 
+           case WriteMode.SetToOtherFactValue:
+               otherFactID = (int)writeValue;
+               return true;
+        }
+        otherFactID = -1;
+        return false;
+    }
+
     public override string ToString()
     {
         string result = $"{factName}";
@@ -962,6 +976,15 @@ public class RulesDB : ScriptableObject
                 if (factWrite.factID > topFactID)
                 {
                     topFactID = factWrite.factID;
+                }
+
+                int topFactIDCandidate = -1;
+                if (factWrite.TryGetOtherFactIDOther(ref topFactIDCandidate))
+                {
+                    if (topFactIDCandidate > topFactID)
+                    {
+                        topFactID = topFactIDCandidate;
+                    }
                 }
             }
         }
