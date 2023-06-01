@@ -747,6 +747,11 @@ public class RulesDB : ScriptableObject
             foreach (var factWrite in rule.factWrites)
             {
                 result[factWrite.factName] = factWrite.factID;
+                int factIdOther = -1;
+                if (factWrite.TryGetOtherFactIDOther(ref factIdOther))
+                {
+                   result[factWrite.writeString] = factIdOther;
+                }
             }
         }
 
