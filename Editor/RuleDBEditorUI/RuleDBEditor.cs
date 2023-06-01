@@ -90,15 +90,14 @@ public class RuleDBEditor : Editor
             parseToCS.RegisterCallback<ClickEvent>(GenerateFactIDS);
 
             warningBox = mainRoot.Q<HelpBox>("warningBox");
-            warningBox.visible = false;
+            warningBox.style.display = DisplayStyle.None;
             warningBox.text = string.Empty;
 
             errorBox = mainRoot.Q<HelpBox>("errorBox");
-            errorBox.visible = false;
+            errorBox.style.display = DisplayStyle.None;
             errorBox.text = string.Empty;
 
             mainRoot.Add(RenderDefaultUIInFoldout(false));
-
 
             RuleDBListViewController.pingedRuleButtonAction = OnPingRuleButton;
             RuleDBListViewController.pingedDocButtonAction = OnPingDocButton;
@@ -321,7 +320,7 @@ public class RuleDBEditor : Editor
     public void OnPingedRule(TextAsset textFile, int lineNumber)
     { AssetDatabase.OpenAsset(textFile, lineNumber); }
 
-    private RuleScriptParsingProblems problems = new();
+    private ProblemReporting problems = new();
 
     private void ParseRuleAndDoc(ClickEvent evt)
     {
@@ -344,12 +343,11 @@ public class RuleDBEditor : Editor
         int savedWarnings;
         string savedWarningsString;
 
-        if (problems.ContainsErrorsOutErrorsAmountErrorsString(out int errors, out string errorsString))
+        if (errorDetected = problems.ContainsErrors(out int errors, out string errorsString))
         {
-            errorDetected = true;
             savedErrors = errors;
             savedErrorsString = errorsString;
-            errorBox.visible = true;
+            errorBox.style.display = errorDetected ? DisplayStyle.Flex : DisplayStyle.None;
             errorBox.messageType = HelpBoxMessageType.Error;
             errorBox.text = $"{(autoParsed ? "Auto parsed:\n\n" : "")}" +
                 $"Encounter {savedErrors} error{(savedErrors > 1 ? "s" : "")}.{savedErrorsString}";
@@ -360,30 +358,28 @@ public class RuleDBEditor : Editor
         }
         else
         {
-            errorDetected = false;
             errorBox.text = string.Empty;
         }
-        if (problems.ContainsWarningsOutWarningsAmountWarningsString(out int warnings, out string warningsString))
+
+        if (warningDetected = problems.ContainsWarnings(out int warnings, out string warningsString))
         {
-            warningDetected = true;
-            errorBox.visible = errorDetected;
+            errorBox.style.display = errorDetected ? DisplayStyle.Flex : DisplayStyle.None;
             savedWarnings = warnings;
             savedWarningsString = warningsString;
-            warningBox.visible = warningDetected;
+            warningBox.style.display = warningDetected ? DisplayStyle.Flex : DisplayStyle.None;
             warningBox.text = $"{(autoParsed ? "Auto parsed:\n\n" : "")}" +
                 $"Encounter {savedWarnings} warning{(savedWarnings > 1 ? "s" : "")}.{warningsString}";
             Debug.LogWarning($"{(autoParsed ? "Auto parsed:" : "")} Encounter {savedWarnings} warning{(savedWarnings > 1 ? "s" : "")}.{savedWarningsString}");
         }
         else
         {
-            warningDetected = false;
-            warningBox.visible = warningDetected;
+            warningBox.style.display = warningDetected ? DisplayStyle.Flex : DisplayStyle.None;
             warningBox.text = string.Empty;
         }
 
         if (!errorDetected && !warningDetected)
         {
-            errorBox.visible = true;
+            errorBox.style.display = DisplayStyle.Flex;
             errorBox.messageType = HelpBoxMessageType.Info;
             errorBox.text = $"{(autoParsed ? "Auto parsed:\n\n" : "")}" +
                 "No problems detected :D";
@@ -647,7 +643,7 @@ as much text as you want here.
         return rule1 + comment + rule2 + commentOrGroups + rule3 + comment_convections + rule4;
     }
 
-    private RuleScriptParsingProblems ParseRuleScripts()
+    private ProblemReporting ParseRuleScripts()
     {
         var rulesProperty = serializedObject.FindProperty("rules");
         rulesProperty.ClearArray();
@@ -677,24 +673,24 @@ as much text as you want here.
 
         if (!problems.ContainsErrorOrWarning())
         {
-            EditorUtility.SetDirty(_rulesDB);
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
+        EditorUtility.SetDirty(_rulesDB);
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
 
-            string generatedName = StripNameIntoCamelCase(_rulesDB.name);
-            string defaultFilePath = "/Assets/FactMatcher/Generated";
-            #if UNITY_EDITOR_WIN
-            defaultFilePath = defaultFilePath.Replace("/", "\\");
-            #endif
-            defaultFilePath = Directory.GetCurrentDirectory() + defaultFilePath;
-            string fullFilePath = EditorUtility.SaveFilePanel("Auto generate C# script", defaultFilePath, generatedName, "cs");
-            string fileName = Path.GetFileName(fullFilePath);
-            if (fileName != "")
-            {
-                FactMatcherCodeGenerator.GenerateFactIDS(fullFilePath, GetNameSpaceName(), _rulesDB);
-                AssetDatabase.Refresh();
-            }
+        string generatedName = StripNameIntoCamelCase(_rulesDB.name);
+        string defaultFilePath = "/Assets/FactMatcher/Generated";
+        #if UNITY_EDITOR_WIN
+        defaultFilePath = defaultFilePath.Replace("/", "\\");
+        #endif
+        defaultFilePath = Directory.GetCurrentDirectory() + defaultFilePath;
+        string fullFilePath = EditorUtility.SaveFilePanel("Auto generate C# script", defaultFilePath, generatedName, "cs");
+        string fileName = Path.GetFileName(fullFilePath);
+        if (fileName != "")
+        {
+            FactMatcherCodeGenerator.GenerateFactIDS(fullFilePath, GetNameSpaceName(), _rulesDB);
+            AssetDatabase.Refresh();
         }
+    }
         else
         {
             CheckProblems();

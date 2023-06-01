@@ -107,7 +107,7 @@ namespace FactMatching
             ref int ruleID,
             string folderPath,
             TextAsset file,
-            ref RuleScriptParsingProblems problems,
+            ref ProblemReporting problems,
             List<DocumentEntry> docs)
         {
             templateEnded = true;
@@ -729,7 +729,7 @@ namespace FactMatching
             return false;
         }
 
-        private static void ParseFactWrites(string line, int lineNumber, RuleDBEntry currentRule, RuleScriptParsingProblems problems)
+        private static void ParseFactWrites(string line, int lineNumber, RuleDBEntry currentRule, ProblemReporting problems)
         {
             var operands = new List<(string, RuleDBFactWrite.WriteMode)>
             {
@@ -795,7 +795,7 @@ namespace FactMatching
             
         }
 
-        private static void ParseFactTests(string line, RuleDBEntry currentRule, ref int orGroupID, ref List<RuleDBFactTestEntry> derived, RuleScriptParsingProblems problems)
+        private static void ParseFactTests(string line, RuleDBEntry currentRule, ref int orGroupID, ref List<RuleDBFactTestEntry> derived, ProblemReporting problems)
         {
             var operands = new List<(string, RuleDBFactTestEntry.Comparision)>
             {
@@ -889,7 +889,7 @@ namespace FactMatching
                                     rangeEnd.factName = factTestEntry.factName;
                                     rangeEnd.matchValue = right;
                                     rangeEnd.compareType= FactValueType.Value;
-                            
+
                                     currentRule.factTests.Add(factTestEntry);
                                     currentRule.factTests.Add(rangeEnd);
                                 }

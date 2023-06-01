@@ -96,10 +96,10 @@ namespace FactMatching
             return line;
         }
 
-        private static RuleScriptParsingProblems localProblems;
+        private static ProblemReporting localProblems;
         private static TextAsset currentFile;
         public static bool parsingDoc = false;
-        public static List<DocumentEntry> GenerateFromText(ref RuleScriptParsingProblems problems, TextAsset file)
+        public static List<DocumentEntry> GenerateFromText(ref ProblemReporting problems, TextAsset file)
         {
             parsingDoc = false;
             List<DocumentEntry> entries = new();

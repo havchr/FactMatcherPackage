@@ -174,13 +174,6 @@ public class RuleDBWindow : EditorWindow
         content.Q<Button>("RefreshFactValues").visible = false;
     }
 
-    /// <summary>
-    /// Starts the UI whit the FactMatcher
-    /// </summary>
-    /// <param name="content">
-    /// The FactMatcher UI content
-    /// </param>
-    /// <param name="factMatcher"></param>
     private void InitUIWithFactMatcher(VisualElement content, FactMatcher factMatcher)
     {
         _factMatcher = factMatcher;
@@ -227,7 +220,7 @@ public class RuleDBWindow : EditorWindow
         reparseAndReload.RegisterCallback<ClickEvent>(evt => // When save script and reload including facts button is pressed
         {
             string fileName = "_factMatcher_temp_fact_values" + ".csv";
-            RuleScriptParsingProblems problems = _factMatcher.SaveToCSV(fileName);
+            ProblemReporting problems = _factMatcher.SaveToCSV(fileName);
             string problemSaving = problems.ToString();
             _factMatcher.Reload();
             problemSaving += '\n' + _factMatcher.LoadFromCSV(fileName);

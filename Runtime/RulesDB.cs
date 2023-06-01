@@ -51,215 +51,6 @@ public class RuleDBFactWrite
     }
 }
 
-/// <summary>
-/// Tasked to record the problems encountered when creating the rules for factMacher 
-/// </summary>
-public class RuleScriptParsingProblems
-{
-    private static readonly List<ProblemEntry> problems = new();
-
-    public void ClearList()
-    { problems?.Clear(); }
-
-    public void AddNewProblem(ProblemEntry problemEntry)
-    { problems.Add(problemEntry); }
-
-    public void AddNewProblemList(List<ProblemEntry> problemEntrys)
-    { problems.AddRange(problemEntrys); }
-
-    /// <summary>
-    /// Reports new problem (user defined problem type)
-    /// </summary>
-    /// <param name="problemMessage"></param>
-    /// <param name="file"></param>
-    /// <param name="lineNumber"></param>
-    /// <param name="problemType"></param>
-    public void ReportNewProblem(string problemMessage, TextAsset file, int lineNumber, ProblemEntry.ProblemTypes problemType, Exception Exception = null)
-    { problems.Add(new ProblemEntry() { File = file, LineNumber = lineNumber, ProblemMessage = problemMessage, Exception = Exception, ProblemType = problemType }); }
-
-    /// <summary>
-    /// Reports new problem (auto error user can change)
-    /// </summary>
-    /// <param name="problemMessage"></param>
-    /// <param name="file"></param>
-    /// <param name="lineNumber"></param>
-    /// <param name="problemType"></param>
-    public void ReportNewError(string problemMessage, TextAsset file, int lineNumber, Exception Exception = null, ProblemEntry.ProblemTypes problemType = ProblemEntry.ProblemTypes.Error)
-    { problems.Add(new ProblemEntry() { ProblemMessage = problemMessage, File = file, LineNumber = lineNumber, Exception = Exception, ProblemType = problemType }); }
-
-    /// <summary>
-    /// Reports new problem (auto warning user can change)
-    /// </summary>
-    /// <param name="problemMessage"></param>
-    /// <param name="file"></param>
-    /// <param name="lineNumber"></param>
-    /// <param name="problemType"></param>
-    public void ReportNewWarning(string problemMessage, TextAsset file, int lineNumber, Exception Exception = null, ProblemEntry.ProblemTypes problemType = ProblemEntry.ProblemTypes.Warning)
-    { problems.Add(new ProblemEntry() { File = file, LineNumber = lineNumber, ProblemMessage = problemMessage, Exception = Exception, ProblemType = problemType }); }
-    
-
-    /// <summary>
-    /// Checks if there is any error in the List of problems
-    /// </summary>
-    /// <param name="problemEntries">If this is left empty it will check the active list in RuleScriptParsingProblems but will check any ProblemEntry list given</param>
-    /// <returns>True if the list contains at least one error</returns>
-    public bool ContainsError(List<ProblemEntry> problemEntries = null)
-    {
-        problemEntries ??= problems;
-        foreach (var problem in problemEntries)
-        {
-            if (problem.IsError())
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /// <summary>
-    /// Checks if there is any warning in the List of problems
-    /// </summary>
-    /// <param name="problemEntries">If this is left empty it will check the active list in RuleScriptParsingProblems but will check any ProblemEntry list given</param>
-    /// <returns>True if the list contains at least one warning</returns>
-    public bool ContainsWarning(List<ProblemEntry> problemEntries = null)
-    {
-        problemEntries ??= problems;
-        foreach (var problem in problemEntries)
-        {
-            if (problem.IsWarning())
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /// <summary>
-    /// Checks if there is any warning or error in the List of problems
-    /// </summary>
-    /// <param name="problemEntries">If this is left empty it will check the active list in RuleScriptParsingProblems but will check any ProblemEntry list given</param>
-    /// <returns>True if the list contains at least one warning or error</returns>
-    public bool ContainsErrorOrWarning(List<ProblemEntry> problemEntries = null)
-    {
-        problemEntries ??= problems;
-        foreach (var problem in problemEntries)
-        {
-            if (problem.IsError() || problem.IsWarning())
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /// <summary>
-    /// Returns the list of problems and clears the previews problems
-    /// </summary>
-    /// <returns>List of ProblemEntry's</returns>
-    public List<ProblemEntry> ToList()
-    {
-        List<ProblemEntry> listOfProblems = new(problems);
-        problems.Clear();
-        return listOfProblems;
-    }
-
-    public bool ContainsErrorsOutErrorsAmountErrorsString(out int errors, out string errorsString)
-    {
-        errors = 0;
-        errorsString = string.Empty;
-        for (int i = 0; i < problems.Count; i++)
-        {
-            ProblemEntry problem = problems[i];
-            if (problem.IsError())
-            {
-                errorsString += "\n\n" + problem.ToString();
-                errors++;
-                problems.RemoveAt(i);
-            }
-        }
-        return errors > 0;
-    }
-
-    public bool ContainsWarningsOutWarningsAmountWarningsString(out int warnings, out string warningsString)
-    {
-        warnings = 0;
-        warningsString = string.Empty;
-        for (int i = 0; i < problems.Count; i++)
-        {
-            ProblemEntry problem = problems[i];
-            if (problem.IsWarning())
-            {
-                warningsString += "\n\n" + problem.ToString();
-                warnings++;
-                problems.RemoveAt(i);
-            }
-        }
-        return warnings > 0;
-    }
-
-    public bool ContainsWarningsAndErrorsOutWarningsAndErrorsAmountWarningsAndErrorsString(out int errors, out string errorsString, out int warnings, out string warningsString)
-    {
-        errors = 0;
-        errorsString = string.Empty;
-        warnings = 0;
-        warningsString = string.Empty;
-        for (int i = 0; i < problems.Count; i++)
-        {
-            ProblemEntry problem = problems[i];
-            if (problem.IsError())
-            {
-                errorsString += "\n\n" + problem.ToString();
-                errors++;
-                problems.RemoveAt(i);
-            }
-            else if (problem.IsWarning())
-            {
-                warningsString += "\n\n" + problem.ToString();
-                warnings++;
-                problems.RemoveAt(i);
-            }
-        }
-        return errors > 0 || warnings > 0;
-    }
-
-    public override string ToString()
-    {
-        List<ProblemEntry> listOfProblems = new(problems);
-        problems?.Clear();
-        string listOfProblemsString = "";
-        foreach (var problem in listOfProblems)
-        {
-            listOfProblemsString += problem;
-        }
-        return listOfProblemsString;
-    }
-}
-
-[Serializable]
-public class ProblemEntry
-{
-    public enum ProblemTypes { Error, Warning }
-
-    public ProblemTypes ProblemType;
-    public TextAsset File;
-    public int LineNumber;
-    public string ProblemMessage;
-    public Exception Exception;
-    public override string ToString()
-    {
-        return
-            $"{ProblemType} occurred {(File ? $"in the file:  {File.name},{(LineNumber > 0 ? $" at line: {LineNumber}," : "")}" : string.Empty)} " +
-            $"with the message:\n{ProblemMessage}" +
-            $"{(Exception == null ? string.Empty : $"\nException message: {Exception}")}";
-    }
-
-    public bool IsError()
-    { return ProblemType == ProblemTypes.Error; }
-
-    public bool IsWarning()
-    { return ProblemType == ProblemTypes.Warning; }
-}
-
 [Serializable]
 public class RuleDBFactTestEntry
 {
@@ -776,9 +567,9 @@ public class RulesDB : ScriptableObject
         return ruleAtoms;
     }
 
-    public RuleScriptParsingProblems CreateRulesFromRulescripts()
+    public ProblemReporting CreateRulesFromRulescripts()
     {
-        RuleScriptParsingProblems problems = new();
+        ProblemReporting problems = new();
         problemList?.Clear();
 
         if (!ignoreDocumentationDemand)
@@ -864,9 +655,9 @@ public class RulesDB : ScriptableObject
         return problems;
     }
     
-    public RuleScriptParsingProblems CreateDocumentations()
+    public ProblemReporting CreateDocumentations()
     {
-        RuleScriptParsingProblems problems = new();
+        ProblemReporting problems = new();
         problemList?.Clear();
         if (generateDocumentationFrom.Count != 0)
         {

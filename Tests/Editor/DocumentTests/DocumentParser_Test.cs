@@ -13,7 +13,7 @@ public class DocumentParser_Test
     [Test]
     public void ParsingDefaultDocumentation_TestSimpleIsNotNullAndNoProblems()
     {
-        RuleScriptParsingProblems problems = new();
+        ProblemReporting problems = new();
         List<DocumentEntry> documentation = RuleDocumentationParser.GenerateFromText(ref problems, DocTestInfoLoader.GetDefaultDocFileAsTextAsset());
         Assert.IsFalse(problems.ContainsErrorOrWarning());
         Assert.IsNotNull(documentation);
@@ -82,7 +82,7 @@ public class DocumentParser_Test
         }
         docToRuleScriptString.Trim();
 
-        RuleScriptParsingProblems problems = new();
+        ProblemReporting problems = new();
         List<DocumentEntry> generatedDocs = RuleDocumentationParser.GenerateFromText(ref problems, new(docToRuleScriptString));
         Assert.IsEmpty(problems.ToString(), problems.ToString());
         Assert.IsNotNull(generatedDocs, $"GeneratedDoc is null");
@@ -125,7 +125,7 @@ public class DocumentParser_Test
     {
         TextAsset massiveDocTextAsset = DocTestInfoLoader.massiveDocTextAsset;
 
-        RuleScriptParsingProblems problems = new();
+        ProblemReporting problems = new();
         List<DocumentEntry> generatedDocs = RuleDocumentationParser.GenerateFromText(ref problems, massiveDocTextAsset);
         Assert.IsNotEmpty(generatedDocs);
     }
@@ -146,7 +146,7 @@ public class DocumentParser_Test
         }
         docToRuleScriptString.Trim();
 
-        RuleScriptParsingProblems problems = new();
+        ProblemReporting problems = new();
         List<DocumentEntry> generatedDocs = RuleDocumentationParser.GenerateFromText(ref problems, new(docToRuleScriptString));
         Assert.IsEmpty(problems.ToString(), problems.ToString());
         Assert.IsNotNull(generatedDocs, $"GeneratedDoc is null");
@@ -238,7 +238,7 @@ public class DocumentParser_Test
             },
         };
 
-        RuleScriptParsingProblems problems = new();
+        ProblemReporting problems = new();
         List<DocumentEntry> documentation = RuleDocumentationParser.GenerateFromText(ref problems, DocTestInfoLoader.GetDefaultDocFileAsTextAsset());
         Assert.IsFalse(problems.ContainsErrorOrWarning());
         Assert.IsNotNull(documentation);

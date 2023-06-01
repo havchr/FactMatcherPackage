@@ -45,9 +45,9 @@ public class FactMatcher
         this.ruleDB = ruleDB;
     }
 
-    public RuleScriptParsingProblems SaveToCSV(string filename)
+    public ProblemReporting SaveToCSV(string filename)
     {
-        RuleScriptParsingProblems problems = new();
+        ProblemReporting problems = new();
         using StreamWriter writer = new(filename);
         writer.WriteLine($"Type,  Name,  Value");
         var factTests = ruleDB.CreateFlattenedFactTestListWithNoDuplicateFactIDS();
