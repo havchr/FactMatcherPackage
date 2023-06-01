@@ -3,6 +3,6 @@
     <ui:VisualElement style="flex-grow: 1; background-color: rgba(0, 0, 0, 0); height: 100%; min-height: auto; justify-content: flex-start; width: 100%; flex-direction: row;">
         <ui:Button text="Set" display-tooltip-when-elided="true" name="setButton" style="flex-direction: row;" />
         <ui:Button text="Ping" display-tooltip-when-elided="true" name="pingButton" style="flex-direction: row;" />
-        <ui:Label tabindex="-1" name="Label" display-tooltip-when-elided="true" style="flex-grow: 1; flex-shrink: 0; width: 350px; white-space: normal;" />
+        <ui:Label tabindex="-1" name="Label" display-tooltip-when-elided="true" style="flex-grow: 1; flex-shrink: 0; width: 350px; white-space: nowrap;" />
     </ui:VisualElement>
 </ui:UXML>

@@ -1,14 +1,14 @@
 ﻿#if UNITY_EDITOR
 
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text;
-using UnityEngine;
+using System.IO;
+using System;
 
 public class FactMatcherCodeGenerator
 {
-    public static void GenerateFactIDS(string fullFilePath,string namespaceName,RulesDB rulesDB)
+    public static void GenerateFactIDS(string fullFilePath, string namespaceName, RulesDB rulesDB)
     {
 		List<string> allKnownFacts = ExtractAllKnownFactNames(rulesDB);
 		List<string> allKnownFactStrings = ExtractAllKnownFactStrings(rulesDB);
@@ -18,9 +18,8 @@ public class FactMatcherCodeGenerator
 		string directoryPath = Path.GetDirectoryName(fullFilePath);
 		string fileName = Path.GetFileName(fullFilePath);
 
-		// The following is needed if you are using Windows
-		#if UNITY_EDITOR_WIN
-		fullFilePath = fullFilePath.Replace("/", "\\");
+		#if UNITY_EDITOR_WIN // The following will run if you are using Windows
+        fullFilePath = fullFilePath.Replace("/", "\\");
 		#endif
 
 		File.WriteAllText(fullFilePath, classContents);
@@ -34,13 +33,12 @@ public class FactMatcherCodeGenerator
 			string ruleName = GenVarName(rule.ruleName);
 			allKnownRules.Add(ruleName);
 		}
-		allKnownRules.Sort();
-		return allKnownRules;
+		return allKnownRules.SortByInt();
 	}
 
 	public static string GenVarName(string currentName)
 	{
-		string resultName = currentName.Replace(".", "_");
+		string resultName = currentName.ToVariableName();
 		resultName = resultName.Trim('_');
 		return resultName;
 	}
@@ -56,8 +54,7 @@ public class FactMatcherCodeGenerator
                 factNames.Add(factName);
             }
         }
-		factNames.Sort();
-		return factNames;
+		return factNames.SortByInt();
     }
 
 	private static List<string> ExtractAllKnownFactStrings(RulesDB rulesDB)
@@ -73,8 +70,7 @@ public class FactMatcherCodeGenerator
 				}
 			}
 		}
-        factListNames.Sort();
-        return factListNames;
+		return factListNames.SortByInt();
 	}
 
 	private static string BuildClassContents(string namespaceName, List<string> facts, List<string> rules, List<string> factStrings)
@@ -85,14 +81,20 @@ public class FactMatcherCodeGenerator
         stringBuilder.AppendLine(GenerateUsing(usings));
         stringBuilder.AppendLine();
         stringBuilder.AppendLine(GeneratePublicClassStart(namespaceName ?? "GenericClassName"));
-        stringBuilder.AppendLine();
 
-        Dictionary<string, List<string>> structs = new()
-        {
-            { "FactIDS", facts.Distinct().ToList() },
-			{ "StringIDS", factStrings.Distinct().ToList() },
-			{ "RuleIDS", rules.Distinct().ToList() }
-        };
+		Dictionary<string, List<string>> structs = new();
+		if (facts != null && facts.Count > 0)
+		{
+			structs.Add("FactIDS", facts.Distinct().ToList()); 
+		}
+		if (factStrings != null && factStrings.Count > 0)
+		{
+			structs.Add("StringIDS", factStrings.Distinct().ToList());
+		}
+		if (rules != null && rules.Count > 0)
+		{
+			structs.Add("RuleIDS", rules.Distinct().ToList());
+		}
 
 		Dictionary<string, List<string>> variables = new();
         foreach (string structName in structs.Keys)
@@ -100,7 +102,7 @@ public class FactMatcherCodeGenerator
             variables.Add(structName, new List<string>());
         }
 
-        stringBuilder.AppendLine(GenerateStructs(structs, tabs));
+        stringBuilder.Append(GenerateStructs(structs, tabs));
 		stringBuilder.AppendLine();
 
 		stringBuilder.AppendLine(GeneratePublicVariables(variables, out List<string> variableNames));
@@ -124,9 +126,9 @@ public class FactMatcherCodeGenerator
 		string usingString = "";
 		foreach (var item in usings)
 		{
-			usingString += $"using {item};";
+			usingString += $"\nusing {item};";
 		}
-		return usingString;
+		return usingString.Trim('\n');
 	}
 
     private static string GeneratePublicClassStart(string className, string tabs = "")
@@ -147,7 +149,7 @@ public class FactMatcherCodeGenerator
             List<string> contains = GeneratePublicInts(variableNames);
 			List<string> variableAssignment = GenerateGetGivenFromFactMatcher(variableNames, functionName.Remove(functionName.Length - 1));
 			contains.Add("\n" + GeneratePublicFunction(functionName, "FactMatcher factMatcher", variableAssignment, tabs + tabs));
-			result += "\n\n" + GeneratePublicStruct(tabs, functionName, contains);
+			result += "\n" + GeneratePublicStruct(tabs, functionName, contains);
 		}
 		return result.TrimStart('\n');
     }
@@ -165,7 +167,7 @@ public class FactMatcherCodeGenerator
             tabs + $"public struct {structName}\n" +
             tabs + "{\n" +
             contain + '\n' +
-            tabs + "}";
+            tabs + "}\n";
     }
 
 	private static List<string> GeneratePublicInts(List<string> intVariableNames)
@@ -173,16 +175,7 @@ public class FactMatcherCodeGenerator
         List<string> result = new();
         foreach (var name in intVariableNames)
         {
-			string resultString;
-			if (name == "true" || name == "false")
-			{
-                resultString = $"public int _{name.Replace(' ', '_')};";
-            }
-			else
-			{
-				resultString = $"public int {name.Replace(' ', '_')};"; 
-			}
-			result.Add(resultString);
+            result.Add($"public int {name.ToVariableName()};");
         }
         return result;
     }
@@ -208,14 +201,7 @@ public class FactMatcherCodeGenerator
         List<string> result = new();
         foreach (var name in variableNames)
         {
-			if(name == "true" || name == "false")
-			{
-                result.Add($"_{name.Replace(' ', '_')} = factMatcher.{factMatcherFunction}(\"{name}\");");
-            }
-			else
-			{
-				result.Add($"{name.Replace(' ', '_')} = factMatcher.{factMatcherFunction}(\"{name}\");"); 
-			}
+            result.Add($"{name.ToVariableName()} = factMatcher.{factMatcherFunction}(\"{name}\");");
         }
         return result;
     }
@@ -232,14 +218,7 @@ public class FactMatcherCodeGenerator
 				result.Add("// Error while adding assignment");
 				break;
 			}
-			if (name == "true" || name == "false")
-			{
-                result.Add($"_{name.Replace(' ', '_')} = {assignAs};");
-            }
-			else
-			{
-				result.Add($"{name.Replace(' ', '_')} = {assignAs};"); 
-			}
+            result.Add($"{name.ToVariableName()} = {assignAs};");
         }
         return result;
     }
@@ -248,36 +227,176 @@ public class FactMatcherCodeGenerator
 	{
 		string result = string.Empty;
 		variableNames = new List<string>();
-		foreach (var variable in variables)
+		if (variables.Count > 0)
 		{
-			foreach (var variableName in variable.Value)
+			foreach (var variable in variables)
 			{
-				string newVariableName = variableName.Replace(' ', '_');
-				string variableKey = variable.Key.Replace(' ', '_');
-				if (variableName != "")
+				foreach (var variableName in variable.Value)
 				{
-					variableNames.Add(newVariableName);
-                    result += '\n' + tabs + $"public {variableKey} {newVariableName};";
-                }
-				else
+					string newVariableName = variableName.Replace(' ', '_');
+					string variableKey = variable.Key.Replace(' ', '_');
+					if (variableName != "")
+					{
+						variableNames.Add(newVariableName);
+						result += '\n' + tabs + $"public {variableKey} {newVariableName};";
+					}
+					else
+					{
+						string theVariableName = char.ToLower(variableKey[0]) + variableKey[1..];
+						variableNames.Add(theVariableName);
+						result += '\n' + tabs + $"public {variableKey} {theVariableName};";
+					}
+				}
+				if (variable.Value == null || variable.Value.Count <= 0)
 				{
-					string theVariableName = char.ToLower(variableKey[0]) + variableKey[1..];
-                    variableNames.Add(theVariableName);
-                    result += '\n' + tabs + $"public {variableKey} {theVariableName};";
+					string theVariableName = char.ToLower(variable.Key[0]) + variable.Key[1..];
+					variableNames.Add(theVariableName);
+					result += '\n' + tabs + $"public {variable.Key} {theVariableName};";
 				}
 			}
-			if (variable.Value == null || variable.Value.Count <= 0)
-			{
-                string theVariableName = char.ToLower(variable.Key[0]) + variable.Key[1..];
-                variableNames.Add(theVariableName);
-                result += '\n' + tabs + $"public {variable.Key} {theVariableName};";
-			}
-		}
-		if (result == string.Empty)
+            if (result == string.Empty)
+            {
+                result += tabs + "// Failed to generate publicVariables";
+            }
+        }
+		else
 		{
-			result += tabs + "// Failed to generate publicVariables";
+			result = tabs + "// There is no variables.";
 		}
 		return result.TrimStart('\n');
 	}
+}
+
+public static class Extensions
+{
+    public static List<string> SortByInt(this List<string> strings)
+    {
+        IOrderedEnumerable<string> sortedStrings = strings.OrderBy(s => s, new StringComparerByNumberAndAlphabetically());
+        return sortedStrings.ToList();
+    }
+
+    public static string ToVariableName(this string input)
+    {
+        input = input.Trim();
+        char[] harmfulChars = new[] { '(', ')', '-', '\\', '/', '.', ' ', '!', '"', '@', '#', '£', '¤', '$', '%',
+            '&', '/', '{', '[', '(', ')', ']', '}', '=', '?', '+', '`', '´', '|', '§', '¨', '~', '^', '\'', '*' };
+
+        foreach (var item in harmfulChars)
+        {
+            input = input.Replace(item, '_');
+        }
+
+        if (input == "true" || input == "false" || char.IsDigit(input[0]))
+        {
+            input = $"_{input}";
+        }
+
+        return input;
+    }
+}
+
+/// <summary>
+/// Gives a compare that is useful to sort based on ints in string
+/// </summary>
+public class StringComparerByNumberAndAlphabetically : IComparer<string>
+{
+    public int Compare(string x, string y)
+    {
+        if (string.IsNullOrEmpty(x) && string.IsNullOrEmpty(y))
+        {
+            return 0;
+        }
+        if (string.IsNullOrEmpty(x))
+        {
+            return 1;
+        }
+        if (string.IsNullOrEmpty(y))
+        {
+            return -1;
+        }
+
+        string commonX = ExtractCommonSubstring(x);
+        string commonY = ExtractCommonSubstring(y);
+
+        int xNum = ExtractNumber(x);
+        int yNum = ExtractNumber(y);
+
+        int commonComparison = string.Compare(commonX, commonY, StringComparison.OrdinalIgnoreCase);
+        if (commonComparison != 0)
+        {
+            return commonComparison;
+        }
+
+        if (xNum != -1 && yNum != -1)
+        {
+            return xNum.CompareTo(yNum);
+        }
+
+        if (xNum != -1)
+        {
+            return -1;
+        }
+        if (yNum != -1)
+        {
+            return 1;
+        }
+
+        return string.Compare(x, y, StringComparison.Ordinal);
+    }
+
+    private int ExtractNumber(string str)
+    {
+        int numStartIndex = -1;
+        int numEndIndex = -1;
+
+        for (int i = 0; i < str.Length; i++)
+        {
+            if (char.IsDigit(str[i]))
+            {
+                numStartIndex = i;
+                break;
+            }
+        }
+
+        if (numStartIndex != -1)
+        {
+            for (int i = numStartIndex; i < str.Length; i++)
+            {
+                if (!char.IsDigit(str[i]))
+                {
+                    numEndIndex = i;
+                    break;
+                }
+            }
+
+            if (numEndIndex == -1)
+            {
+                numEndIndex = str.Length;
+            }
+
+            string numStr = str.Substring(numStartIndex, numEndIndex - numStartIndex);
+            if (int.TryParse(numStr, out int num))
+            {
+                return num;
+            }
+        }
+
+        return -1;
+    }
+
+    private string ExtractCommonSubstring(string str)
+    {
+        int commonEndIndex = 0;
+        for (int i = 0; i < str.Length; i++)
+        {
+            if (!char.IsLetter(str[i]))
+            {
+                commonEndIndex = i;
+                break;
+            }
+        }
+
+        return str.Substring(0, commonEndIndex);
+    }
 }
 #endif

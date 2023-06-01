@@ -675,6 +675,7 @@ public class RulesDB : ScriptableObject
 {
     [NonSerialized]
     public List<ProblemEntry> problemList;
+    public bool autoParseRuleScript;
     public bool PickMultipleBestRules = false;
     public bool FactWriteToAllThatMatches = false;
     public bool ignoreDocumentationDemand = false;
@@ -833,7 +834,7 @@ public class RulesDB : ScriptableObject
                     ignoreDocumentationDemand ? null : documentations);
             }
 
-            InitFactWriteIndexers(ref addedFactIDS);
+            InitFactWriteIndexers(ref addedFactIDS,ref factID);
             if (!problems.ContainsError())
             {
                 /*
@@ -904,7 +905,7 @@ public class RulesDB : ScriptableObject
     }
     
     //FactWrites that are referencing another factID - must now be converted to their factIDS.
-    void InitFactWriteIndexers(ref Dictionary<string, int> addedFactIDS)
+    void InitFactWriteIndexers(ref Dictionary<string, int> addedFactIDS,ref int nextFactID)
     {
         foreach (var rule in rules)
         {
@@ -915,16 +916,12 @@ public class RulesDB : ScriptableObject
                     case RuleDBFactWrite.WriteMode.SetToOtherFactValue:
                     case RuleDBFactWrite.WriteMode.IncrementByOtherFactValue:
                     case RuleDBFactWrite.WriteMode.SubtractByOtherFactValue:
-                        if (addedFactIDS.ContainsKey(factWrite.writeString))
+                        if (!addedFactIDS.ContainsKey(factWrite.writeString))
                         {
-                            //encoding the factID index into the writeValue
-                            factWrite.writeValue = addedFactIDS[factWrite.writeString];
+                            addedFactIDS[factWrite.writeString] = nextFactID;
+                            nextFactID++;
                         }
-                        else
-                        {
-                            Debug.LogError($"Trying to FactWrite by a non existing other FactValue {factWrite.writeString}");
-                        }
-                        //now convert the name into the factID.
+                        factWrite.writeValue = addedFactIDS[factWrite.writeString];
                         break;
                 }
             }

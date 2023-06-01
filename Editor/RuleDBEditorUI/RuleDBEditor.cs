@@ -54,6 +54,9 @@ public class RuleDBEditor : Editor
             mainRoot = new();
             _ruleDBInspectorVisAss.CloneTree(mainRoot);
 
+            Toggle autoParseRuleScript = mainRoot.Q<Toggle>("autoParseRuleScript");
+            autoParseRuleScript.bindingPath = nameof(_rulesDB.autoParseRuleScript);
+
             Toggle multipleBestRules = mainRoot.Q<Toggle>("multipleBestRules");
             multipleBestRules.bindingPath = nameof(_rulesDB.PickMultipleBestRules);
 
@@ -77,8 +80,8 @@ public class RuleDBEditor : Editor
             ruleListView = mainRoot.Q<ListView>("rules");
             SetupRuleListView(ruleListView);
 
-            ruleFilter.RegisterCallback<ChangeEvent<string>>(evt => UpdateListView());
-            UpdateListView();
+            ruleFilter.RegisterCallback<ChangeEvent<string>>(evt => UpdateRuleListView(ruleListView));
+            UpdateRuleListView(ruleListView);
 
             Button parseRuleAndDoc = mainRoot.Q<Button>("parseRuleScripts");
             parseRuleAndDoc.RegisterCallback<ClickEvent>(ParseRuleAndDoc);
@@ -99,19 +102,31 @@ public class RuleDBEditor : Editor
 
             RuleDBListViewController.pingedRuleButtonAction = OnPingRuleButton;
             RuleDBListViewController.pingedDocButtonAction = OnPingDocButton;
+
+            if (_rulesDB.autoParseRuleScript)
+            {
+                problems?.ClearList();
+                problems = ParseRuleScripts();
+                EditorUtility.SetDirty(this);
+                AssetDatabase.SaveAssets();
+                AssetDatabase.Refresh();
+                CheckProblems(_rulesDB.autoParseRuleScript);
+                SetupRuleListView(ruleListView);
+            }
+
             return mainRoot;
         }
         else
         { throw new Exception("VisualTreeAssets not assigned"); }
     }
 
-    void UpdateListView()
+    void UpdateRuleListView(ListView listView)
     {
         if (_rulesDB.rules != null)
         {
             listOfData = TurnRuleDBRulesToData(_rulesDB.rules, ruleFilter.text);
-            ruleListView.itemsSource = listOfData;
-            ruleListView.RefreshItems();
+            listView.itemsSource = listOfData;
+            listView.RefreshItems();
         }
     }
 
@@ -319,7 +334,7 @@ public class RuleDBEditor : Editor
         SetupRuleListView(ruleListView);
     }
 
-    private void CheckProblems()
+    private void CheckProblems(bool autoParsed = false)
     {
         bool errorDetected;
         string savedErrorsString;
@@ -336,8 +351,12 @@ public class RuleDBEditor : Editor
             savedErrorsString = errorsString;
             errorBox.visible = true;
             errorBox.messageType = HelpBoxMessageType.Error;
-            errorBox.text = $"Encounter {savedErrors} error{(savedErrors > 1 ? "s" : "")}.{savedErrorsString}";
+            errorBox.text = $"{(autoParsed ? "Auto parsed:\n\n" : "")}" +
+                $"Encounter {savedErrors} error{(savedErrors > 1 ? "s" : "")}.{savedErrorsString}";
             Debug.LogError($"Encounter {savedErrors} error{(savedErrors > 1 ? "s" : "")}.{savedErrorsString}");
+
+            SetupRuleListView(ruleListView);
+            UpdateRuleListView(ruleListView);
         }
         else
         {
@@ -351,8 +370,9 @@ public class RuleDBEditor : Editor
             savedWarnings = warnings;
             savedWarningsString = warningsString;
             warningBox.visible = warningDetected;
-            warningBox.text = $"Encounter {savedWarnings} warning{(savedWarnings > 1 ? "s" : "")}.{warningsString}";
-            Debug.LogWarning($"Encounter {savedWarnings} warning{(savedWarnings > 1 ? "s" : "")}.{savedWarningsString}");
+            warningBox.text = $"{(autoParsed ? "Auto parsed:\n\n" : "")}" +
+                $"Encounter {savedWarnings} warning{(savedWarnings > 1 ? "s" : "")}.{warningsString}";
+            Debug.LogWarning($"{(autoParsed ? "Auto parsed:" : "")} Encounter {savedWarnings} warning{(savedWarnings > 1 ? "s" : "")}.{savedWarningsString}");
         }
         else
         {
@@ -365,7 +385,8 @@ public class RuleDBEditor : Editor
         {
             errorBox.visible = true;
             errorBox.messageType = HelpBoxMessageType.Info;
-            errorBox.text = "No problems detected :D";
+            errorBox.text = $"{(autoParsed ? "Auto parsed:\n\n" : "")}" +
+                "No problems detected :D";
         }
     }
 
@@ -649,24 +670,36 @@ as much text as you want here.
     
     private void GenerateFactIDS(ClickEvent evt)
     {
-        EditorUtility.SetDirty(_rulesDB);
-        AssetDatabase.SaveAssets();
-        AssetDatabase.Refresh();
-
-        string generatedName = StripNameIntoCamelCase(_rulesDB.name);
-        string defaultFilePath = "/Assets/FactMatcher/Generated";
-        #if UNITY_EDITOR_WIN
-        defaultFilePath = defaultFilePath.Replace("/", "\\");
-        #endif
-        defaultFilePath = Directory.GetCurrentDirectory() + defaultFilePath;
-        string fullFilePath = EditorUtility.SaveFilePanel("Auto generate C# script", defaultFilePath, generatedName, "cs");
-        string fileName = Path.GetFileName(fullFilePath);
-        if (fileName != "")
+        if (_rulesDB == null || _rulesDB.rules == null || _rulesDB.rules.Count < 1)
         {
-            FactMatcherCodeGenerator.GenerateFactIDS(fullFilePath, GetNameSpaceName(), _rulesDB);
-            AssetDatabase.Refresh();
+            ParseRuleAndDoc(evt);
         }
-        UpdateListView();
+
+        if (!problems.ContainsErrorOrWarning())
+        {
+            EditorUtility.SetDirty(_rulesDB);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+
+            string generatedName = StripNameIntoCamelCase(_rulesDB.name);
+            string defaultFilePath = "/Assets/FactMatcher/Generated";
+            #if UNITY_EDITOR_WIN
+            defaultFilePath = defaultFilePath.Replace("/", "\\");
+            #endif
+            defaultFilePath = Directory.GetCurrentDirectory() + defaultFilePath;
+            string fullFilePath = EditorUtility.SaveFilePanel("Auto generate C# script", defaultFilePath, generatedName, "cs");
+            string fileName = Path.GetFileName(fullFilePath);
+            if (fileName != "")
+            {
+                FactMatcherCodeGenerator.GenerateFactIDS(fullFilePath, GetNameSpaceName(), _rulesDB);
+                AssetDatabase.Refresh();
+            }
+        }
+        else
+        {
+            CheckProblems();
+        }
+        UpdateRuleListView(ruleListView);
     }
 
     public string GetNameSpaceName()
