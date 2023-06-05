@@ -26,11 +26,6 @@ public class FactRulesListViewController
         public int factIndex;
     }
 
-    /// <summary>
-    /// Creates UI TemplateContainer using given VisualTreeAsset
-    /// </summary>
-    /// <param name="visualAsset">VisualTreeAsset to duplicate layout from</param>
-    /// <returns>A TemplateContainer whit items based on VisualTreeAsset</returns>
     public static TemplateContainer MakeItem(VisualTreeAsset visualAsset)
     {
         var item = visualAsset.Instantiate();
@@ -162,7 +157,7 @@ public class FactRulesListViewController
         _element.RemoveFromClassList("rule");
         if (data.isRule)
         {
-            var matches = factMatcher.GetNumberOfMatchesForRuleID(data.ruleIndex, out bool validRule);
+            var matches = factMatcher.GetNumberOfMatchesForRuleID(data.ruleIndex, out _);
             _label.text = $"Rule {data.text}        {matches} matches";
             _element.AddToClassList("rule");
         }

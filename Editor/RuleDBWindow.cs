@@ -8,9 +8,6 @@ using UnityEngine;
 using System;
 using TextAsset = UnityEngine.TextAsset;
 
-/// <summary>
-/// The RuleDBWindow controller
-/// </summary>
 public class RuleDBWindow : EditorWindow 
 {
     public VisualTreeAsset RuleVisAss;
@@ -43,9 +40,6 @@ public class RuleDBWindow : EditorWindow
     private bool _factMatcherSelfAllocated = false;
     private FactMatcherProvider _factMatcherProvider;
 
-    /// <summary>
-    /// Generates the GUI also assigns variables for later reassignment of values
-    /// </summary>
     public void CreateGUI()
     {
         var content = new VisualElement();
@@ -89,13 +83,6 @@ public class RuleDBWindow : EditorWindow
         };
     }
 
-    /// <summary>
-    /// When the fact matcher provider is changed
-    /// </summary>
-    /// <param name="content">
-    /// The FactMatcher UI content
-    /// </param>
-    /// <returns></returns>
     private EventCallback<ChangeEvent<Object>> OnFactMatcherProviderChanged(VisualElement content)
     {
         return evt =>
@@ -126,13 +113,6 @@ public class RuleDBWindow : EditorWindow
         };
     }
 
-    /// <summary>
-    /// When the RuleDB field is changed
-    /// </summary>
-    /// <param name="evt"></param>
-    /// <param name="content">
-    /// The FactMatcher UI content
-    /// </param>
     private void OnRuleDBFieldChanged(ChangeEvent<Object> evt, VisualElement content)
     {
         
@@ -274,11 +254,6 @@ public class RuleDBWindow : EditorWindow
         FactRulesListViewController.pingedRuleAction += OnPingedRule;
     }
 
-    /// <summary>
-    /// When facts changed from facts and rules list,
-    /// updates the _factListView and _ruleListView
-    /// </summary>
-    /// <returns></returns>
     private Action<int> OnFactChangedFromFactsAndRulesList()
     {
         return i =>
@@ -291,11 +266,6 @@ public class RuleDBWindow : EditorWindow
         };
     }
 
-    /// <summary>
-    /// When Fact changed from facts list,
-    /// updates the _ruleListView items
-    /// </summary>
-    /// <returns></returns>
     private Action<int> OnFactChangedFromFactsList()
     {
         return i =>
@@ -334,17 +304,12 @@ public class RuleDBWindow : EditorWindow
         UpdateListView();
     }
 
-    /// <summary>
-    /// When picked a rule,
-    /// updates UI whit the rule that has been picked
-    /// </summary>
-    /// <param name="noOfBestRules"></param>
     private void OnRulePicked(int noOfBestRules)
     {
         var rule = noOfBestRules >= 1 ? _factMatcher.GetRuleFromMatches(0) : null;
         if (rule!=null)
         {
-            StringBuilder strBuilder = new StringBuilder();
+            StringBuilder strBuilder = new();
             var interpolatedPayload = rule.Interpolate(_factMatcher, ref strBuilder);
             _lastPickedRule.text = $"Last Picked rule: {rule.ruleName}\nPayload: {interpolatedPayload}\nRuleID: {rule.RuleID}";
         }
@@ -390,11 +355,6 @@ public class RuleDBWindow : EditorWindow
         }
     }
 
-    /// <summary>
-    /// Opens the pinged rules text file at specified line number
-    /// </summary>
-    /// <param name="pingedRule">The rule containing the textAsset to open</param>
-    /// <param name="lineNumber">The line number to open the textAsset at</param>
     public void OnPingedRule(RuleDBEntry pingedRule, int lineNumber)
     { AssetDatabase.OpenAsset(pingedRule.textFile, lineNumber); }
 
@@ -437,10 +397,7 @@ public class RuleDBWindow : EditorWindow
             }
             return include;
         });
-        if (_rulesDatas == null)
-        {
-            _rulesDatas = new List<FactRulesListViewController.Data>();
-        }
+        _rulesDatas ??= new();
 
         var lastRuleID = -1;
         _rulesDatas.Clear();
@@ -448,23 +405,26 @@ public class RuleDBWindow : EditorWindow
         {
             if (lastRuleID != ruleDBFactTest.ruleOwnerID)
             {
-                var ruleData = new FactRulesListViewController.Data();
-                ruleData.text = _factMatcher.GetRuleFromRuleID(ruleDBFactTest.ruleOwnerID).ruleName;
-                ruleData.isRule = true;
-                ruleData.ruleIndex = ruleDBFactTest.ruleOwnerID;
-                ruleData.factIndex = -1;
+                FactRulesListViewController.Data ruleData = new()
+                {
+                    text = _factMatcher.GetRuleFromRuleID(ruleDBFactTest.ruleOwnerID).ruleName,
+                    isRule = true,
+                    ruleIndex = ruleDBFactTest.ruleOwnerID,
+                    factIndex = -1
+                };
                 _rulesDatas.Add(ruleData);
             }
 
-            var data = new FactRulesListViewController.Data();
-
-            data.ruleIndex = ruleDBFactTest.ruleOwnerID;
-            data.factIndex = ruleDBFactTest.factID;
-            data.factValueText = $"{_factMatcher.PrintableFactValueFromFactTest(ruleDBFactTest)}";
+            FactRulesListViewController.Data data = new()
+            {
+                ruleIndex = ruleDBFactTest.ruleOwnerID,
+                factIndex = ruleDBFactTest.factID,
+                factValueText = $"{_factMatcher.PrintableFactValueFromFactTest(ruleDBFactTest)}"
+            };
 
             var strictOrNot = ruleDBFactTest.isStrict ? "" : "?";
             data.text =
-                $"{strictOrNot}{ruleDBFactTest.factName}  {ruleDBFactTest.CompareMethodPrintable()} {ruleDBFactTest.MatchValuePrintable()}";
+                $"{strictOrNot}{ruleDBFactTest.factName} {ruleDBFactTest.CompareMethodPrintable()} {ruleDBFactTest.MatchValuePrintable()}";
             data.isRule = false;
             lastRuleID = ruleDBFactTest.ruleOwnerID;
             _rulesDatas.Add(data);

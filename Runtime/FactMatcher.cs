@@ -382,7 +382,7 @@ public class FactMatcher
     {
         for (int i = 0; i < _factValues.Length; i++)
         {
-            var factName = ruleDB.GetFactVariabelNameFromFactID(i);
+            var factName = ruleDB.GetFactVariableNameFromFactID(i);
             if (_factValues[i] < 0f)
             {
                 Debug.Log($"fact {factName} is {_factValues[i]}");

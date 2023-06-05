@@ -113,19 +113,19 @@ namespace FactMatching
             templateEnded = true;
             currentFile = file;
             RuleScriptParserEnum state = RuleScriptParserEnum.LookingForRule;
-            Dictionary<string,List<RuleDBFactTestEntry>> parsedFactTests = new Dictionary<string, List<RuleDBFactTestEntry>>();
+            Dictionary<string,List<RuleDBFactTestEntry>> parsedFactTests = new();
             RuleDBEntry currentRule = null;
-            StringBuilder payload = new StringBuilder();
+            StringBuilder payload = new();
             ScriptableObject payloadObject = null;
             string templatePath = "";
-            Dictionary<string,string> templateArguments = new Dictionary<string, string>();
+            Dictionary<string,string> templateArguments = new();
             Dictionary<string, List<string>> templateRuleArguments = new();
             string lastTemplateAddTest = "";
-            List<RuleDBFactTestEntry> derivedFactTests = new List<RuleDBFactTestEntry>();
+            List<RuleDBFactTestEntry> derivedFactTests = new();
             
             //If a RuleScript references a template file, we replace the currentReader with reading from the
             //template before returning the currentReader to the original reader
-            System.IO.StringReader originalReader = new System.IO.StringReader(text);
+            System.IO.StringReader originalReader = new(text);
             System.IO.StringReader currentReader = originalReader;
             _lineNumber = 0;
             _templateLineNumber = 0;
@@ -246,7 +246,7 @@ namespace FactMatching
                             bool foundDerived = false;
                             int lastIndex = ruleNames.Length;
                             //This attempts to figure out if there is any thing to derive from by searching downwards.
-                            //if we have NickHit.Allies and then we have a rule that is NickHit.Allies.NearDeath.BySandwhich
+                            //if we have NickHit.Allies and then we have a rule that is NickHit.Allies.NearDeath.BySandwich
                             //We should first see if we can derive from NickHit.Allies.NearDeath , if no match is found.
                             //We should see if we can derive from NickHit.Allies ... and so on.
                             while (!foundDerived && lastIndex > 1)
@@ -303,7 +303,7 @@ namespace FactMatching
 
                                         //Debug.Log($"for rule {currentRule.ruleName} - Adding factTest {factTest.factName} from derived {derived}");
                                         //To ensure proper serialization and avoid bugs, we make a new copy of factTest
-                                        RuleDBFactTestEntry copyFactTest = new RuleDBFactTestEntry(factTest);
+                                        RuleDBFactTestEntry copyFactTest = new(factTest);
                                         derivedFactTests.Add(copyFactTest);
                                         currentRule.factTests.Add(copyFactTest);
                                     }
@@ -392,7 +392,7 @@ namespace FactMatching
 
                             //Store rule...
                             state = RuleScriptParserEnum.LookingForRule;
-                            currentRule.payload = payload.ToString();
+                            currentRule.payload = new(payload.ToString());
                             currentRule.PayloadObject = payloadObject;
                             payloadObject = null;
                             if (rules.Any(entry => entry.ruleName.Equals(currentRule.ruleName)))
@@ -437,11 +437,11 @@ namespace FactMatching
                     }
                 }
             }
-            catch (Exception e)
-            {
-                problems?.ClearList();
-                throw e;
-            }
+            //catch (Exception e)
+            //{
+            //    problems?.ClearList();
+            //    throw e;
+            //}
             finally
             {
                 originalReader?.Dispose();
@@ -582,7 +582,8 @@ namespace FactMatching
                 }
             }
 
-            if(currentRule.factTests!=null)
+            if (currentRule.factTests != null)
+            {
                 foreach (var factTest in currentRule.factTests)
                 {
                     if (!addedFactIDNames.ContainsKey(factTest.factName))
@@ -597,12 +598,13 @@ namespace FactMatching
                     }
                     factTest.ruleOwnerID = ruleID;
                 }
+            }
 
-
-            if(currentRule.factWrites!=null)
+            if (currentRule.factWrites != null)
+            {
                 foreach (var factWrite in currentRule.factWrites)
                 {
-                
+
                     if (!addedFactIDNames.ContainsKey(factWrite.factName))
                     {
                         factWrite.factID = factID;
@@ -614,7 +616,9 @@ namespace FactMatching
                         factWrite.factID = addedFactIDNames[factWrite.factName];
                     }
                 }
-            anyProblem = CheckForBucketProblems(currentRule, conceptBucket, bucketPartNames, ref bucketID, bucketPartNamesList, bucketFacts, anyProblem,ref bucket);
+            }
+            anyProblem = CheckForBucketProblems(currentRule: currentRule, conceptBucket: conceptBucket, bucketPartNames: bucketPartNames, ref bucketID,
+                                                bucketPartNamesList: bucketPartNamesList, bucketFacts: bucketFacts, anyProblem: anyProblem, ref bucket);
             currentRule.bucket = bucket.Length == 0 ? "default" : bucket.ToString();
             if (!conceptBucket.ContainsKey(currentRule.bucket))
             {
@@ -882,13 +886,15 @@ namespace FactMatching
                                     : RuleDBFactTestEntry.Comparision.MoreThanEqual; 
                                 if (float.TryParse(splitRange[1], out float right))
                                 {
-                                    RuleDBFactTestEntry rangeEnd = new RuleDBFactTestEntry();
-                                    rangeEnd.compareMethod = exclusiveRight
+                                    RuleDBFactTestEntry rangeEnd = new()
+                                    {
+                                        compareMethod = exclusiveRight
                                         ? RuleDBFactTestEntry.Comparision.LessThan
-                                        : RuleDBFactTestEntry.Comparision.LessThanEqual;
-                                    rangeEnd.factName = factTestEntry.factName;
-                                    rangeEnd.matchValue = right;
-                                    rangeEnd.compareType= FactValueType.Value;
+                                        : RuleDBFactTestEntry.Comparision.LessThanEqual,
+                                        factName = factTestEntry.factName,
+                                        matchValue = right,
+                                        compareType = FactValueType.Value
+                                    };
 
                                     currentRule.factTests.Add(factTestEntry);
                                     currentRule.factTests.Add(rangeEnd);
