@@ -79,6 +79,19 @@ public class Payload
         return result;
     }
 
+    public List<Keyword> GetKeywordsAtIndex(int index)
+    {
+        List<Keyword> result = new();
+        foreach (var keyword in KeyWords)
+        {
+            if (keyword.index == index)
+            {
+                result.Add(keyword);
+            }
+        }
+        return result;
+    }
+
     public void UpdateKeywordParameters(string changeFrom, string changeTo, char variableSymbol = '$')
     {
         rawText = rawText.Replace(variableSymbol + changeFrom, changeTo);
@@ -89,6 +102,32 @@ public class Payload
                 keywords.UpdateParameters(changeFrom, changeTo, variableSymbol);
             }
         }
+    }
+
+    public Payload UpdateKeywordParameters(RuleDBEntry ruleDB, char variableSymbol = '$')
+    {
+        if (!KeyWords.IsNullOrEmpty())
+        {
+            foreach (Keyword keywords in KeyWords)
+            {
+                keywords.UpdateParameters(ruleDB, variableSymbol);
+            }
+        }
+        return this;
+    }
+
+    public string DebugKeyWordStrippedText()
+    {
+        string strippedTextIndicatedKeywords = strippedText;
+        for (int i = strippedText.Length; i > -1; i--)
+        {
+            if (!GetKeywordsAtIndex(i).IsNullOrEmpty())
+            {
+                strippedTextIndicatedKeywords = strippedTextIndicatedKeywords.Insert(i, "|");
+            }
+        }
+        Debug.Log($"Debugged StrippedText: {strippedTextIndicatedKeywords}");
+        return strippedTextIndicatedKeywords;
     }
 
     public override string ToString()
@@ -170,6 +209,20 @@ public class Payload
             }
         }
 
+        public void UpdateParameters(RuleDBEntry ruleDB, char variableSymbol = '$')
+        {
+            if (!parameters.IsNullOrEmpty())
+            {
+                foreach (var parameter in parameters)
+                {
+                    if (parameter.parameter.StartsWith(variableSymbol))
+                    {
+                        parameter.UpdateParameter(ruleDB, variableSymbol); 
+                    }
+                }
+            }
+        }
+
         [Serializable]
         public enum KeywordTypeEnum
         {
@@ -235,6 +288,24 @@ public class Payload
                     {
                         parameter = changeTo;
                         FactValueType = int.TryParse(changeTo, out _) ? FactValueType.Value : FactValueType.String;
+                    }
+                }
+
+                return this;
+                throw new NotImplementedException();
+            }
+
+            public Parameter UpdateParameter(RuleDBEntry ruleDB, char variableSymbol = '$')
+            {
+                if (parameter.StartsWith(variableSymbol))
+                {
+                    foreach (var factTest in ruleDB.factTests)
+                    {
+                        if (factTest.compareType == FactValueType.String && parameter.Trim().TrimStart(variableSymbol) == factTest.factName)
+                        {
+                            parameter = factTest.matchString;
+                            FactValueType = int.TryParse(factTest.matchString, out _) ? FactValueType.Value : FactValueType.String;
+                        } 
                     }
                 }
 

@@ -396,18 +396,18 @@ public class FactMatcher
         }
     }
     
-    public RuleDBEntry PickBestRule()
+    public RuleDBEntry PickBestRule(bool usePayloadVariable = false)
     {
         var amountOfBestRules = PickRules();
         if (amountOfBestRules > 0)
         {
-            return GetRuleFromMatches(0);
+            return GetRuleFromMatches(0, usePayloadVariable);
         }
 
         return null;
     }
     
-    public RuleDBEntry GetRuleFromMatches(int matchIndex)
+    public RuleDBEntry GetRuleFromMatches(int matchIndex, bool usePayloadVariable = false)
     {
         if (_inReload)
         {
@@ -416,7 +416,7 @@ public class FactMatcher
         }
         if (matchIndex >= 0 && matchIndex < _noOfRulesWithBestMatch[0])
         {
-            return ruleDB.RuleFromID(_rules[_allRulesMatches[matchIndex]].ruleFiredEventId);
+            return ruleDB.RuleFromID(_rules[_allRulesMatches[matchIndex]].ruleFiredEventId, usePayloadVariable);
         }
         return null;
     }

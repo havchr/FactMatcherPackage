@@ -1074,7 +1074,7 @@ public class RulesDB : ScriptableObject
         return "NA";
     }
 
-    public RuleDBEntry RuleFromID(int id)
+    public RuleDBEntry RuleFromID(int id, bool usePayloadVariable = false)
     {
         if (_ruleMap == null)
         {
@@ -1084,6 +1084,11 @@ public class RulesDB : ScriptableObject
         if (!_ruleMap.TryGetValue(id, out RuleDBEntry rule))
         {
             rule = null;
+        }
+
+        if (usePayloadVariable)
+        {
+            rule.payload = rule.payload.UpdateKeywordParameters(rule);
         }
 
         return rule;
