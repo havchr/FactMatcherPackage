@@ -392,7 +392,7 @@ namespace FactMatching
 
                             //Store rule...
                             state = RuleScriptParserEnum.LookingForRule;
-                            currentRule.payload = new(payload.ToString());
+                            currentRule.payload = new(payload.ToString().Trim().TrimEnd('\n').TrimEnd('\r'));
                             currentRule.PayloadObject = payloadObject;
                             payloadObject = null;
                             if (rules.Any(entry => entry.ruleName.Equals(currentRule.ruleName)))
@@ -432,7 +432,8 @@ namespace FactMatching
                         }
                         else
                         {
-                            payload.Append(line);
+                            payload.AppendLine(line);
+                            //payload.Append(line);
                         }
                     }
                 }

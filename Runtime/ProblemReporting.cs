@@ -7,10 +7,10 @@ public class ProblemEntry
 {
     public enum ProblemTypes { Error, Warning }
 
+    public string ProblemMessage;
+    public int LineNumber;
     public ProblemTypes ProblemType;
     public TextAsset File;
-    public int LineNumber;
-    public string ProblemMessage;
     public Exception Exception;
 
     public bool IsError()

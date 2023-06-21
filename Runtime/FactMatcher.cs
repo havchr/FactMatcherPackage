@@ -17,6 +17,7 @@ public class FactMatcher
     
     public Action OnInited;
     public Action<int> OnRulePicked;
+    public Action<int> OnRulePeeked;
     public const int NotSetValue = -1;
     public RulesDB ruleDB;
     private NativeArray<float> _factValues;
@@ -216,7 +217,40 @@ public class FactMatcher
         }
         return null;
     }
+    
+    public int PeekRulesInBucket(BucketSlice bucketSlice)
+    {
+        if (_inReload)
+        {
+            return 0;
+        }
+        if (!bucketSlice.IsNullBucket())
+        {
+            bucketSlice.ApplyBucket(this);
+            return PickRules(false, true, bucketSlice.startIndex, bucketSlice.endIndex);
+        }
+        return 0;
+    }
+    public RuleDBEntry PeekRuleInBucket(BucketSlice bucketSlice)
+    {
+        int result = PeekRulesInBucket(bucketSlice);
+        if (result > 0)
+        {
+            return GetRuleFromMatches(0);
+        }
+        return null;
+    }
 
+    public RuleDBEntry PeekBestRule()
+    {
+            
+        var amountOfBestRules = PickRules(false);
+        if (amountOfBestRules > 0)
+        {
+            return GetRuleFromMatches(0);
+        }
+        return null;
+    }
     public int PickRules(bool factWrites=true,bool fireListener=true,int startIndex=0,int endIndex=-1) // Pick the best matching rule
     {
         if (_inReload)
@@ -258,7 +292,14 @@ public class FactMatcher
 
         if (fireListener)
         {
-            OnRulePicked?.Invoke(_noOfRulesWithBestMatch[0]);
+            if (factWrites)
+            {
+                OnRulePicked?.Invoke(_noOfRulesWithBestMatch[0]);
+            }
+            else
+            {
+                OnRulePeeked?.Invoke(_noOfRulesWithBestMatch[0]);
+            }
         }
         return _noOfRulesWithBestMatch[0];
     }
@@ -290,60 +331,71 @@ public class FactMatcher
         }
     }
 
-    private void HandleFactWrites(RuleDBEntry rule)
+    public void HandleFactWrites(RuleDBEntry rule)
     {
         //Handle fact writes.
         foreach (var factWrite in rule.factWrites)
         {
+                    
             switch (factWrite.writeMode)
             {
                 case RuleDBFactWrite.WriteMode.IncrementValue:
                     LogWritebacks(
-                        $"increment value {factWrite.writeValue} to fact {factWrite.factName} with factID {factWrite.factID} , was {_factValues[factWrite.factID]}");
+                        $"increment fact (id_{factWrite.factID}){factWrite.factName} by {factWrite.writeValue} PRIOR = {_factValues[factWrite.factID]}",rule);
                     _factValues[factWrite.factID] += factWrite.writeValue;
                     LogWritebacks(
-                        $"increment value {factWrite.writeValue} to fact {factWrite.factName} with factID {factWrite.factID} , was {_factValues[factWrite.factID]}");
+                        $"POST increment = {_factValues[factWrite.factID]}",rule);
                     break;
                 case RuleDBFactWrite.WriteMode.SubtractValue:
                     LogWritebacks(
-                        $"subtracting value {factWrite.writeValue} from fact {factWrite.factName} with factID {factWrite.factID} , was {_factValues[factWrite.factID]}");
+                        $"subtract fact (id_{factWrite.factID}){factWrite.factName} by {factWrite.writeValue} PRIOR = {_factValues[factWrite.factID]}",rule);
                     _factValues[factWrite.factID] -= factWrite.writeValue;
                     LogWritebacks(
-                        $"subtracting value {factWrite.writeValue} from fact {factWrite.factName} with factID {factWrite.factID} , became {_factValues[factWrite.factID]}");
+                        $"POST subtract= {_factValues[factWrite.factID]}",rule);
                     break;
                 case RuleDBFactWrite.WriteMode.SetValue:
                     LogWritebacks(
-                        $"Writing value {factWrite.writeValue} into fact {factWrite.factName} with factID {factWrite.factID}");
+                        $"set fact (id_{factWrite.factID}){factWrite.factName} to {factWrite.writeValue} PRIOR = {_factValues[factWrite.factID]}",rule);
                     _factValues[factWrite.factID] = factWrite.writeValue;
+                    LogWritebacks(
+                        $"POST set = {_factValues[factWrite.factID]}",rule);
                     break;
                 case RuleDBFactWrite.WriteMode.SetString:
                     LogWritebacks(
-                        $"Writing String {factWrite.writeString} into fact {factWrite.factName} with factID {factWrite.factID}");
+                        $"set fact (id_{factWrite.factID}){factWrite.factName} to string (id_{ruleDB.StringId(factWrite.writeString)}){factWrite.writeString} PRIOR = {_factValues[factWrite.factID]}",rule);
                     _factValues[factWrite.factID] = ruleDB.StringId(factWrite.writeString);
+                    LogWritebacks(
+                        $"POST set = {_factValues[factWrite.factID]}, {ruleDB.GetStringFromStringID((int)_factValues[factWrite.factID])}",rule);
                     break;
                 case RuleDBFactWrite.WriteMode.SetToOtherFactValue:
                     LogWritebacks(
-                        $"setting value of factID {(int)factWrite.writeValue} into fact {factWrite.factName} with factID {factWrite.factID}");
+                        $"set fact (id_{factWrite.factID}){factWrite.factName} to value of (id_{(int)factWrite.writeValue}){factWrite.writeString},{_factValues[(int)factWrite.writeValue]} PRIOR = {_factValues[factWrite.factID]}",rule);
                     _factValues[factWrite.factID] = _factValues[(int)factWrite.writeValue];
+                    LogWritebacks(
+                        $"POST set = {_factValues[factWrite.factID]}",rule);
                     break;
                 case RuleDBFactWrite.WriteMode.IncrementByOtherFactValue:
                     LogWritebacks(
-                        $"increment by value of factID {(int)factWrite.writeValue} onto fact {factWrite.factName} with factID {factWrite.factID}");
+                        $"increment fact (id_{factWrite.factID}){factWrite.factName} by value of (id_{(int)factWrite.writeValue}){factWrite.writeString},{_factValues[(int)factWrite.writeValue]} PRIOR = {_factValues[factWrite.factID]}",rule);
                     _factValues[factWrite.factID] += _factValues[(int)factWrite.writeValue];
+                    LogWritebacks(
+                        $"POST = increment {_factValues[factWrite.factID]}",rule);
                     break;
                 case RuleDBFactWrite.WriteMode.SubtractByOtherFactValue:
                     LogWritebacks(
-                        $"increment by value of factID {(int)factWrite.writeValue} onto fact {factWrite.factName} with factID {factWrite.factID}");
+                        $"subtract fact (id_{factWrite.factID}){factWrite.factName} by value of (id_{(int)factWrite.writeValue}){factWrite.writeString},{_factValues[(int)factWrite.writeValue]} PRIOR = {_factValues[factWrite.factID]}",rule);
                     _factValues[factWrite.factID] -= _factValues[(int)factWrite.writeValue];
+                    LogWritebacks(
+                        $"POST subtract = {_factValues[factWrite.factID]}",rule);
                     break;
             }
         }
     }
     
     [Conditional("FACTMATCHER_LOG_WRITEBACKS")]
-    static void LogWritebacks(object msg)
+    static void LogWritebacks(object msg,RuleDBEntry entry)
     {
-        Debug.Log(msg);
+        Debug.Log($"for rule (id_{entry.RuleID}){entry.ruleName}, {msg}");
     }
     
     public void Reload()
@@ -489,4 +541,5 @@ public class FactMatcher
         _dataDisposed = true;
         _hasBeenInited = false;
     }
+
 }

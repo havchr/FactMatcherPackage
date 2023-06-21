@@ -10,7 +10,7 @@
             <ui:ListView virtualization-method="DynamicHeight" reorder-mode="Animated" show-add-remove-footer="true" show-foldout-header="true" header-title="Generate documentation from" name="generateDocFrom" show-border="true" style="padding-bottom: 10px;" />
             <ui:Foldout text="Rules" name="rulesFoldout">
                 <ui:ListView virtualization-method="DynamicHeight" reorder-mode="Animated" show-add-remove-footer="true" show-border="true" show-foldout-header="true" header-title="Generate rules from" name="generateRuleFrom" style="padding-bottom: 10px;" />
-                <ui:TextField picking-mode="Ignore" label="Search for item" value="filler text" name="ruleFilter" />
+                <ui:TextField picking-mode="Ignore" label="Search for item" name="ruleFilter" />
                 <ui:ListView virtualization-method="FixedHeight" reorder-mode="Simple" show-add-remove-footer="false" show-border="true" show-foldout-header="true" header-title="Generated rules" name="rules" reorderable="false" selection-type="None" fixed-item-height="20" style="padding-bottom: 10px; max-height: 500px;" />
             </ui:Foldout>
             <ui:Button text="Parse Rule-scripts" display-tooltip-when-elided="true" name="parseRuleScripts" />

@@ -11,7 +11,7 @@ using System.IO;
 using System;
 
 [CustomEditor(typeof(RulesDB))]
-public class RuleDBEditor : Editor
+public class RulesDBEditor : Editor
 {
     private RulesDB _rulesDB;
 

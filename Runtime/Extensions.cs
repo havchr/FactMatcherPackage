@@ -1,10 +1,23 @@
 using System.Collections.Generic;
+using UnityEngine;
 using System;
+
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace FactMatching
 {
     public static class Extensions 
     {
+        public static TextAsset FromPathToTextAsset(string filePath)
+        {
+            #if UNITY_EDITOR
+            return AssetDatabase.LoadAssetAtPath<TextAsset>(filePath);
+            #endif
+            return null;
+        }
+
         public static bool IsNullOrWhitespace(this string str)
         {
             if (!string.IsNullOrEmpty(str))

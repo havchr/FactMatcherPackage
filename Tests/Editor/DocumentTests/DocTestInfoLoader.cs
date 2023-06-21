@@ -96,7 +96,7 @@ public class DocTestInfoLoader
             string name = factUsingCanBeNames[rand.Next(0, factUsingCanBeNames.Length)] + $"_{factId}";
             return new()
             {
-                FactName = name,
+                factName = name,
                 FactID = factId,
                 IgnoreNumber = false,
                 LineNumber = factId + 2,
@@ -108,7 +108,7 @@ public class DocTestInfoLoader
             string name = factNotUsingCanBeNames[rand.Next(0, factNotUsingCanBeNames.Length)] + $"_{factId}";
             return new()
             {
-                FactName = name,
+                factName = name,
                 FactID = factId,
                 IgnoreNumber = false,
                 LineNumber = factId + 2,

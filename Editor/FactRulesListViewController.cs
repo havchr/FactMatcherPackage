@@ -11,7 +11,6 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.UIElements;
 using Button = UnityEngine.UIElements.Button;
-using Mono.CompilerServices.SymbolWriter;
 
 public class FactRulesListViewController
 {

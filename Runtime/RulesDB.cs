@@ -246,7 +246,9 @@ public class RuleDBEntry
 [Serializable]
 public class FactInDocument
 {
-    public string FactName;
+    [SerializeField]
+    public string factName;
+    public bool containsTemplateSymbol = false;
     public int FactID;
     public int LineNumber;
     [TextArea]
@@ -258,7 +260,7 @@ public class FactInDocument
     {
         if (fact != null)
         {
-            FactName = fact.FactName;
+            factName = fact.factName;
             FactID = fact.FactID;
             LineNumber = fact.LineNumber;
             FactSummary = fact.FactSummary;
@@ -278,7 +280,7 @@ public class FactInDocument
 
     public override string ToString()
     {
-        string result = $"FactName: {FactName}";
+        string result = $"FactName: {factName}";
         result += $"{(FactSummary.IsNullOrWhitespace() ? "" : $"\nSummary: {FactSummary}")}" +
                   $"\nAt line {LineNumber}";
 
@@ -297,7 +299,7 @@ public class FactInDocument
 
     public string ToFactDocumentationString()
     {
-        string result = $".FACT {FactName}";
+        string result = $".FACT {factName}";
         result += $"{(FactSummary.IsNullOrWhitespace() ? "" : $"\n{FactSummary}")}\n..";
 
         if (!FactCanBe.IsNullOrEmpty())
@@ -343,7 +345,7 @@ public class DocumentEntry
     {
         foreach (var currentFact in Facts)
         {
-            if (CompareStringsIgnoringNumbers(currentFact.FactName, factName))
+            if (CompareStringsIgnoringNumbers(currentFact.factName, factName))
             {
                 return currentFact;
             }
@@ -356,13 +358,13 @@ public class DocumentEntry
     {
         foreach (var currentFact in Facts)
         {
-            if (currentFact.FactName == factName.Trim())
+            if (currentFact.factName == factName.Trim())
             {
                 return true;
             }
             else if (currentFact.IgnoreNumber)
             {
-                if (CompareStringsIgnoringNumbers(currentFact.FactName, factName))
+                if (CompareStringsIgnoringNumbers(currentFact.factName, factName))
                 {
                     return true;
                 }
@@ -378,13 +380,13 @@ public class DocumentEntry
         {
             foreach (var currentFact in Facts)
             {
-                if (currentFact.FactName == factName.Trim() && currentFact.FactCanBeContains(canBe))
+                if (currentFact.factName == factName.Trim() && currentFact.FactCanBeContains(canBe))
                 {
                     return true;
                 }
                 else if (currentFact.IgnoreNumber)
                 {
-                    if (CompareStringsIgnoringNumbers(currentFact.FactName, factName))
+                    if (CompareStringsIgnoringNumbers(currentFact.factName, factName))
                     {
                         return true;
                     }
@@ -693,9 +695,9 @@ public class RulesDB : ScriptableObject
                 {
                     path = path[..(lastIndexOf + 1)];
                 }
-#endif
                 documentations ??= new();
                 documentations.AddRange(RuleDocumentationParser.GenerateFromText(ref problems, document));
+#endif
             }
 
             if (problems.ContainsError())

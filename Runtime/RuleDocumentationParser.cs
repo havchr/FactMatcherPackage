@@ -6,26 +6,34 @@ using System;
 
 namespace FactMatching
 {
+    #if UNITY_EDITOR
     public class RuleDocumentationParser
     {
         public enum RuleDocParserKeyword
         {
-            EndOfFile, NoKeyword, KeywordDOCS, KeywordSUMMERY_END, KeywordFACT, KeywordFACT_CAN_BE, KeywordEND,
+            EndOfFile, NoKeyword, KeywordDOCS, KeywordTEMPLATE, KeywordSUMMERY_END, KeywordFACT, KeywordFACT_CAN_BE, KeywordEND,
         }
 
-        private static readonly Dictionary<string, RuleDocParserKeyword> _keywordEnums;
-
-        static RuleDocumentationParser()
+        public static string RuleDocParserKeywordToString()
         {
-            _keywordEnums = new Dictionary<string, RuleDocParserKeyword>
+            string result = string.Empty;
+            foreach (var keywordEnum in _keywordEnums)
             {
+                result += $"{keywordEnum.Key}, ";
+            }
+            return result + "(the keywords are not case sensitive).";
+        }
+
+        private static readonly Dictionary<string, RuleDocParserKeyword> _keywordEnums = new()
+            {
+                [".TEMPLATE"] = RuleDocParserKeyword.KeywordTEMPLATE,
                 [".DOCS"] = RuleDocParserKeyword.KeywordDOCS,
+                [".DOC"] = RuleDocParserKeyword.KeywordDOCS,
                 [".."] = RuleDocParserKeyword.KeywordSUMMERY_END,
                 [".FACT"] = RuleDocParserKeyword.KeywordFACT,
                 [".IT CAN BE"] = RuleDocParserKeyword.KeywordFACT_CAN_BE,
                 [".END"] = RuleDocParserKeyword.KeywordEND
             };
-        }
 
         private static RuleDocParserKeyword LookForKeywordInLine(string line)
         {
@@ -37,8 +45,8 @@ namespace FactMatching
                     return _keywordEnums[line.ToUpper()];
                 }
 
-                string[] lineSplit = line.ToUpper().Split('=', ' ');
-                string key = lineSplit[0].Trim();
+                string[] lineSplit = line.Split('=', ' ');
+                string key = lineSplit[0].Trim().ToUpper();
                 if (_keywordEnums.ContainsKey(key))
                 {
                     RuleDocParserKeyword keywordEnum = _keywordEnums[key];
@@ -48,8 +56,26 @@ namespace FactMatching
                             $"\nThis can result in facts from the second .DOCS is put in the already started DOCS",
                             currentFile, _lineNumber);
                     }
+                    else if (!templateDoc && keywordEnum == RuleDocParserKeyword.KeywordTEMPLATE)
+                    {
+                        templateDoc = true;
+                        TextAsset templateTextAsset = RuleDocumentationTemplateParser.StartTemplateParser
+                            (currentFile, out ProblemReporting problemsDetected);
+                        currentFile = templateTextAsset;
+                        stringReader = new(templateTextAsset.text);
+                        if (problemsDetected.ContainsErrorOrWarning())
+                        {
+                            localProblems.AddNewProblemList(problemsDetected.ToList());
+                        }
+                        return RuleDocParserKeyword.NoKeyword;
+                    }
                     return keywordEnum;
-                } 
+                }
+                else
+                {
+                    localProblems.ReportNewWarning($"Did not find any keyword from the following line: {line}\n" +
+                        $"The available keywords are: {RuleDocParserKeywordToString()}", currentFile, _lineNumber);
+                }
             }
             return RuleDocParserKeyword.NoKeyword;
         }
@@ -84,7 +110,7 @@ namespace FactMatching
         }
 
         private static StringReader stringReader;
-        private static int _lineNumber;
+        private static int _lineNumber = 0;
         private static string NextLine()
         {
             string line;
@@ -98,47 +124,44 @@ namespace FactMatching
 
         private static ProblemReporting localProblems;
         private static TextAsset currentFile;
-        public static bool parsingDoc = false;
-        public static List<DocumentEntry> GenerateFromText(ref ProblemReporting problems, TextAsset file)
+        private static bool parsingDoc = false;
+        private static bool templateDoc = false;
+
+        public static List<DocumentEntry> GenerateFromText(ref ProblemReporting problems, TextAsset docFile)
         {
+            _lineNumber = 0;
+            templateDoc = false;
             parsingDoc = false;
             List<DocumentEntry> entries = new();
-            stringReader = new(file.text);
-            currentFile = file;
+            stringReader = new(docFile.text);
+            currentFile = docFile;
             localProblems = problems;
 
-            try
+            int docID = 0;
+            string line;
+            while ((line = NextLine()) != null)
             {
-                int docID = 0;
-                string line;
-                while ((line = NextLine()) != null)
+                if (line == null)
                 {
-                    if (line == null)
-                    {
-                        break;
-                    }
+                    break;
+                }
 
-                    if (!parsingDoc && IsKeywordInLine(line, RuleDocParserKeyword.KeywordDOCS, out string nameOfDoc))
+                if (!parsingDoc && IsKeywordInLine(line, RuleDocParserKeyword.KeywordDOCS, out string nameOfDoc))
+                {
+                    parsingDoc = true;
+                    entries.Add(new()
                     {
-                        parsingDoc = true;
-                        entries.Add(new()
-                        {
-                            StartLine = _lineNumber,
-                            DocumentName = nameOfDoc,
-                            DocID = docID++,
-                            Summary = ParseSummary(),
-                            TextFile = currentFile,
-                            Facts = GetFactsInDocument(),
-                        });
-                        parsingDoc = false;
-                    }
+                        StartLine = _lineNumber,
+                        DocumentName = nameOfDoc,
+                        DocID = docID++,
+                        Summary = ParseSummary(),
+                        TextFile = currentFile,
+                        Facts = GetFactsInDocument(),
+                    });
+                    parsingDoc = false;
                 }
             }
-            catch (Exception e)
-            {
-                localProblems?.ClearList();
-                throw e;
-            }
+            problems = localProblems;
             return entries;
         }
 
@@ -153,6 +176,10 @@ namespace FactMatching
                 if (keywordInLine == RuleDocParserKeyword.NoKeyword)
                 {
                     summary += '\n' + line.Trim();
+                }
+                else
+                {
+                    localProblems.ReportNewWarning($"Unexpected keyword inside of summary: {line.Trim()}", currentFile, _lineNumber);
                 }
             }
             return summary.TrimStart('\n');
@@ -174,7 +201,7 @@ namespace FactMatching
                     string factName = string.Join("_", lineSplit.Skip(1));
                     facts.Add(new()
                     {
-                        FactName = factName,
+                        factName = factName,
                         LineNumber = _lineNumber,
                         FactID = factID++,
                         FactSummary = ParseSummary(),
@@ -191,10 +218,62 @@ namespace FactMatching
             if (WhatIsNextParser() == RuleDocParserKeyword.KeywordFACT_CAN_BE)
             {
                 List<string> canBe = new();
-                canBe.AddRange(ParseSummary().Split('\n').ToList());
+                string line;
+                RuleDocParserKeyword keywordInLine;
+                while ((line = NextLine()) != null && (keywordInLine = LookForKeywordInLine(line)) != RuleDocParserKeyword.KeywordSUMMERY_END)
+                {
+                    if (line.Contains("C#_ENUM"))
+                    {
+                        string enumName = line.Trim().Split(' ')[1].Trim();
+                        Array enumValues = GetEnumValuesFromEnumName(enumName);
+                        if (enumValues != null)
+                        {
+                            foreach (var enumValue in enumValues)
+                            {
+                                canBe.Add(enumValue.ToString());
+                            }
+                        }
+                        else
+                        {
+                            localProblems.ReportNewError
+                                ($"Did not find enum of type: {enumName}, please verify that this enum exists in current context.",
+                                currentFile, _lineNumber);
+                        }
+                    }
+                    else if (keywordInLine == RuleDocParserKeyword.NoKeyword)
+                    {
+                        canBe.Add(line.Trim());
+                    }
+                    else if (keywordInLine != RuleDocParserKeyword.KeywordFACT_CAN_BE)
+                    {
+                        localProblems.ReportNewWarning($"Unexpected keyword inside of .IT CAN BE: {line.Trim()}", currentFile, _lineNumber);
+                    }
+                }
                 return canBe;
             }
             return null;
         }
+
+        public static Array GetEnumValuesFromEnumName(string enumName)
+        {
+            System.Reflection.Assembly[] scriptAssemblies = AppDomain.CurrentDomain.GetAssemblies();
+            foreach (var assembly in scriptAssemblies)
+            {
+                if (assembly != null)
+                {
+                    Type enumType = assembly.GetTypes().FirstOrDefault(t => t.IsEnum && t.Name == enumName);
+                    if (enumType != null)
+                    {
+                        return Enum.GetValues(enumType);
+                    }
+                }
+                else
+                {
+                    localProblems.ReportNewError($"Could not find Assemblies, (looking for enum of type {enumName}", currentFile, _lineNumber);
+                }
+            }
+            return null;
+        }
     }
+#endif
 }

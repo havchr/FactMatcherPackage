@@ -29,7 +29,7 @@ public class DocumentParser_Test
 
         FactInDocument factInDocument = new()
         {
-            FactName = "Test",
+            factName = "Test",
             LineNumber = 1,
             FactSummary = "TestSummary",
         };
@@ -41,7 +41,7 @@ public class DocumentParser_Test
             },
         };
         
-        FactInDocument foundFactInDocument = new(doc.GetFactInDocumentByName(factInDocument.FactName));
+        FactInDocument foundFactInDocument = new(doc.GetFactInDocumentByName(factInDocument.factName));
 
         DocumentEntry foundDoc = new()
         {
@@ -54,9 +54,9 @@ public class DocumentParser_Test
         {
             foundDoc,
         };
-        Assert.IsFalse(DocTestInfoLoader.CanFactInDocsBe(foundDocs, factInDocument.FactName, factCanBeList[0]));
+        Assert.IsFalse(DocTestInfoLoader.CanFactInDocsBe(foundDocs, factInDocument.factName, factCanBeList[0]));
         foundDocs[0].Facts[0].FactCanBe = factCanBeList;
-        Assert.IsTrue(DocTestInfoLoader.CanFactInDocsBe(foundDocs, factInDocument.FactName, factCanBeList[0]));
+        Assert.IsTrue(DocTestInfoLoader.CanFactInDocsBe(foundDocs, factInDocument.factName, factCanBeList[0]));
     }
 
     [Test]
@@ -176,7 +176,7 @@ public class DocumentParser_Test
                 {
                     new()
                     {
-                        FactName = "player.age",
+                        factName = "player.age",
                         FactID = 0,
                         LineNumber = 10,
                         FactSummary = "as much text as you want here.",
@@ -185,7 +185,7 @@ public class DocumentParser_Test
                     },
                     new()
                     {
-                        FactName = "player.name",
+                        factName = "player.name",
                         LineNumber = 19,
                         FactSummary = "this is player.name that can link names into a sequence, like Johnny, Bob, etc.\nrelated to player.name",
                         FactCanBe = new()
@@ -198,7 +198,7 @@ public class DocumentParser_Test
                     },
                     new()
                     {
-                        FactName = "player.height",
+                        factName = "player.height",
                         LineNumber = 30,
                         FactSummary = "as much text as you want here.",
                         FactCanBe = null,
@@ -207,7 +207,7 @@ public class DocumentParser_Test
                     },
                     new()
                     {
-                        FactName = "player.health",
+                        factName = "player.health",
                         LineNumber = 34,
                         FactSummary = "as much text as you want here.",
                         FactCanBe = null,
@@ -216,7 +216,7 @@ public class DocumentParser_Test
                     },
                     new()
                     {
-                        FactName = "player.street_smart",
+                        factName = "player.street_smart",
                         LineNumber = 38,
                         FactSummary = "as much text as you want here.",
                         FactCanBe = null,
@@ -225,7 +225,7 @@ public class DocumentParser_Test
                     },
                     new()
                     {
-                        FactName = "player.intelligence_level",
+                        factName = "player.intelligence_level",
                         LineNumber = 42,
                         FactSummary = "as much text as you want here.",
                         FactCanBe = null,
