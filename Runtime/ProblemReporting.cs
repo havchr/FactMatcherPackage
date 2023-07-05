@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System;
+using FactMatching;
 
 [Serializable]
 public class ProblemEntry
@@ -30,7 +31,19 @@ public class ProblemEntry
 
 public partial class ProblemReporting
 {
+    public List<ProblemEntry> GetList() { return problems; }
     private static readonly List<ProblemEntry> problems = new();
+
+    public ProblemReporting()
+    { }
+
+    public ProblemReporting(ProblemReporting problemReporting)
+    {
+        if (problemReporting != null)
+        {
+            problems.AddRange(problemReporting.ToList());
+        }
+    }
 
     public void ClearList()
     { problems?.Clear(); }
@@ -91,11 +104,34 @@ public partial class ProblemReporting
         return false;
     }
 
+    /// <summary>
+    /// Will return a list of problems and clear current problem list
+    /// </summary>
+    /// <returns>Problem list</returns>
     public List<ProblemEntry> ToList()
     {
         List<ProblemEntry> listOfProblems = new(problems);
         problems.Clear();
         return listOfProblems;
+    }
+
+    public bool DebugWarningsAndErrors(string message = "", bool removeProblems = false)
+    {
+        bool containedWarningsOrErrors = false;
+
+        if (ContainsErrors(removeProblems, out int errors, out string errorsString))
+        {
+            Debug.LogError($"{(message.IsNullOrWhitespace() ? "" : $"{message} ")}Encounter {errors} error{(errors > 1 ? "s" : "")}.{errorsString}");
+            containedWarningsOrErrors = true;
+        }
+        
+        if (ContainsWarnings(removeProblems, out int warnings, out string warningsString))
+        {
+            Debug.LogWarning($"{(message.IsNullOrWhitespace() ? "":$"{message} ")}Encounter {warnings} warning{(warnings > 1 ? "s" : "")} . {warningsString}");
+            containedWarningsOrErrors = true;
+        }
+
+        return containedWarningsOrErrors;
     }
 
     public override string ToString()
@@ -113,12 +149,12 @@ public partial class ProblemReporting
 
 public partial class ProblemReporting
 {
-    public bool ContainsErrors() { return CheckForErrors(out _, out _); }
-    public bool ContainsErrors(out string errorsString) { return CheckForErrors(out _, out errorsString); }
-    public bool ContainsErrors(out int errors) { return CheckForErrors(out errors, out _); }
-    public bool ContainsErrors(out int errors, out string errorsString) { return CheckForErrors(out errors, out errorsString); }
+    public bool ContainsErrors(bool removeErrors) { return CheckForErrors(removeErrors, out _, out _); }
+    public bool ContainsErrors(bool removeErrors, out string errorsString) { return CheckForErrors(removeErrors, out _, out errorsString); }
+    public bool ContainsErrors(bool removeErrors, out int errors) { return CheckForErrors(removeErrors, out errors, out _); }
+    public bool ContainsErrors(bool removeErrors, out int errors, out string errorsString) { return CheckForErrors(removeErrors, out errors, out errorsString); }
 
-    private static bool CheckForErrors(out int errors, out string errorsString)
+    private static bool CheckForErrors(bool removeErrors, out int errors, out string errorsString)
     {
         errors = 0;
         errorsString = string.Empty;
@@ -129,18 +165,21 @@ public partial class ProblemReporting
             {
                 errorsString += "\n\n" + problem.ToString();
                 errors++;
-                problems.RemoveAt(i);
+                if (removeErrors)
+                {
+                    problems.RemoveAt(i); 
+                }
             }
         }
         return errors > 0;
     }
 
-    public bool ContainsWarnings() { return CheckForWarnings(out _, out _); }
-    public bool ContainsWarnings(out int warnings) { return CheckForWarnings(out warnings, out _); }
-    public bool ContainsWarnings(out string warningsString) { return CheckForWarnings(out _, out warningsString); }
-    public bool ContainsWarnings(out int warnings, out string warningsString) { return CheckForWarnings(out warnings, out warningsString); }
+    public bool ContainsWarnings(bool removeWarning) { return CheckForWarnings(removeWarning, out _, out _); }
+    public bool ContainsWarnings(bool removeWarning, out int warnings) { return CheckForWarnings(removeWarning, out warnings, out _); }
+    public bool ContainsWarnings(bool removeWarning, out string warningsString) { return CheckForWarnings(removeWarning, out _, out warningsString); }
+    public bool ContainsWarnings(bool removeWarning, out int warnings, out string warningsString) { return CheckForWarnings(removeWarning, out warnings, out warningsString); }
 
-    private static bool CheckForWarnings(out int warnings, out string warningsString)
+    private static bool CheckForWarnings(bool removeWarning, out int warnings, out string warningsString)
     {
         warnings = 0;
         warningsString = string.Empty;
@@ -151,18 +190,21 @@ public partial class ProblemReporting
             {
                 warningsString += "\n\n" + problem.ToString();
                 warnings++;
-                problems.RemoveAt(i);
+                if (removeWarning)
+                {
+                    problems.RemoveAt(i); 
+                }
             }
         }
         return warnings > 0;
     }
 
-    public bool ContainsWarningsAndErrors()
-    { return CheckForWarnings(out _, out _) & CheckForErrors(out _, out _); }
-    public bool ContainsWarningsAndErrors(out int errors, out int warnings)
-    { return CheckForWarnings(out warnings, out _) & CheckForErrors(out errors, out _); }
-    public bool ContainsWarningsAndErrors(out string errorsString, out string warningsString)
-    { return CheckForWarnings(out _, out warningsString) & CheckForErrors(out _, out errorsString); }
-    public bool ContainsWarningsAndErrors(out int errors, out string errorsString, out int warnings, out string warningsString)
-    { return CheckForWarnings(out warnings, out warningsString) & CheckForErrors(out errors, out errorsString); }
+    public bool ContainsWarningsAndErrors(bool removeErrors, bool removeWarning)
+    { return CheckForWarnings(removeWarning, out _, out _) & CheckForErrors(removeErrors, out _, out _); }
+    public bool ContainsWarningsAndErrors(bool removeErrors, out int errors, bool removeWarning, out int warnings)
+    { return CheckForWarnings(removeWarning, out warnings, out _) & CheckForErrors(removeErrors, out errors, out _); }
+    public bool ContainsWarningsAndErrors(bool removeErrors, out string errorsString, bool removeWarning, out string warningsString)
+    { return CheckForWarnings(removeWarning, out _, out warningsString) & CheckForErrors(removeErrors, out _, out errorsString); }
+    public bool ContainsWarningsAndErrors(bool removeErrors, out int errors, out string errorsString, bool removeWarning, out int warnings, out string warningsString)
+    { return CheckForWarnings(removeWarning, out warnings, out warningsString) & CheckForErrors(removeErrors, out errors, out errorsString); }
 }

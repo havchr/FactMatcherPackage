@@ -290,7 +290,7 @@ public class RuleDBWindow : EditorWindow
             {
                 var problems = _factMatcher.ruleDB.problemList;
                 string problemsString = "";
-                foreach (var problem in problems)
+                foreach (var problem in problems.GetList())
                 {
                     problemsString += problem;
                 }

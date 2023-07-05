@@ -1,17 +1,13 @@
-﻿#if UNITY_EDITOR
-using static FactMatching.RuleDocumentationParser;
-#endif
+﻿using static FactMatching.RuleDocumentationParser;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 using System.Text;
 using System.IO;
 using System;
-using UnityEngine.Assertions.Must;
 
 namespace FactMatching
 {
-    #if UNITY_EDITOR
     public class RuleDocumentationTemplateParser
     {
         private static TextAsset currentFile = new();
@@ -88,7 +84,11 @@ namespace FactMatching
         {
             currentFile = thisFile;
             currentFile.name = thisFile.name;
-            string assetFolderPath = string.Join("/", AssetDatabase.GetAssetPath(thisFile).Split('/')[..^1]);
+            //todo - https://app.clickup.com/t/85yxerntt (TextAssets loaded from resources will get wrong relative pathing probably)
+            string assetFolderPath = "";
+            #if UNITY_EDITOR
+            assetFolderPath = string.Join("/", AssetDatabase.GetAssetPath(thisFile).Split('/')[..^1]);
+            #endif
 
             _lineNumber = 0;
             List<StringBuilder> stringBuilders = new();
@@ -102,7 +102,15 @@ namespace FactMatching
                 {
                     if (IsKeywordInLine(line, RuleDocParserKeyword.KeywordTEMPLATE, out string templateFileName))
                     {
-                        templates.Add(GetTemplate(templateFileName, assetFolderPath));
+                        DocumentTemplate template = GetTemplate(templateFileName, assetFolderPath);
+                        if (template != null)
+                        {
+                            templates.Add(template);
+                        }
+                        else
+                        {
+                           localProblems.ReportNewError($"Could not find template file {templateFileName} in path {assetFolderPath}",thisFile,_lineNumber);
+                        }
                     }
                 }
 
@@ -135,7 +143,15 @@ namespace FactMatching
 
         private static DocumentTemplate GetTemplate(string templateFileName, string folderPath)
         {
-            TextAsset templateFile = AssetDatabase.LoadAssetAtPath<TextAsset>($"{folderPath}/{templateFileName}.txt");
+            //todo https://app.clickup.com/t/85yxet4vh DocumentTemplate Files should not need TextAsset and loading from AssetDataBase - just needs to load a file with regular IO | #85yxet4vh
+            TextAsset templateFile = null;
+            #if UNITY_EDITOR
+            templateFile = AssetDatabase.LoadAssetAtPath<TextAsset>($"{folderPath}/{templateFileName}.txt");
+            #endif
+            if (templateFile == null)
+            {
+                return null;
+            }
             templateFile.name = templateFileName;
             DocumentTemplate template = new()
             {
@@ -257,5 +273,4 @@ namespace FactMatching
             }
         }
     }
-    #endif
 }

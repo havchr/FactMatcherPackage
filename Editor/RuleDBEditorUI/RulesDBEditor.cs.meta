@@ -1,15 +1,9 @@
 fileFormatVersion: 2
-guid: 0aa3e4c4b733d442a9dbd02d05dbc62c
+guid: 85c235a04d53c439780f6b0b087973ac
 MonoImporter:
   externalObjects: {}
   serializedVersion: 2
   defaultReferences:
-  - _ruleDBInspectorVisAss: {fileID: 9197481963319205126, guid: e4afa4b57493c524fbb39d0fbabf0d42, type: 3}
-  - _generateFrom: {fileID: 9197481963319205126, guid: 4efaf3f2132ed6a4296a1a1a2d685c57, type: 3}
-  - _ruleAndDocListViewItem: {fileID: 9197481963319205126, guid: 6da686096078a2d4da779e57d4f0aa34, type: 3}
-  - m_ruleDBInspectorVisAss: {fileID: 9197481963319205126, guid: e4afa4b57493c524fbb39d0fbabf0d42, type: 3}
-  - m_generateFrom: {fileID: 9197481963319205126, guid: 4efaf3f2132ed6a4296a1a1a2d685c57, type: 3}
-  - m_ruleAndDocListViewItem: {fileID: 9197481963319205126, guid: 6da686096078a2d4da779e57d4f0aa34, type: 3}
   - _ruleDBInspectorVisAss: {fileID: 9197481963319205126, guid: e4afa4b57493c524fbb39d0fbabf0d42, type: 3}
   - _ruleListViewItem: {fileID: 9197481963319205126, guid: 6da686096078a2d4da779e57d4f0aa34, type: 3}
   executionOrder: 0

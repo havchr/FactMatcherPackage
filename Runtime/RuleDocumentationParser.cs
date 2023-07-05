@@ -6,7 +6,6 @@ using System;
 
 namespace FactMatching
 {
-    #if UNITY_EDITOR
     public class RuleDocumentationParser
     {
         public enum RuleDocParserKeyword
@@ -275,5 +274,4 @@ namespace FactMatching
             return null;
         }
     }
-#endif
 }

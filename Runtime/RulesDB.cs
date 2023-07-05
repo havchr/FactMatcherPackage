@@ -9,7 +9,7 @@ using UnityEditor;
 using UnityEngine;
 using System;
 using System.Threading;
-using System.ComponentModel;
+using System.IO;
 
 public enum FactValueType
 {
@@ -36,11 +36,11 @@ public class RuleDBFactWrite
     {
         switch (writeMode)
         {
-           case WriteMode.IncrementByOtherFactValue: 
-           case WriteMode.SubtractByOtherFactValue: 
-           case WriteMode.SetToOtherFactValue:
-               otherFactID = (int)writeValue;
-               return true;
+            case WriteMode.IncrementByOtherFactValue: 
+            case WriteMode.SubtractByOtherFactValue: 
+            case WriteMode.SetToOtherFactValue:
+                otherFactID = (int)writeValue;
+                return true;
         }
         otherFactID = -1;
         return false;
@@ -481,16 +481,51 @@ public class DocumentEntry
     }
 }
 
+#if UNITY_EDITOR
+public class SetupForFileSystemWatcherAutoParse
+{
+    [InitializeOnLoadMethod]
+    private static void Initialize()
+    {
+        EditorApplication.update += EditorUpdateCallback;
+    }
+
+    private static bool isInitializeSetup = false;
+    private static RulesDB[] allRulesDB;
+
+    private static void EditorUpdateCallback()
+    {
+        if (!isInitializeSetup)
+        {
+            isInitializeSetup = true;
+            string[] guids = AssetDatabase.FindAssets("t:" + typeof(RulesDB).Name);
+            allRulesDB = new RulesDB[guids.Length];
+            for (int i = 0; i < guids.Length; i++)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guids[i]);
+                allRulesDB[i] = AssetDatabase.LoadAssetAtPath<RulesDB>(path);
+
+                if (!allRulesDB[i].generateDocumentationFrom.IsNullOrEmpty() || !allRulesDB[i].generateRuleFrom.IsNullOrEmpty())
+                {
+                    allRulesDB[i].SetUpFileWatcher();
+                }
+            }
+        }
+    }
+}
+#endif
+
 [CreateAssetMenu(fileName = "RulesDB", menuName = "FactMatcher/RulesDB", order = 1)]
 public class RulesDB : ScriptableObject
 {
     [NonSerialized]
-    public List<ProblemEntry> problemList;
-    public bool autoParseRuleScript;
+    public ProblemReporting problemList;
+    public bool autoParseRuleScript = false;
     public bool PickMultipleBestRules = false;
     public bool FactWriteToAllThatMatches = false;
     public bool ignoreDocumentationDemand = false;
     public bool debugLogMissingIDS = false;
+    public bool debugLogAutoparsing = false;
     private Dictionary<string, int> _factIDsMap;
     private Dictionary<string, int> _ruleIDsMap;
     private Dictionary<string, int> _stringIDsMap;
@@ -508,6 +543,10 @@ public class RulesDB : ScriptableObject
     public List<RuleDBEntry> rules;
     public Action OnRulesParsed;
 
+    public List<FileSystemWatcher> fileWatchers = new List<FileSystemWatcher>();
+    public Action<ProblemReporting> AutoParserTrigger;
+    public Action<ProblemReporting> AutoParserTriggerForEditorUI;
+
     public void InitRuleDB()
     {
         _stringIDsMap = CreateStringIDs(rules);
@@ -516,6 +555,119 @@ public class RulesDB : ScriptableObject
         _factIDsMap = CreateFactIDs(rules);
         _bucketSlices = CreateBucketSlices();
     }
+
+#if UNITY_EDITOR
+    
+    public void SetUpFileWatcher(bool setupFileWatcher)
+    {
+        autoParseRuleScript = setupFileWatcher;
+        ClearAllFileWatchers();
+        if (autoParseRuleScript)
+        {
+            SetupFileWatcherUsingTextAssetList(generateDocumentationFrom);
+            SetupFileWatcherUsingTextAssetList(generateRuleFrom); 
+        
+        }
+    }
+    public void SetUpFileWatcher()
+    {
+        ClearAllFileWatchers();
+        if (autoParseRuleScript)
+        {
+            SetupFileWatcherUsingTextAssetList(generateDocumentationFrom);
+            SetupFileWatcherUsingTextAssetList(generateRuleFrom); 
+        
+        }
+    }
+
+    public void SetupFileWatcherUsingTextAssetList(List<TextAsset> textAssetList, bool setupFileWatcher = true)
+    {
+        if (setupFileWatcher)
+        {
+            foreach (var textAsset in textAssetList)
+            {
+                GetFullPathFromAsset(textAsset, out string directoryPath, out string fileName);
+                if (!fileName.IsNullOrWhitespace())
+                {
+                    var fileWatcha = new FileSystemWatcher()
+                    {
+                        Path = directoryPath,
+                        Filter = fileName,
+                        EnableRaisingEvents = true,
+                    };
+                    if (debugLogAutoparsing)
+                    {
+                        Debug.Log($"FactMatcher autoparse: Adding FileWatcher for {fileName} from {name}");
+                    }
+                    fileWatcha.Changed += OnFileChanged;
+                    fileWatchers.Add(fileWatcha);
+                }
+            } 
+        }
+    }
+
+    public void ClearAllFileWatchers()
+    {
+        foreach (var fileWatcher in fileWatchers)
+        {
+            if (fileWatcher != null)
+            {
+                if (debugLogAutoparsing)
+                {
+                    Debug.Log($"FactMatcher autoparse: clearing FileWatcher for {fileWatcher.Path}");
+                }
+                fileWatcher.Changed -= OnFileChanged;
+                fileWatcher.Dispose();
+            }
+        }
+        fileWatchers.Clear();
+    }
+    
+
+    private void OnFileChanged(object sender, FileSystemEventArgs e)
+    {
+        Debug.Log($"Detected change in file: {e.Name}\nAt path: {e.FullPath}");
+        // We have to create a subscription to this event so we can run AssetDatabase.GetAssetPath from main thread
+        
+        // Give Unity some time to also react to the file change, because it seems we would parse the old file, 
+        //if we did not sleep
+        Thread.Sleep(1000); 
+        EditorApplication.update += RunRuleGenerating;
+    }
+
+    private void RunRuleGenerating()
+    {
+        EditorApplication.update -= RunRuleGenerating;
+        problemList?.ClearList();
+        problemList = CreateRulesFromRulescripts();
+        problemList.DebugWarningsAndErrors($"Auto parsing from {name}:");
+        EditorUtility.SetDirty(this);
+        AssetDatabase.SaveAssets();
+        Thread.Sleep(1000); 
+        AutoParserTriggerForEditorUI?.Invoke(problemList);
+        AutoParserTrigger?.Invoke(problemList);
+    }
+
+    private void OnDestroy()
+    {
+        ClearAllFileWatchers();
+    }
+
+    public static string GetFullPathFromAsset(UnityEngine.Object @object, out string folderPath, out string fileName)
+    {
+        string workingDirectory = Environment.CurrentDirectory;
+        string path = AssetDatabase.GetAssetPath(@object);
+        string fullPath = workingDirectory + "/" + path;
+
+#if UNITY_EDITOR_WIN
+        fullPath = fullPath.Replace("/", "\\");
+#endif
+
+        folderPath = Path.GetDirectoryName(fullPath);
+        fileName = Path.GetFileName(fullPath);
+        return fullPath;
+    }
+#endif
 
     public DocumentEntry GetDocumentEntryByName(string nameOfDoc)
     {
@@ -542,13 +694,9 @@ public class RulesDB : ScriptableObject
         return _bucketSlices;
     }
 
-    /// <summary>
-    /// Creates a list of the current info tests and makes sure none have duplicated IDs
-    /// </summary>
+    /// <summary>Creates a list of the current info tests and makes sure none have duplicated IDs</summary>
     /// <param name="filter"></param>
-    /// <returns>
-    /// List of factTests
-    /// </returns>
+    /// <returns>List of factTests</returns>
     public List<RuleDBFactTestEntry> CreateFlattenedFactTestListWithNoDuplicateFactIDS(Func<RuleDBFactTestEntry, bool> filter = null)
     {
         List<RuleDBFactTestEntry> factTests = new();
@@ -588,7 +736,7 @@ public class RulesDB : ScriptableObject
     public ProblemReporting CreateRulesFromRulescripts()
     {
         ProblemReporting problems = new();
-        problemList?.Clear();
+        problemList?.ClearList();
 
         if (!ignoreDocumentationDemand)
         {
@@ -615,6 +763,8 @@ public class RulesDB : ScriptableObject
             foreach (var ruleScript in generateRuleFrom)
             {
                 var parser = new RuleScriptParser();
+                
+            //todo - https://app.clickup.com/t/85yxerntt (TextAssets loaded from resources will get wrong relative pathing probably)
                 var path = "";
 #if UNITY_EDITOR
                 path = AssetDatabase.GetAssetPath(ruleScript);
@@ -676,28 +826,14 @@ public class RulesDB : ScriptableObject
     public ProblemReporting CreateDocumentations()
     {
         ProblemReporting problems = new();
-        problemList?.Clear();
+        problemList?.ClearList();
         if (generateDocumentationFrom.Count != 0)
         {
             documentations?.Clear();
             foreach (var document in generateDocumentationFrom)
             {
-#if UNITY_EDITOR
-                var path = "";
-                path = AssetDatabase.GetAssetPath(document);
-                var lastIndexOf = path.LastIndexOf('/');
-                if (lastIndexOf == -1)
-                {
-                    lastIndexOf = path.LastIndexOf('\\');
-                }
-
-                if (lastIndexOf != -1)
-                {
-                    path = path[..(lastIndexOf + 1)];
-                }
                 documentations ??= new();
-                documentations.AddRange(RuleDocumentationParser.GenerateFromText(ref problems, document));
-#endif
+                documentations?.AddRange(RuleDocumentationParser.GenerateFromText(ref problems, document));
             }
 
             if (problems.ContainsError())
@@ -754,7 +890,7 @@ public class RulesDB : ScriptableObject
                 int factIdOther = -1;
                 if (factWrite.TryGetOtherFactIDOther(ref factIdOther))
                 {
-                   result[factWrite.writeString] = factIdOther;
+                    result[factWrite.writeString] = factIdOther;
                 }
             }
         }
@@ -930,15 +1066,18 @@ public class RulesDB : ScriptableObject
         for (int i = 0; i < rules.Count; i++)
         {
             var rule = rules[i];
-            if (!dic.ContainsKey(rule.payload.StrippedText))
+            if (rule.payload !=null && rule.payload.StrippedText != null)
             {
-                dic[rule.payload.StrippedText] = id;
-                rule.payloadStringID = id;
-                id++;
-            }
-            else
-            {
-                rule.payloadStringID = dic[rule.payload.StrippedText];
+                if (!dic.ContainsKey(rule.payload.StrippedText))
+                {
+                    dic[rule.payload.StrippedText] = id;
+                    rule.payloadStringID = id;
+                    id++;
+                }
+                else
+                {
+                    rule.payloadStringID = dic[rule.payload.StrippedText];
+                }
             }
 
             foreach (var factWrite in rule.factWrites)
@@ -1041,4 +1180,5 @@ public class RulesDB : ScriptableObject
     {
         return ruleToSort.OrderBy(entry => entry.bucketSliceStartIndex).ThenByDescending(entry => entry.factTests.Count).ToList();
     }
+
 }

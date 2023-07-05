@@ -10,6 +10,7 @@ using UnityEditor;
 using System.IO;
 using System;
 
+
 [CustomEditor(typeof(RulesDB))]
 public class RulesDBEditor : Editor
 {
@@ -18,6 +19,7 @@ public class RulesDBEditor : Editor
     private void OnEnable()
     {
         _rulesDB = (RulesDB)target;
+        problems = new(((RulesDB)target).problemList);
     }
 
     [SerializeField] private VisualTreeAsset _ruleDBInspectorVisAss;
@@ -34,6 +36,10 @@ public class RulesDBEditor : Editor
 
     private TextField ruleFilter;
     private ListView ruleListView;
+
+    private ListView generateDocFrom;
+    private ListView generateRuleFrom;
+
     private List<RuleDBListViewController.Data> listOfData;
 
     enum ListToGenerate
@@ -47,6 +53,17 @@ public class RulesDBEditor : Editor
         None
     }
 
+
+    void OnAddItemToObsy(int index)
+    {
+        Debug.Log($"just added {_rulesDB.generateRuleFrom[index].name}");
+    }
+
+    void OnRemoveItemFromObsy(int index)
+    {
+        Debug.Log($"removing {_rulesDB.generateRuleFrom[index].name}");
+    }
+
     public override VisualElement CreateInspectorGUI()
     {
         if (IsVisualTreeAssetsAssigned())
@@ -55,7 +72,8 @@ public class RulesDBEditor : Editor
             _ruleDBInspectorVisAss.CloneTree(mainRoot);
 
             Toggle autoParseRuleScript = mainRoot.Q<Toggle>("autoParseRuleScript");
-            autoParseRuleScript.bindingPath = nameof(_rulesDB.autoParseRuleScript);
+            autoParseRuleScript.bindingPath = nameof(RulesDB.autoParseRuleScript);
+            autoParseRuleScript.RegisterCallback<ChangeEvent<bool>>(evt => _rulesDB.SetUpFileWatcher(evt.newValue));
 
             Toggle multipleBestRules = mainRoot.Q<Toggle>("multipleBestRules");
             multipleBestRules.bindingPath = nameof(_rulesDB.PickMultipleBestRules);
@@ -70,11 +88,33 @@ public class RulesDBEditor : Editor
             Toggle debugLogMissingIDS = mainRoot.Q<Toggle>("debugLogMissingIDS");
             debugLogMissingIDS.bindingPath = nameof(_rulesDB.debugLogMissingIDS);
 
-            ListView generateDocFrom = mainRoot.Q<ListView>("generateDocFrom");
-            generateDocFrom.bindingPath = nameof(_rulesDB.generateDocumentationFrom);
 
-            ListView generateRuleFrom = mainRoot.Q<ListView>("generateRuleFrom");
+            generateDocFrom = mainRoot.Q<ListView>("generateDocFrom");
+            generateDocFrom.bindingPath = nameof(_rulesDB.generateDocumentationFrom);
+            generateRuleFrom = mainRoot.Q<ListView>("generateRuleFrom");
             generateRuleFrom.bindingPath = nameof(_rulesDB.generateRuleFrom);
+            
+            generateRuleFrom.itemsRemoved += index =>
+            {
+                RuleDBWorkaroundAccess = _rulesDB;
+                EditorApplication.update += RefreshFileWatchersForItemsChangedInFileListWorkaround;
+            };
+            generateRuleFrom.itemsAdded += indices =>
+            {
+                RuleDBWorkaroundAccess = _rulesDB;
+                EditorApplication.update += RefreshFileWatchersForItemsChangedInFileListWorkaround;
+            };
+            
+            generateDocFrom.itemsRemoved += index =>
+            {
+                RuleDBWorkaroundAccess = _rulesDB;
+                EditorApplication.update += RefreshFileWatchersForItemsChangedInFileListWorkaround;
+            };
+            generateDocFrom.itemsAdded += indices =>
+            {
+                RuleDBWorkaroundAccess = _rulesDB;
+                EditorApplication.update += RefreshFileWatchersForItemsChangedInFileListWorkaround;
+            };
 
             ruleFilter = mainRoot.Q<TextField>("ruleFilter");
             ruleListView = mainRoot.Q<ListView>("rules");
@@ -97,21 +137,13 @@ public class RulesDBEditor : Editor
             errorBox.style.display = DisplayStyle.None;
             errorBox.text = string.Empty;
 
+            CheckProblems(true);
+
             mainRoot.Add(RenderDefaultUIInFoldout(false));
 
+            _rulesDB.AutoParserTriggerForEditorUI = RunAutoParser;
             RuleDBListViewController.pingedRuleButtonAction = OnPingRuleButton;
             RuleDBListViewController.pingedDocButtonAction = OnPingDocButton;
-
-            if (_rulesDB.autoParseRuleScript)
-            {
-                problems?.ClearList();
-                problems = ParseRuleScripts();
-                EditorUtility.SetDirty(this);
-                AssetDatabase.SaveAssets();
-                AssetDatabase.Refresh();
-                CheckProblems(_rulesDB.autoParseRuleScript);
-                SetupRuleListView(ruleListView);
-            }
 
             return mainRoot;
         }
@@ -119,7 +151,42 @@ public class RulesDBEditor : Editor
         { throw new Exception("VisualTreeAssets not assigned"); }
     }
 
-    void UpdateRuleListView(ListView listView)
+    #region ListView itemsAdded callback workaround
+    /*
+     * Because , when we add items to the ListView, the UIToolkit gives us the callback prior to the
+     * data actually being populated, we have to use this workaround.
+     * As an example, if our list has A.txt and we add B.txt , we get a callback when our data contains
+     * A.txt [0] and A.txt[1] , if you press +1 on something in the inspector, Unity often duplicates the last element,
+     * so we probably get a callback for that event instead of getting it after it has actually written B.txt to the array.
+     * annoying. Oh well.
+     *
+     * Anyhow - after things have changed, we simply remove all file-listeners that we had,
+     * and add all new file listeners. Hypothesis , it should then only contain listeners for file assets in the RuleDB
+     */
+    private static RulesDB RuleDBWorkaroundAccess = null;
+    
+    private static void RefreshFileWatchersForItemsChangedInFileListWorkaround()
+    {
+        if (RuleDBWorkaroundAccess != null)
+        {
+            RuleDBWorkaroundAccess.SetUpFileWatcher();
+            RuleDBWorkaroundAccess = null;
+        }
+        EditorApplication.update -= RefreshFileWatchersForItemsChangedInFileListWorkaround;
+    }
+
+    #endregion
+
+    private void RunAutoParser(ProblemReporting problems)
+    {
+        Debug.Log($"We autoparsed {_rulesDB.name} updating UI");
+        problems?.ClearList();
+        this.problems = problems; 
+        CheckProblems(true);
+        SetupRuleListView(ruleListView); 
+    }
+
+    public void UpdateRuleListView(ListView listView)
     {
         if (_rulesDB.rules != null)
         {
@@ -241,12 +308,23 @@ public class RulesDBEditor : Editor
                 }
             }
         }
-
         return listOfData;
     }
 
     private void OnDestroy()
     {
+        if (ruleFilter != null)
+        {
+            ruleFilter.UnregisterCallback<ChangeEvent<string>>(evt =>
+            {
+                if (ruleListView != null)
+                {
+                    UpdateRuleListView(ruleListView);
+                }
+            });
+        }
+
+        _rulesDB.AutoParserTriggerForEditorUI -= RunAutoParser;
         RuleDBListViewController.pingedRuleButtonAction -= OnPingRuleButton;
         RuleDBListViewController.pingedDocButtonAction -= OnPingDocButton;
         mainRoot?.Clear();
@@ -343,14 +421,14 @@ public class RulesDBEditor : Editor
         int savedWarnings;
         string savedWarningsString;
 
-        if (errorDetected = problems.ContainsErrors(out int errors, out string errorsString))
+        if (errorDetected = problems.ContainsErrors(true, out int errors, out string errorsString))
         {
             savedErrors = errors;
             savedErrorsString = errorsString;
             errorBox.style.display = errorDetected ? DisplayStyle.Flex : DisplayStyle.None;
             errorBox.messageType = HelpBoxMessageType.Error;
             errorBox.text = $"{(autoParsed ? "Auto parsed:\n\n" : "")}" +
-                $"Encounter {savedErrors} error{(savedErrors > 1 ? "s" : "")}.{savedErrorsString}";
+                            $"Encounter {savedErrors} error{(savedErrors > 1 ? "s" : "")}.{savedErrorsString}";
             Debug.LogError($"Encounter {savedErrors} error{(savedErrors > 1 ? "s" : "")}.{savedErrorsString}");
 
             SetupRuleListView(ruleListView);
@@ -361,14 +439,14 @@ public class RulesDBEditor : Editor
             errorBox.text = string.Empty;
         }
 
-        if (warningDetected = problems.ContainsWarnings(out int warnings, out string warningsString))
+        if (warningDetected = problems.ContainsWarnings(true, out int warnings, out string warningsString))
         {
             errorBox.style.display = errorDetected ? DisplayStyle.Flex : DisplayStyle.None;
             savedWarnings = warnings;
             savedWarningsString = warningsString;
             warningBox.style.display = warningDetected ? DisplayStyle.Flex : DisplayStyle.None;
             warningBox.text = $"{(autoParsed ? "Auto parsed:\n\n" : "")}" +
-                $"Encounter {savedWarnings} warning{(savedWarnings > 1 ? "s" : "")}.{warningsString}";
+                              $"Encounter {savedWarnings} warning{(savedWarnings > 1 ? "s" : "")}.{warningsString}";
             Debug.LogWarning($"{(autoParsed ? "Auto parsed:" : "")} Encounter {savedWarnings} warning{(savedWarnings > 1 ? "s" : "")}.{savedWarningsString}");
         }
         else
@@ -382,7 +460,7 @@ public class RulesDBEditor : Editor
             errorBox.style.display = DisplayStyle.Flex;
             errorBox.messageType = HelpBoxMessageType.Info;
             errorBox.text = $"{(autoParsed ? "Auto parsed:\n\n" : "")}" +
-                "No problems detected :D";
+                            "No problems detected :D";
         }
     }
 
@@ -488,7 +566,7 @@ as much text as you want here.
         
         var floatTest = new string[]{"<",">","=","<=",">="};
         var stringTest= new string[]{"="};
-        StringWriter writer = new StringWriter();
+        StringWriter writer = new();
         for (int i = 0; i < numRules; i++)
         {
             writer.WriteLine($".test_rule_{i}");
@@ -673,24 +751,24 @@ as much text as you want here.
 
         if (!problems.ContainsErrorOrWarning())
         {
-        EditorUtility.SetDirty(_rulesDB);
-        AssetDatabase.SaveAssets();
-        AssetDatabase.Refresh();
-
-        string generatedName = StripNameIntoCamelCase(_rulesDB.name);
-        string defaultFilePath = "/Assets/FactMatcher/Generated";
-        #if UNITY_EDITOR_WIN
-        defaultFilePath = defaultFilePath.Replace("/", "\\");
-        #endif
-        defaultFilePath = Directory.GetCurrentDirectory() + defaultFilePath;
-        string fullFilePath = EditorUtility.SaveFilePanel("Auto generate C# script", defaultFilePath, generatedName, "cs");
-        string fileName = Path.GetFileName(fullFilePath);
-        if (fileName != "")
-        {
-            FactMatcherCodeGenerator.GenerateFactIDS(fullFilePath, GetNameSpaceName(), _rulesDB);
+            EditorUtility.SetDirty(_rulesDB);
+            AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
+
+            string generatedName = StripNameIntoCamelCase(_rulesDB.name);
+            string defaultFilePath = "/Assets/FactMatcher/Generated";
+#if UNITY_EDITOR_WIN
+            defaultFilePath = defaultFilePath.Replace("/", "\\");
+#endif
+            defaultFilePath = Directory.GetCurrentDirectory() + defaultFilePath;
+            string fullFilePath = EditorUtility.SaveFilePanel("Auto generate C# script", defaultFilePath, generatedName, "cs");
+            string fileName = Path.GetFileName(fullFilePath);
+            if (fileName != "")
+            {
+                FactMatcherCodeGenerator.GenerateFactIDS(fullFilePath, GetNameSpaceName(), _rulesDB);
+                AssetDatabase.Refresh();
+            }
         }
-    }
         else
         {
             CheckProblems();
@@ -710,7 +788,7 @@ as much text as you want here.
         try
         {
             var stripEm = new[] {' ', '.'};
-            StringBuilder genName = new StringBuilder();
+            StringBuilder genName = new();
             foreach (var strippy in stripEm)
             {
                 genName.Clear();
@@ -729,7 +807,7 @@ as much text as you want here.
         }
         catch (Exception e)
         {
-            Debug.LogError($"Failed Stripping Name Into Camel case for {name} with exception {e.ToString()}");
+            Debug.LogError($"Failed Stripping Name Into Camel case for {name} with exception {e}");
             return name;
         }
     }
