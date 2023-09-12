@@ -255,6 +255,7 @@ public class FactInDocument
     public string FactSummary;
     public bool IgnoreNumber;
     public List<string> FactCanBe;
+    public List<string> EnumNames;
 
     public FactInDocument(FactInDocument fact = null)
     {

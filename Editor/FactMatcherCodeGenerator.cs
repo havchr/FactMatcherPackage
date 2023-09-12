@@ -12,8 +12,10 @@ public class FactMatcherCodeGenerator
     {
 		List<string> allKnownFacts = ExtractAllKnownFactNames(rulesDB);
 		List<string> allKnownFactStrings = ExtractAllKnownFactStrings(rulesDB);
+		List<string> allKnownEnums = ExtractAllKnownEnums(rulesDB);
         List<string> allKnownRules = ExtractAllKnownRuleNames(rulesDB);
-		string classContents = BuildClassContents(namespaceName, allKnownFacts, allKnownRules, allKnownFactStrings);
+		 
+		string classContents = BuildClassContents(namespaceName, allKnownFacts, allKnownRules, allKnownFactStrings,allKnownEnums);
 
 		string directoryPath = Path.GetDirectoryName(fullFilePath);
 		string fileName = Path.GetFileName(fullFilePath);
@@ -23,6 +25,23 @@ public class FactMatcherCodeGenerator
 		#endif
 
 		File.WriteAllText(fullFilePath, classContents);
+    }
+
+    private static List<string> ExtractAllKnownEnums(RulesDB rulesDB)
+    {
+	    
+		 List<string> result = new();
+		 foreach (var doc in rulesDB.documentations)
+		 {
+			 foreach (var fact in doc.Facts)
+			 {
+				 foreach (var enumName in fact.EnumNames)
+				 {
+					 result.Add(enumName);
+				 }
+			 }
+		 }
+		 return result;
     }
 
     private static List<string> ExtractAllKnownRuleNames(RulesDB rulesDB)
@@ -73,7 +92,7 @@ public class FactMatcherCodeGenerator
 		return factListNames.SortByInt();
 	}
 
-	private static string BuildClassContents(string namespaceName, List<string> facts, List<string> rules, List<string> factStrings)
+	private static string BuildClassContents(string namespaceName, List<string> facts, List<string> rules, List<string> factStrings,List<string> enumNames)
     {
         string tabs = "\t";
         StringBuilder stringBuilder = new();
@@ -102,7 +121,7 @@ public class FactMatcherCodeGenerator
             variables.Add(structName, new List<string>());
         }
 
-        stringBuilder.Append(GenerateStructs(structs, tabs));
+        stringBuilder.Append(GenerateStructs(structs,enumNames,tabs));
 		stringBuilder.AppendLine();
 
 		stringBuilder.AppendLine(GeneratePublicVariables(variables, out List<string> variableNames));
@@ -139,7 +158,7 @@ public class FactMatcherCodeGenerator
         return result;
     }
 
-	private static string GenerateStructs(Dictionary<string, List<string>> structs, string tabs = "\t")
+	private static string GenerateStructs(Dictionary<string, List<string>> structs,List<string> enumNames, string tabs = "\t")
     {
 		string result = string.Empty;
 		foreach(var function in structs)
@@ -148,6 +167,15 @@ public class FactMatcherCodeGenerator
             List<string> variableNames = structs[functionName].ToList();
             List<string> contains = GeneratePublicInts(variableNames);
 			List<string> variableAssignment = GenerateGetGivenFromFactMatcher(variableNames, functionName.Remove(functionName.Length - 1));
+			if (function.Key.Equals("StringIDS"))
+			{
+				foreach (var enumName in enumNames)
+				{
+					string varName = $"{enumName}StringIDS";
+					contains.Add($"public int[] {varName};");
+					variableAssignment.Add($"{varName} = FactMatching.Functions.CreateStringIDSFromEnum(factMatcher, typeof({enumName}));");	
+				}
+			}
 			contains.Add("\n" + GeneratePublicFunction(functionName, "FactMatcher factMatcher", variableAssignment, tabs + tabs));
 			result += "\n" + GeneratePublicStruct(tabs, functionName, contains);
 		}

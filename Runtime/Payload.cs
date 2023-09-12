@@ -66,7 +66,7 @@ public class Payload
                 index++;
             }
 
-            if (parsingKeyword)
+            if (parsingKeyword && character != '\n')
             {
                 keyword += character;
             }

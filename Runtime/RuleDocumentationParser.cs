@@ -198,22 +198,26 @@ namespace FactMatching
                 {
                     string[] lineSplit = line.Split(' ');
                     string factName = string.Join("_", lineSplit.Skip(1));
-                    facts.Add(new()
+
+                    FactInDocument fact = new()
                     {
                         factName = factName,
                         LineNumber = _lineNumber,
                         FactID = factID++,
                         FactSummary = ParseSummary(),
                         IgnoreNumber = factName.Contains(ignoreNumSymbol),
-                        FactCanBe = GetListOfFactCanBe(),
-                    });
+                        FactCanBe = GetListOfFactCanBe(out List<string> enumNames),
+                    };
+                    fact.EnumNames = enumNames;
+                    facts.Add(fact);
                 }
             }
             return facts;
         }
 
-        private static List<string> GetListOfFactCanBe()
+        private static List<string> GetListOfFactCanBe(out List<string> enumNames)
         {
+            enumNames = new List<string>();
             if (WhatIsNextParser() == RuleDocParserKeyword.KeywordFACT_CAN_BE)
             {
                 List<string> canBe = new();
@@ -227,6 +231,7 @@ namespace FactMatching
                         Array enumValues = GetEnumValuesFromEnumName(enumName);
                         if (enumValues != null)
                         {
+                            enumNames.Add(enumName);
                             foreach (var enumValue in enumValues)
                             {
                                 canBe.Add(enumValue.ToString());
