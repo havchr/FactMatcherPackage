@@ -1,0 +1,25 @@
+.rule_1 IF
+    test1 = True
+    test2 = True
+.THEN WRITE
+    testWrite1 = True
+.THEN RESPONSE
+rule_1 matches
+.END
+
+.rule_2 IF
+    test1 = True
+    test2 = True
+.THEN WRITE
+    testWrite2 = True
+.THEN RESPONSE
+rule_2 matches
+.END
+
+.rule_3 IF
+    test1 = True
+.THEN WRITE
+    testWrite3 = True
+.THEN RESPONSE
+rule_3 matches
+.END

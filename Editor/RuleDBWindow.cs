@@ -134,7 +134,7 @@ public class RuleDBWindow : EditorWindow
         {
             _factMatcherSelfAllocated = true;
             _factMatcher = new FactMatcher(rulesDB);
-            _factMatcher.Init(countAllMatches: true);
+            _factMatcher.Init();
             InitUIWithFactMatcher(content,_factMatcher);
         }
     }
@@ -212,7 +212,7 @@ public class RuleDBWindow : EditorWindow
 
         pickRuleButton.RegisterCallback<ClickEvent>(evt => // When pickRuleButton is pressed
         {
-            _factMatcher.PickRules();
+            _factMatcher.PickBestRule();
         });
 
         var saveButton = content.Q<Button>("SaveToFile");

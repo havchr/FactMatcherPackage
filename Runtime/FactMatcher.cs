@@ -18,6 +18,8 @@ public class FactMatcher
     public Action OnInited;
     public Action<int> OnRulePicked;
     public Action<int> OnRulePeeked;
+    public Action<int> OnValidRulePicked;
+    public Action<int> OnValidRulePeeked;
     public const int NotSetValue = -1;
     public RulesDB ruleDB;
     private NativeArray<float> _factValues;
@@ -25,10 +27,11 @@ public class FactMatcher
     private NativeArray<FactTest> _factTests;
     private NativeArray<int> _bestRule;
     private NativeArray<int> _bestRuleMatches;
-    private NativeArray<int> _allRuleIndices;
-    private NativeArray<int> _allRulesMatches;
+    private NativeArray<int> _allValidRuleIndices;
+    private NativeArray<int> _allBestRulesIndices;
     private NativeArray<int> _allMatchesForAllRules;
     private NativeArray<int> _noOfRulesWithBestMatch;
+    private NativeArray<int> _noOfValidRules;
     private NativeArray<Settings> _settings;
     private NativeArray<int> _slice;
     private FactMatcherMatch _cachedJob;
@@ -114,7 +117,7 @@ public class FactMatcher
         return _factValues[factTest.factID].ToString();
     }
 
-    public void Init(bool countAllMatches=false)
+    public void Init()
     {
         ruleDB.InitRuleDB();
         _factValues = new NativeArray<float>(ruleDB.CountNumberOfFacts(),Allocator.Persistent);
@@ -135,21 +138,23 @@ public class FactMatcher
         
         //if our setting is not in need of these - we could ditch/Skip allocating them, but optimize that later if you feel like it.
         //We need them if we want to FactWrite to all Rules that has matches (irrespective of amount of matches) - see ruleDB.FactWriteToAllThatMatches
-        _allRuleIndices = new NativeArray<int>(_rules.Length,Allocator.Persistent);
+        _allValidRuleIndices = new NativeArray<int>(_rules.Length,Allocator.Persistent);
        
         //if we have four rules that all match with 2 - and that is our best match - four is stored in _noOfRulesWithBestMatch
         _noOfRulesWithBestMatch = new NativeArray<int>(1,Allocator.Persistent);
+        _noOfValidRules = new NativeArray<int>(1,Allocator.Persistent);
+        
         //folowing that same example - _bestRuleMatches is 2
         _bestRuleMatches = new NativeArray<int>(1,Allocator.Persistent);
         //to read out these four rules from our example - expect to find their indices in _allRulesMatches[0 - 3]
-        _allRulesMatches = new NativeArray<int>(_rules.Length,Allocator.Persistent);
+        _allBestRulesIndices = new NativeArray<int>(_rules.Length,Allocator.Persistent);
         
         //counts amount of facts that matches for a given rule-index, encoded such that negative values
         //indicates that at least one rule did not match.
         _allMatchesForAllRules= new NativeArray<int>(_rules.Length,Allocator.Persistent);
         
         _settings = new NativeArray<Settings>(1,Allocator.Persistent);
-        _settings[0] = new Settings(ruleDB.FactWriteToAllThatMatches,countAllMatches);
+        _settings[0] = new Settings(false,false);
         
         _slice = new NativeArray<int>(2,Allocator.Persistent);
         _slice[0] = 0;
@@ -172,10 +177,11 @@ public class FactMatcher
             bytes += _factTests.Length * FactTest.SizeInBytes();
             bytes += _bestRule.Length * sizeof(int);
             bytes += _bestRuleMatches.Length * sizeof(int);
-            bytes += _allRuleIndices.Length * sizeof(int);
-            bytes += _allRulesMatches.Length * sizeof(int);
+            bytes += _allValidRuleIndices.Length * sizeof(int);
+            bytes += _allBestRulesIndices.Length * sizeof(int);
             bytes += _allMatchesForAllRules.Length * sizeof(int);
             bytes += _noOfRulesWithBestMatch.Length * sizeof(int);
+            bytes += _noOfValidRules.Length * sizeof(int);
             bytes += _noOfRulesWithBestMatch.Length * Settings.SizeInBytes();
             bytes += _slice.Length * sizeof(int);
             return bytes;
@@ -191,67 +197,164 @@ public class FactMatcher
             ruleValid = false;
             return 0;
         }
-        PickRules(false, false);
-        ruleValid = _allMatchesForAllRules[ruleID] <= 0;
+        PeekAllValidRules(true);
+        ruleValid = _allMatchesForAllRules[ruleID] >= 0;
         return Mathf.Abs(_allMatchesForAllRules[ruleID]);
     }
-    public int PickRulesInBucket(BucketSlice bucketSlice)
+    
+         
+    // - only picks one rule only does factWrite only on that rule
+    public RuleDBEntry PickBestRule(bool fireListener=true)
     {
-        if (_inReload)
+        var amountOfBestRules = PeekBestRules(false);
+        if (amountOfBestRules > 0)
         {
-            return 0;
+            RuleDBEntry entry = GetRuleFromMatches(0);
+            HandleFactWrites(entry);
+            if (fireListener)
+            {
+                OnRulePicked?.Invoke(entry.RuleID);
+            }
+            return entry;
         }
-        if (!bucketSlice.IsNullBucket())
-        {
-            bucketSlice.ApplyBucket(this);
-            return PickRules(true, true, bucketSlice.startIndex, bucketSlice.endIndex);
-        }
-        return 0;
-    }
-    public RuleDBEntry PickRuleInBucket(BucketSlice bucketSlice)
-    {
-        int result = PickRulesInBucket(bucketSlice);
-        if (result > 0)
-        {
-            return GetRuleFromMatches(0);
-        }
+
         return null;
     }
     
-    public int PeekRulesInBucket(BucketSlice bucketSlice)
+    /*
+     *Picks Best rules,
+     * ie , all rules picked have share highest match score
+     * It then runs FactWrite on all these rules
+     * FactWrite on all rules 
+     */
+    public int PickBestRules(bool fireListener=true)
+    {
+        int rules = PeekBestRules(false);
+        for (int i = 0; i < rules; i++)
+        {
+            RuleDBEntry rule = GetRuleFromMatches(i);
+            HandleFactWrites(rule);
+            if (fireListener)
+            {
+                OnRulePicked?.Invoke(rule.RuleID);
+            }
+        }
+        return rules;
+    }
+    
+    public int PickBestRulesInBucket(BucketSlice bucketSlice,bool fireListener=true)
+    {
+        int rules = PeekBestRulesInBucket(bucketSlice);
+        for (int i = 0; i < rules; i++)
+        {
+            RuleDBEntry rule = GetRuleFromMatches(i);
+            HandleFactWrites(rule);
+            if (fireListener)
+            {
+                OnRulePicked?.Invoke(rule.RuleID);
+            }
+        }
+        return rules;
+    }
+    
+    public RuleDBEntry PickBestRuleInBucket(BucketSlice bucketSlice,bool fireListener=true)
+    {
+        RuleDBEntry rule = PeekBestRuleInBucket(bucketSlice);
+        if (rule != null)
+        {
+            HandleFactWrites(rule);
+            if (fireListener)
+            {
+                OnRulePicked?.Invoke(rule.RuleID);
+            }
+        }
+        return rule;
+    }
+    
+    public int PeekBestRulesInBucket(BucketSlice bucketSlice,bool fireListener=true)
     {
         if (_inReload)
         {
             return 0;
         }
+
+        int rules = 0;
         if (!bucketSlice.IsNullBucket())
         {
             bucketSlice.ApplyBucket(this);
-            return PickRules(false, true, bucketSlice.startIndex, bucketSlice.endIndex);
+            rules = PeekBestRules(false,bucketSlice.startIndex, bucketSlice.endIndex);
+            if (fireListener)
+            {
+                for (int i = 0; i < rules; i++)
+                {
+                    RuleDBEntry entry = GetRuleFromMatches(i);
+                    OnRulePeeked?.Invoke(entry.RuleID);
+                }
+            }
         }
-        return 0;
+        return rules;
     }
-    public RuleDBEntry PeekRuleInBucket(BucketSlice bucketSlice)
+    public RuleDBEntry PeekBestRuleInBucket(BucketSlice bucketSlice,bool fireListener=true)
     {
-        int result = PeekRulesInBucket(bucketSlice);
-        if (result > 0)
+        RuleDBEntry peekedRule = null;
+        if (_inReload)
         {
-            return GetRuleFromMatches(0);
+            return peekedRule;
         }
-        return null;
+        if (!bucketSlice.IsNullBucket())
+        {
+            bucketSlice.ApplyBucket(this);
+            int rules = PeekBestRules(false,bucketSlice.startIndex, bucketSlice.endIndex);
+            if (rules> 0)
+            {
+                peekedRule = GetRuleFromMatches(0);
+                if (fireListener && peekedRule!=null)
+                {
+                   OnRulePeeked?.Invoke(peekedRule.RuleID); 
+                }
+            }
+        }
+        return peekedRule;
     }
 
-    public RuleDBEntry PeekBestRule()
+    //peeks best rule - but does not do any factWrites
+    public RuleDBEntry PeekBestRule(bool fireListeners=true)
     {
-            
-        var amountOfBestRules = PickRules(false);
+        var amountOfBestRules = PeekBestRules(false);
         if (amountOfBestRules > 0)
         {
-            return GetRuleFromMatches(0);
+            RuleDBEntry entry = GetRuleFromMatches(0);
+            if (entry != null && fireListeners)
+            {
+                OnRulePeeked?.Invoke(entry.RuleID);
+            }
+            return entry;
         }
         return null;
     }
-    public int PickRules(bool factWrites=true,bool fireListener=true,int startIndex=0,int endIndex=-1) // Pick the best matching rule
+        
+    // Pick the best matching rule
+    public int PeekBestRules(bool fireListeners=true,int startIndex=0,int endIndex=-1)
+    {
+        int rules = PeekRules(false, false, startIndex, endIndex);
+        for(int i=0; i < rules; i++)
+        {
+            RuleDBEntry entry = GetRuleFromMatches(i);
+            if (entry != null && fireListeners)
+            {
+                OnRulePeeked?.Invoke(entry.RuleID);
+            }
+        }
+        return rules;
+    }
+    
+    public int PeekAllValidRules(bool countAllMatches=false,int startIndex=0,int endIndex=-1)
+    {
+        //GetRuleFromMatches(0);
+        return PeekRules(true, countAllMatches, startIndex, endIndex);
+    }
+    
+    public int PeekRules(bool checkAllRules,bool countAllMatches,int startIndex=0,int endIndex=-1) 
     {
         if (_inReload)
         {
@@ -264,6 +367,7 @@ public class FactMatcher
         }
         _slice[0] = startIndex;
         _slice[1] = endIndex == -1 ? _rules.Length : (endIndex+1);
+        _settings[0] = new Settings(checkAllRules,countAllMatches);
 
         if (!hasCachedJob)
         {
@@ -275,60 +379,72 @@ public class FactMatcher
                 Rules = _rules,
                 BestRule = _bestRule,
                 BestRuleMatches = _bestRuleMatches,
-                AllEmRulesIndices = _allRuleIndices,
-                AllEmRulesMatches =  _allRulesMatches,
+                AllValidRulesIndices = _allValidRuleIndices,
+                AllBestRulesIndices =  _allBestRulesIndices,
                 AllMatchesForAllRules = _allMatchesForAllRules,
                 NoOfRulesWithBestMatch = _noOfRulesWithBestMatch,
+                NoOfValidRules = _noOfValidRules,
                 slice = _slice,
                 Settings = _settings
-                
             };
         }
         _cachedJob.Execute();
-        if (factWrites)
-        {
-            HandleFactWrites(_slice[0],_slice[1]);
-        }
-
-        if (fireListener)
-        {
-            if (factWrites)
-            {
-                OnRulePicked?.Invoke(_noOfRulesWithBestMatch[0]);
-            }
-            else
-            {
-                OnRulePeeked?.Invoke(_noOfRulesWithBestMatch[0]);
-            }
-        }
         return _noOfRulesWithBestMatch[0];
     }
 
-    private void HandleFactWrites(int sliceStart,int slicePastEnd)
+    public int PeekValidRulesInBucket(BucketSlice bucketSlice,bool fireListeners = true)
     {
-
-        if (!ruleDB.FactWriteToAllThatMatches)
+        if (!bucketSlice.IsNullBucket())
         {
-            for (int i = 0; i < _noOfRulesWithBestMatch[0]; i++)
+            bucketSlice.ApplyBucket(this);
+            int rules = PeekValidRules(fireListeners,bucketSlice.startIndex, bucketSlice.endIndex);
+            return rules;
+        }
+        return 0;
+    }
+    public int PickValidRulesInBucket(BucketSlice bucketSlice,bool fireListeners = true )
+    {
+        int validRules = PeekValidRulesInBucket(bucketSlice, false);
+        for (int i = 0; i < validRules; i++)
+        {
+            RuleDBEntry rule = GetRuleFromValidMatches(i);
+            HandleFactWrites(rule);
+            if (fireListeners)
             {
-                int ruleIndex = _allRulesMatches[i];
-                if (ruleIndex >= sliceStart && ruleIndex < slicePastEnd)
-                {
-                    HandleFactWrites(ruleDB.RuleFromID(_rules[_allRulesMatches[i]].ruleFiredEventId));
-                }
+                OnValidRulePicked?.Invoke(rule.RuleID);
             }
         }
-        else
+        return validRules;
+    }
+    
+    // Pick all valid rules i.e rules that has no failed tests.
+    public int PeekValidRules(bool fireListeners=true,int startIndex=0,int endIndex=-1)
+    {
+        PeekRules(true, false, startIndex, endIndex);
+        if (fireListeners)
         {
-            for (int i = sliceStart; i < slicePastEnd; i++)
+            for (int i = 0; i < _noOfValidRules[0]; i++)
             {
-                int ruleIndex = _allRuleIndices[i];
-                if (ruleIndex != NotSetValue && ruleIndex >= sliceStart && ruleIndex < slicePastEnd)
-                {
-                    HandleFactWrites(ruleDB.RuleFromID(_rules[_allRuleIndices[i]].ruleFiredEventId));
-                }
+                RuleDBEntry rule = GetRuleFromValidMatches(i);
+                OnValidRulePeeked?.Invoke(rule.RuleID);
             }
         }
+        return _noOfValidRules[0];
+    }
+    
+    public int PickValidRules(bool fireListeners=true,int startIndex=0,int endIndex=-1)
+    {
+        PeekRules(true, false, startIndex, endIndex);
+        for (int i = 0; i < _noOfValidRules[0]; i++)
+        {
+            RuleDBEntry rule = GetRuleFromValidMatches(i);
+            HandleFactWrites(rule);
+            if (fireListeners)
+            {
+                OnValidRulePicked?.Invoke(rule.RuleID);
+            }
+        }
+        return _noOfValidRules[0];
     }
 
     public void HandleFactWrites(RuleDBEntry rule)
@@ -448,15 +564,18 @@ public class FactMatcher
         }
     }
     
-    public RuleDBEntry PickBestRule()
+    public int GetNumberOfMatchesInBestMatch()
     {
-        var amountOfBestRules = PickRules();
-        if (amountOfBestRules > 0)
+        return _bestRuleMatches[0];
+    }
+    
+    public int GetNumberOfMatchesFromMatches(int ruleIndex)
+    {
+        if (_settings[0].CountAllFactMatches && _settings[0].CheckAllRules)
         {
-            return GetRuleFromMatches(0);
+            return _allMatchesForAllRules[ruleIndex];
         }
-
-        return null;
+        return 0;
     }
     
     public RuleDBEntry GetRuleFromMatches(int matchIndex)
@@ -468,9 +587,19 @@ public class FactMatcher
         }
         if (matchIndex >= 0 && matchIndex < _noOfRulesWithBestMatch[0])
         {
-            return ruleDB.RuleFromID(_rules[_allRulesMatches[matchIndex]].ruleFiredEventId);
+            return ruleDB.RuleFromID(_rules[_allBestRulesIndices[matchIndex]].ruleFiredEventId);
         }
         return null;
+    }
+    
+    public RuleDBEntry GetRuleFromValidMatches(int matchIndex)
+    {
+        if (_inReload)
+        {
+            Debug.Log("In reload");
+            return null;
+        }
+        return ruleDB.RuleFromID(_rules[_allValidRuleIndices[matchIndex]].ruleFiredEventId);
     }
 
     public int StringID(string str)
@@ -531,8 +660,8 @@ public class FactMatcher
         _factTests.Dispose();
         _bestRule.Dispose();
         _bestRuleMatches.Dispose();
-        _allRuleIndices.Dispose();
-        _allRulesMatches.Dispose();
+        _allValidRuleIndices.Dispose();
+        _allBestRulesIndices.Dispose();
         _allMatchesForAllRules.Dispose();
         _noOfRulesWithBestMatch.Dispose();
         _settings.Dispose();

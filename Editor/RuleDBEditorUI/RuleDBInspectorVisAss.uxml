@@ -3,8 +3,6 @@
         <ui:Label text="RuleDB" display-tooltip-when-elided="true" name="title" style="font-size: 30px; -unity-text-align: middle-center; border-bottom-color: rgb(47, 47, 47); border-bottom-width: 5px; text-shadow: -1px 1px 1px rgba(0, 0, 0, 0.62); flex-shrink: 1; flex-grow: 1; -unity-font-style: bold; letter-spacing: 1px; margin-bottom: 5px;" />
         <ui:VisualElement class="autoVisual" style="font-size: 13px;">
             <ui:Toggle label="Auto parse rule script" name="autoParseRuleScript" class="autoWrap" style="flex-direction: row-reverse;" />
-            <ui:Toggle label="Pick multiple best rules" name="multipleBestRules" class="autoWrap" style="flex-direction: row-reverse;" />
-            <ui:Toggle label="Fact write to all that matches" name="writeToAllMatches" binding-path="FactWriteToAllThatMatchesFactWriteToAllThatMatches" class="autoWrap" style="flex-direction: row-reverse;" />
             <ui:Toggle label="Ignore Documentation Demand" name="ignoreDoc" class="autoWrap" style="flex-direction: row-reverse;" />
             <ui:Toggle label="Debug Log Missing IDS" name="debugLogMissingIDS" class="autoWrap" style="flex-direction: row-reverse;" />
             <ui:ListView virtualization-method="DynamicHeight" reorder-mode="Animated" show-add-remove-footer="true" show-foldout-header="true" header-title="Generate documentation from" name="generateDocFrom" show-border="true" style="padding-bottom: 10px;" />

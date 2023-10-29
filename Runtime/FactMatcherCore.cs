@@ -24,9 +24,9 @@ namespace FactMatching
     public struct Settings 
     {
 
-        public Settings(bool factWriteToAllMatches,bool countAllMatches)
+        public Settings(bool checkAllRules,bool countAllMatches)
         {
-            this.FactWriteToAllMatches = factWriteToAllMatches;
+            this.CheckAllRules = checkAllRules;
             CountAllFactMatches = countAllMatches;
         }
         
@@ -40,7 +40,7 @@ namespace FactMatching
             return sizeof(bool) * 2;;
         }
 
-        public bool FactWriteToAllMatches;
+        public bool CheckAllRules;
         public bool CountAllFactMatches;
     }
     

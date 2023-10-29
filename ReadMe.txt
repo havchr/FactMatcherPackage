@@ -17,6 +17,28 @@ To initialize a RuleDB and start picking rules and manipulating facts,
 the FactMatcher class, is what you use.
 
 
+==Update to API==
+There has been some updates to the API to make it more expressive from the application side of things.
+There is now a distinction of Picking rules, and peeking rules. If you Pick - then the rule-write-back system,
+will run for each rule you picked. If you Pick one single best rule, only that rule will write back with FactWrites.
+Here is the Gist of it : 
+PickBestRule - only write back to one rule
+PickBestRules - write back to all rules that share the same bestMatch
+PeekBestRule - return bestRule but do not write back to the system
+PeekBestRules - return best rules - ie all rules sharing the same best match
+PickAllValidRules - return number of valid rules, and run write-backs on all rules that have no failed tests
+PeekAllValidRule - return number of valid rules, do not run write-back on them
+
+GetRuleFromMatches(index) returns the rule , i.e if you have 
+numRules = peekBestRules() // 2
+then GetRuleFromMatches(0) and GetRuleFromMatches(1) would work.
+
+to get the rules after running a "PeekAllValidRules" , use 
+GetRuleFromValidMatches(index) where index is lower than result from PeekAllValidRules
+
+
+
+
 To create rules - FactMatcher parses text files called RuleScripts, which follows this syntax:
 
 -- This is comment.

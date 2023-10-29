@@ -15,289 +15,284 @@ using FactMatching;
 
 public class FactMatcherTest  
 {
-    public enum FactSymbols
-    {
-        HealthLevel,
-        IsBeingShotAt,
-        PinModeCounter,
-        RecordingModeCounter,
-        HintNotShownOnSlamCounter,
-        Concept
-    }
-    
-    public enum ConceptSymbol 
-    {
-        OnHit,
-        OnSlam
-    }
 
+   /*
+    * Testing that
+         * PickBestRule - only picks one rule only does one factWrite on that rule
+         * PeekBestRule - same as PickBestRule - but without FactWrite
+    */
+   
     [Test]
-    public void TestPerformance10kWorldFacts100RulesWithNativeArrays()
+    public void TestPickBestRuleIn10_000_rules_dataset()
     {
-        int worldFacts = 10000;
-        int numORules = 100;
-        PerfTestNativeFactChecker(worldFacts, numORules);
-    }
-    
-    [Test]
-    public void TestPerformance10kWorldFacts1000RulesWithNativeArrays()
-    {
-        int worldFacts = 10000;
-        int numORules = 1000;
-        PerfTestNativeFactChecker(worldFacts, numORules);
-    }
-    
-    [Test]
-    public void TestPerformance10kWorldFacts10000RulesWithNativeArrays()
-    {
-        int worldFacts = 10000;
-        int numORules = 10000;
-        PerfTestNativeFactChecker(worldFacts, numORules);
-    }
-
-    
-    private void PerfTestNativeFactChecker(int worldFacts, int numORules)
-    {
+        
         var sw = new Stopwatch();
         sw.Start();
 
-        sw.Stop();
-        Debug.Log($"took {sw.ElapsedMilliseconds} ms to add {worldFacts} Facts");
-
-
-        sw = new Stopwatch();
-        sw.Start();
+        RulesDB rulesDB = Resources.Load<RulesDB>("FactMatcherTestResources/Test_10_000_rules_dataset");
+        FactMatcher matcher = new FactMatcher(rulesDB);
+        matcher.Init();
         
-        Functions.CreateMockRules(worldFacts,numORules,out var rules,out var atoms,out var facts);
-        var nativeRules = new NativeArray<FactMatching.Rule>(rules.Count, Allocator.Persistent);
-        var nativeAtoms= new NativeArray<FactMatching.FactTest>(atoms.Count, Allocator.Persistent);
-        var nativeFacts = new NativeArray<float>(facts.Count, Allocator.Persistent);
-        for (int i=0; i < nativeRules.Length; i++)
-        {
-            nativeRules[i] = rules[i];
-        }
-        for (int i=0; i < nativeAtoms.Length; i++)
-        {
-            nativeAtoms[i] = atoms[i];
-        }
-        for (int i=0; i < nativeFacts.Length; i++)
-        {
-            nativeFacts[i] = facts[i];
-        }
-        
+        Debug.Log($"took {sw.ElapsedMilliseconds} ms to load {matcher.ruleDB.rules.Count} rules");
         sw.Stop();
-        Debug.Log($"took {sw.ElapsedMilliseconds} ms to add {numORules} rules");
-        FactMatching.Rule bestRule = new FactMatching.Rule(-1,0,0);
 
 
-        int howManyRulesToPick = 50;
-        sw = new Stopwatch();
         sw.Start();
-        int matches = -1;
-        for (int i = 0; i < howManyRulesToPick; i++)
-        {
-            matches = PickBestRule(nativeRules,nativeAtoms,nativeFacts, ref bestRule);
-        }
-
+        int mutations = 1000;
+        FactMatching.RuleScriptGenerator.MutateRuleScriptTestData(matcher, mutations);
+        Debug.Log($"took {sw.ElapsedMilliseconds} ms to mutate {mutations} - {matcher.ruleDB.rules.Count} rules");
         sw.Stop();
-        nativeAtoms.Dispose();
-        nativeFacts.Dispose();
-        nativeRules.Dispose();
-        Debug.Log(
-            $"Picking {howManyRulesToPick} bestMatch rules in {worldFacts} facts with {numORules} rules , took {sw.ElapsedMilliseconds} milliseconds");
-        Debug.Log($"Our best rule is {bestRule.ruleFiredEventId} with {matches} matches");
-    }
-
-
-    int PickBestRule(NativeArray<FactMatching.Rule> rules,
-        NativeArray<FactMatching.FactTest> atoms,
-        NativeArray<float> facts,
-        ref FactMatching.Rule bestMatch)
-    {
-       
-        int ruleI = 0;
-        int currentBestMatch = 0;
-        int bestRuleIndex = -1;
-        for (ruleI = 0; ruleI < rules.Length; ruleI++)
+        
+        sw.Start();
+        RuleDBEntry rule = matcher.PickBestRule();
+        if (rule != null)
         {
-            var rule = rules[ruleI];
-            int howManyAtomsMatch = 0;
-            //if (rule.atoms.Length > currentBestMatch)
-            if (true)
-            {
-                    int orGroupHits = 0;
-                    int orGroupMisses= 0;
-                    int lastOrGroup = -1;
-                    int lastIndex = rule.factTestIndex + rule.numOfFactTests;
-                    
-                    for (int j = rule.factTestIndex; j < (lastIndex); j++)
-                    {
-                        var atom = atoms[j];
-                        if(lastOrGroup != atom.orGroupRuleID)
-                        {
-                            if (lastOrGroup != -1 && orGroupHits==0)
-                            {
-                                howManyAtomsMatch = 0;
-                                break;
-                            }
-                            orGroupHits = 0;
-                        }
-
-                        if (FactMatching.Functions.Predicate(in atom.compare, facts[atom.factID]))
-                        {
-                            if (atom.orGroupRuleID != -1)
-                            {
-                                orGroupHits++;
-                                if (orGroupHits == 1)
-                                {
-                                    howManyAtomsMatch++;
-                                }
-                            }
-                            else
-                            {
-                                orGroupHits = 0;
-                                howManyAtomsMatch++;
-                            }
-                        }
-                        else if (atom.strict)
-                        {
-                            //missing - in a group.
-                            if (atom.orGroupRuleID != -1)
-                            {
-                                orGroupMisses++;
-                                if (j == lastIndex - 1 && orGroupHits==0)
-                                {
-                                    howManyAtomsMatch = 0;
-                                    orGroupHits = 0;
-                                    break;
-                                }
-                            }
-                            //missing - not in a group.
-                            else
-                            {
-                                //missing not in a group but last was group
-                                if (lastOrGroup != -1 && orGroupHits==0)
-                                {
-                                    howManyAtomsMatch = 0;
-                                }
-                                howManyAtomsMatch = 0;
-                                orGroupHits = 0;
-                                break;
-                            }
-                        }
-
-                        lastOrGroup = atom.orGroupRuleID;
-
-                    }
-
-                if (howManyAtomsMatch > currentBestMatch)
-                {
-                    currentBestMatch = howManyAtomsMatch;
-                    bestRuleIndex = ruleI;
-                }
-            }
+            int matches = 0;
+            matches = matcher.GetNumberOfMatchesInBestMatch();
+            Debug.Log($"took {sw.ElapsedMilliseconds} ms to pick best rule {rule.ruleName} with {matches} matches among {matcher.ruleDB.rules.Count} rules");
         }
-
-        if (bestRuleIndex != -1)
+        else
         {
-            bestMatch = rules[bestRuleIndex];
+            Debug.Log($"took {sw.ElapsedMilliseconds} ms to pick best rules among {matcher.ruleDB.rules.Count} rules");
         }
-
-        return currentBestMatch;
-    }
-
-   
-    [Test]
-    public void TestEqualsHighNumber()
-    {
-        float x = 123456f;
-        float y = 123456f;
-        float epsiFact = 0.0001f;
-        Assert.IsTrue(Functions.Predicate(FactMatching.FactCompare.EqualsEpsi(x,epsiFact),y));
-        y = 1234567.9f;
-        Assert.IsFalse(Functions.Predicate(FactMatching.FactCompare.Equals(x),y));
-
+        sw.Stop();
+        matcher.DisposeData();
     }
     
     [Test]
-    public void TestNotEquals()
+    public void TestPickBestRuleIn_1000_rules_dataset()
     {
-        var compare = FactMatching.FactCompare.NotEquals(1.0f);
-        Assert.IsFalse(Functions.Predicate(in compare,1.0f));
-        Assert.IsTrue(Functions.Predicate(in compare,2.0f));
-    }
-    [Test]
-    public void TestEquals()
-    {
-        //Equals
-        float x = 1.0f;
-        Assert.IsTrue(Functions.Predicate(FactMatching.FactCompare.Equals(1.0f),x));
-        x = 10.0f;
-        Assert.IsFalse(Functions.Predicate(FactMatching.FactCompare.Equals(1.0f),x));
-        Assert.IsFalse(Functions.Predicate(FactMatching.FactCompare.Equals(10.01f),x));
+        
+        var sw = new Stopwatch();
+        sw.Start();
 
-    }
-    [Test]
-    public void TestMore()
-    {
-        //MORE THAN
-        var x = 1.0f;
-        Assert.IsFalse(Functions.Predicate(FactMatching.FactCompare.MoreThan(1.0f),x));
-        x = 2.0f;
-        Assert.IsTrue(Functions.Predicate(FactMatching.FactCompare.MoreThan(1.0f),x));
-        x = 0.0f;
-        Assert.IsFalse(Functions.Predicate(FactMatching.FactCompare.MoreThan(1.0f),x));
+        RulesDB rulesDB = Resources.Load<RulesDB>("FactMatcherTestResources/Test_1000_rules_dataset");
+        FactMatcher matcher = new FactMatcher(rulesDB);
+        matcher.Init();
+        
+        Debug.Log($"took {sw.ElapsedMilliseconds} ms to load {matcher.ruleDB.rules.Count} rules");
+        sw.Stop();
 
+
+        sw.Start();
+        int mutations = 1000;
+        FactMatching.RuleScriptGenerator.MutateRuleScriptTestData(matcher, mutations);
+        Debug.Log($"took {sw.ElapsedMilliseconds} ms to mutate {mutations} - {matcher.ruleDB.rules.Count} rules");
+        sw.Stop();
+        
+        sw.Start();
+        RuleDBEntry rule = matcher.PickBestRule();
+        if (rule != null)
+        {
+            int matches = 0;
+            matches = matcher.GetNumberOfMatchesInBestMatch();
+            Debug.Log($"took {sw.ElapsedMilliseconds} ms to pick best rule {rule.ruleName} with {matches} matches among {matcher.ruleDB.rules.Count} rules");
+        }
+        else
+        {
+            Debug.Log($"took {sw.ElapsedMilliseconds} ms to pick best rules among {matcher.ruleDB.rules.Count} rules");
+        }
+        sw.Stop();
+        matcher.DisposeData();
     }
     
     [Test]
-    public void TestMoreEquals()
+    public void TestFactMatcherPeekAndPickBestRule()
     {
-        //MORE THAN
-        var x = 1.0f;
-        Assert.IsTrue(Functions.Predicate(FactMatching.FactCompare.MoreThanEquals(1.0f),x));
-        x = 2.0f;
-        Assert.IsTrue(Functions.Predicate(FactMatching.FactCompare.MoreThanEquals(1.0f),x));
-        x = 0.0f;
-        Assert.IsFalse(Functions.Predicate(FactMatching.FactCompare.MoreThanEquals(1.0f),x));
+        RulesDB rulesDB = Resources.Load<RulesDB>("FactMatcherTestResources/TestData");
+        FactMatcher matcher = new FactMatcher(rulesDB);
+        matcher.Init();
 
+        matcher[matcher.FactID("test1")] = FactMatching.Consts.True;
+        matcher[matcher.FactID("test2")] = FactMatching.Consts.True;
+
+        RuleDBEntry rule = matcher.PeekBestRule();
+        Assert.IsNotNull(rule);
+        Assert.IsTrue(matcher[matcher.FactID("testWrite1")] == FactMatching.Consts.False);
+        Assert.IsTrue(matcher[matcher.FactID("testWrite2")] == FactMatching.Consts.False);
+        
+        rule = matcher.PickBestRule();
+        Assert.IsNotNull(rule);
+        Assert.IsTrue(matcher[matcher.FactID("testWrite1")] == FactMatching.Consts.True);
+        Assert.IsTrue(matcher[matcher.FactID("testWrite2")] == FactMatching.Consts.False);
+
+        matcher.DisposeData();
     }
+    
+    /*
+     * Testing that PeekBestRules
+     * returns all rules that have the best match score, and no FactWrite is run on these rules
+     * Testing that PickBestRules
+     * picks all rules that share the number of best match score, and runs FactWrite on the rules
+     * i.e , if in all our rules, the best match score is 5,
+     * and we have two rules that have 5 best matches - both those rules
+     * are returned
+     *
+     * 
+     */
     [Test]
-    public void TestLess()
+    public void TestFactMatcherPeekAndPickBestRules()
     {
-        //Less THAN
-        var x = 1.0f;
-        Assert.IsFalse(Functions.Predicate(FactMatching.FactCompare.LessThan(1.0f),x));
-        x = 1.0f;
-        Assert.IsTrue(Functions.Predicate(FactMatching.FactCompare.LessThan(2.0f),x));
+        RulesDB rulesDB = Resources.Load<RulesDB>("FactMatcherTestResources/TestData");
+        FactMatcher matcher = new FactMatcher(rulesDB);
+        matcher.Init();
 
+        matcher[matcher.FactID("test1")] = FactMatching.Consts.True;
+        matcher[matcher.FactID("test2")] = FactMatching.Consts.True;
+
+        int rules = matcher.PeekBestRules();
+        Assert.IsTrue(rules == 2);
+        Assert.IsTrue(matcher[matcher.FactID("testWrite1")] == FactMatching.Consts.False);
+        Assert.IsTrue(matcher[matcher.FactID("testWrite2")] == FactMatching.Consts.False );
+        
+        rules = matcher.PickBestRules();
+        Assert.IsTrue(rules == 2);
+        Assert.IsTrue(matcher[matcher.FactID("testWrite1")] == FactMatching.Consts.True);
+        Assert.IsTrue(matcher[matcher.FactID("testWrite2")] == FactMatching.Consts.True);
+
+        matcher.DisposeData();
     }
     
     [Test]
-    public void TestLessEquals()
+    public void TestFactMatcherCountAllMatches()
     {
-        var x = 1.0f;
-        Assert.IsTrue(Functions.Predicate(FactMatching.FactCompare.LessThanEquals(1.0f),x));
-        x = 1.0f;
-        Assert.IsTrue(Functions.Predicate(FactMatching.FactCompare.LessThanEquals(2.0f),x));
-        x = 3.0f;
-        Assert.IsFalse(Functions.Predicate(FactMatching.FactCompare.LessThanEquals(2.0f),x));
+        RulesDB rulesDB = Resources.Load<RulesDB>("FactMatcherTestResources/TestData");
+        FactMatcher matcher = new FactMatcher(rulesDB);
+        matcher.Init();
 
-    }
+        matcher[matcher.FactID("test1")] = FactMatching.Consts.True;
+        matcher[matcher.FactID("test2")] = FactMatching.Consts.True;
 
-    //a is the lower bound, b is the higher bound, x is the value compared
-    public bool predicate(float a, float b, float x,float eps=0,bool negation=false)
-    {
-        var xEps = x + eps;
-        var aPart = a < (x + eps); 
-        var bPart = x < (b + eps); 
-        Debug.Log($"xEps is {xEps}");
-        Debug.Log($"a is {a}");
-        Debug.Log($"A part is {aPart}");
-        Debug.Log($"B part is {bPart}");
-        return  negation ? !(aPart && bPart) :(aPart && bPart);
+        int matches = matcher.GetNumberOfMatchesForRuleID(matcher.RuleID("rule_1"), out bool validRule);
+        Assert.IsTrue(matches == 2 && validRule);
+        matches = matcher.GetNumberOfMatchesForRuleID(matcher.RuleID("rule_2"), out validRule);
+        Assert.IsTrue(matches == 2 && validRule);
+        matches = matcher.GetNumberOfMatchesForRuleID(matcher.RuleID("rule_3"), out validRule);
+        Assert.IsTrue(matches == 1 && validRule);
+        
+        matcher[matcher.FactID("test1")] = FactMatching.Consts.True;
+        matcher[matcher.FactID("test2")] = FactMatching.Consts.False;
+        
+        matches = matcher.GetNumberOfMatchesForRuleID(matcher.RuleID("rule_1"), out validRule);
+        Assert.IsTrue(matches == 1 && !validRule);
+        matches = matcher.GetNumberOfMatchesForRuleID(matcher.RuleID("rule_2"), out validRule);
+        Assert.IsTrue(matches == 1 && !validRule);
+        matches = matcher.GetNumberOfMatchesForRuleID(matcher.RuleID("rule_3"), out validRule);
+        Assert.IsTrue(matches == 1 && validRule);
+        
+        matcher.DisposeData();
     }
     
+    [Test]
+    public void TestFactMatcherPeekAndPickAllValidRules()
+    {
+        RulesDB rulesDB = Resources.Load<RulesDB>("FactMatcherTestResources/TestData");
+        FactMatcher matcher = new FactMatcher(rulesDB);
+        matcher.Init();
+
+        matcher[matcher.FactID("test1")] = FactMatching.Consts.True;
+        matcher[matcher.FactID("test2")] = FactMatching.Consts.True;
+
+        int rules = matcher.PeekValidRules();
+        Assert.IsTrue(rules == 3);
+        RuleDBEntry rule1 = matcher.GetRuleFromValidMatches(0);
+        Assert.IsNotNull(rule1);
+        RuleDBEntry rule2 = matcher.GetRuleFromValidMatches(1);
+        Assert.IsNotNull(rule2);
+        RuleDBEntry rule3 = matcher.GetRuleFromValidMatches(2);
+        Assert.IsNotNull(rule3);
+        Assert.IsTrue(rule1.RuleID != rule2.RuleID && rule2.RuleID!= rule3.RuleID && rule1.RuleID!= rule3.RuleID);
+        
+        Assert.IsTrue((int)matcher[matcher.FactID("testWrite1")] != FactMatching.Consts.True);
+        Assert.IsTrue((int)matcher[matcher.FactID("testWrite2")] != FactMatching.Consts.True);
+        Assert.IsTrue((int)matcher[matcher.FactID("testWrite3")] != FactMatching.Consts.True);
+
+        int rulesPicked = matcher.PickValidRules();
+        Assert.IsTrue(rules == rulesPicked);
+        Assert.IsTrue((int)matcher[matcher.FactID("testWrite1")] == FactMatching.Consts.True);
+        Assert.IsTrue((int)matcher[matcher.FactID("testWrite2")] == FactMatching.Consts.True);
+        Assert.IsTrue((int)matcher[matcher.FactID("testWrite3")] == FactMatching.Consts.True);
+        
+        matcher.DisposeData();
+    }
+    
+    [Test]
+    public void TestFactMatcherPeekAllValidRulesInBucket()
+    {
+        RulesDB rulesDB = Resources.Load<RulesDB>("FactMatcherTestResources/TestData");
+        FactMatcher matcher = new FactMatcher(rulesDB);
+        matcher.Init();
+
+        matcher[matcher.FactID("test1")] = FactMatching.Consts.True;
+        matcher[matcher.FactID("test2")] = FactMatching.Consts.True;
+
+        BucketSlice fooBucket = matcher.BucketSlice("bucket:foo");
+        BucketSlice booBucket = matcher.BucketSlice("bucket:boo");
+
+        int rules = matcher.PeekValidRulesInBucket(fooBucket);
+        for (int i = 0; i < rules; i++)
+        {
+            RuleDBEntry entry = matcher.GetRuleFromValidMatches(i);
+            Assert.IsTrue(entry.PayloadRaw.Contains("foo"));
+        }
+        Assert.IsTrue(rules == 3);
+        
+        rules = matcher.PeekValidRulesInBucket(booBucket);
+        for (int i = 0; i < rules; i++)
+        {
+            RuleDBEntry entry = matcher.GetRuleFromValidMatches(i);
+            Assert.IsTrue(entry.PayloadRaw.Contains("boo"));
+        }
+        Assert.IsTrue(rules == 4);
+        
+        matcher.DisposeData();
+    }
+    
+    [Test]
+    public void TestFactMatcherPickAllValidRulesInBucket()
+    {
+        RulesDB rulesDB = Resources.Load<RulesDB>("FactMatcherTestResources/TestData");
+        FactMatcher matcher = new FactMatcher(rulesDB);
+        matcher.Init();
+
+        matcher[matcher.FactID("test1")] = FactMatching.Consts.True;
+        matcher[matcher.FactID("test2")] = FactMatching.Consts.True;
+
+        BucketSlice fooBucket = matcher.BucketSlice("bucket:foo");
+        BucketSlice booBucket = matcher.BucketSlice("bucket:boo");
+        
+        Assert.IsTrue((int)matcher[matcher.FactID("foo_testWrite1")] == FactMatching.Consts.False);
+        Assert.IsTrue((int)matcher[matcher.FactID("foo_testWrite2")] == FactMatching.Consts.False);
+        Assert.IsTrue((int)matcher[matcher.FactID("foo_testWrite3")] == FactMatching.Consts.False);
+        
+        Assert.IsTrue((int)matcher[matcher.FactID("boo_testWrite1")] == FactMatching.Consts.False);
+        Assert.IsTrue((int)matcher[matcher.FactID("boo_testWrite2")] == FactMatching.Consts.False);
+        Assert.IsTrue((int)matcher[matcher.FactID("boo_testWrite3")] == FactMatching.Consts.False);
+
+        int rules = matcher.PickValidRulesInBucket(fooBucket);
+        for (int i = 0; i < rules; i++)
+        {
+            RuleDBEntry entry = matcher.GetRuleFromValidMatches(i);
+            Assert.IsTrue(entry.PayloadRaw.Contains("foo"));
+            Assert.IsTrue((int)matcher[matcher.FactID("foo_testWrite1")] == FactMatching.Consts.True);
+            Assert.IsTrue((int)matcher[matcher.FactID("foo_testWrite2")] == FactMatching.Consts.True);
+            Assert.IsTrue((int)matcher[matcher.FactID("foo_testWrite3")] == FactMatching.Consts.True);
+        }
+        Assert.IsTrue(rules == 3);
+        
+        rules = matcher.PickValidRulesInBucket(booBucket);
+        for (int i = 0; i < rules; i++)
+        {
+            RuleDBEntry entry = matcher.GetRuleFromValidMatches(i);
+            Assert.IsTrue((int)matcher[matcher.FactID("boo_testWrite1")] == FactMatching.Consts.True);
+            Assert.IsTrue((int)matcher[matcher.FactID("boo_testWrite2")] == FactMatching.Consts.True);
+            Assert.IsTrue((int)matcher[matcher.FactID("boo_testWrite3")] == FactMatching.Consts.True);
+            Assert.IsTrue(entry.PayloadRaw.Contains("boo"));
+        }
+        Assert.IsTrue(rules == 4);
+        
+        matcher.DisposeData();
+    }
     
 }
 #endif

@@ -99,7 +99,7 @@ public class FactMatcherJobSystem : MonoBehaviour, FactMatcherProvider
             HandleDebugRewriteFacts();
         }
 #endif
-        return _factMatcher.PickRules();
+        return _factMatcher.PickBestRules();
     }
 
     #if UNITY_EDITOR

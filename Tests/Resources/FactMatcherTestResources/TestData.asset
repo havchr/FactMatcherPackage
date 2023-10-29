@@ -1,0 +1,464 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 49b739ba88421614895d8dd74ce2ccc4, type: 3}
+  m_Name: TestData
+  m_EditorClassIdentifier: 
+  autoParseRuleScript: 0
+  ignoreDocumentationDemand: 1
+  debugLogMissingIDS: 0
+  debugLogAutoparsing: 0
+  generateDocumentationFrom: []
+  documentations: []
+  generateRuleFrom:
+  - {fileID: 4900000, guid: 9da96597c74d54528b5e0408a9196c40, type: 3}
+  - {fileID: 4900000, guid: 752fd1ba1e8e94547b088f6688e0fc96, type: 3}
+  rules:
+  - ruleName: rule_1
+    RuleID: 0
+    bucket: default
+    payload:
+      rawText: rule_1 matches
+      strippedText: rule_1 matches
+      keyWords: []
+    PayloadObject: {fileID: 0}
+    factWrites:
+    - factName: testWrite1
+      factID: 3
+      writeString: True
+      writeValue: 0
+      writeMode: 0
+      lineNumber: 5
+    factTests:
+    - factName: test1
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 1
+      matchString: True
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 0
+      lineNumber: 2
+    - factName: test2
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 2
+      matchString: True
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 0
+      lineNumber: 3
+    interpolations: []
+    bucketSliceStartIndex: 0
+    bucketSliceEndIndex: 2
+    startLine: 1
+    textFile: {fileID: 4900000, guid: 9da96597c74d54528b5e0408a9196c40, type: 3}
+  - ruleName: rule_2
+    RuleID: 1
+    bucket: default
+    payload:
+      rawText: rule_2 matches
+      strippedText: rule_2 matches
+      keyWords: []
+    PayloadObject: {fileID: 0}
+    factWrites:
+    - factName: testWrite2
+      factID: 4
+      writeString: True
+      writeValue: 0
+      writeMode: 0
+      lineNumber: 14
+    factTests:
+    - factName: test1
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 1
+      matchString: True
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 1
+      lineNumber: 11
+    - factName: test2
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 2
+      matchString: True
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 1
+      lineNumber: 12
+    interpolations: []
+    bucketSliceStartIndex: 0
+    bucketSliceEndIndex: 2
+    startLine: 10
+    textFile: {fileID: 4900000, guid: 9da96597c74d54528b5e0408a9196c40, type: 3}
+  - ruleName: rule_3
+    RuleID: 2
+    bucket: default
+    payload:
+      rawText: rule_3 matches
+      strippedText: rule_3 matches
+      keyWords: []
+    PayloadObject: {fileID: 0}
+    factWrites:
+    - factName: testWrite3
+      factID: 5
+      writeString: True
+      writeValue: 0
+      writeMode: 0
+      lineNumber: 22
+    factTests:
+    - factName: test1
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 1
+      matchString: True
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 2
+      lineNumber: 20
+    interpolations: []
+    bucketSliceStartIndex: 0
+    bucketSliceEndIndex: 2
+    startLine: 19
+    textFile: {fileID: 4900000, guid: 9da96597c74d54528b5e0408a9196c40, type: 3}
+  - ruleName: bucket_foo_rule_1
+    RuleID: 3
+    bucket: bucket:foo
+    payload:
+      rawText: bucket_foo_rule_1 matches
+      strippedText: bucket_foo_rule_1 matches
+      keyWords: []
+    PayloadObject: {fileID: 0}
+    factWrites:
+    - factName: foo_testWrite1
+      factID: 7
+      writeString: True
+      writeValue: 0
+      writeMode: 0
+      lineNumber: 6
+    factTests:
+    - factName: bucket
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 6
+      matchString: foo
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 3
+      lineNumber: 2
+    - factName: test1
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 1
+      matchString: True
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 3
+      lineNumber: 3
+    - factName: test2
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 2
+      matchString: True
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 3
+      lineNumber: 4
+    interpolations: []
+    bucketSliceStartIndex: 3
+    bucketSliceEndIndex: 5
+    startLine: 1
+    textFile: {fileID: 4900000, guid: 752fd1ba1e8e94547b088f6688e0fc96, type: 3}
+  - ruleName: bucket_foo_rule_2
+    RuleID: 4
+    bucket: bucket:foo
+    payload:
+      rawText: bucket_foo_rule_2 matches
+      strippedText: bucket_foo_rule_2 matches
+      keyWords: []
+    PayloadObject: {fileID: 0}
+    factWrites:
+    - factName: foo_testWrite2
+      factID: 8
+      writeString: True
+      writeValue: 0
+      writeMode: 0
+      lineNumber: 16
+    factTests:
+    - factName: bucket
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 6
+      matchString: foo
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 4
+      lineNumber: 12
+    - factName: test1
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 1
+      matchString: True
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 4
+      lineNumber: 13
+    - factName: test2
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 2
+      matchString: True
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 4
+      lineNumber: 14
+    interpolations: []
+    bucketSliceStartIndex: 3
+    bucketSliceEndIndex: 5
+    startLine: 11
+    textFile: {fileID: 4900000, guid: 752fd1ba1e8e94547b088f6688e0fc96, type: 3}
+  - ruleName: bucket_foo_rule_3
+    RuleID: 5
+    bucket: bucket:foo
+    payload:
+      rawText: bucket_foo_rule_1 matches
+      strippedText: bucket_foo_rule_1 matches
+      keyWords: []
+    PayloadObject: {fileID: 0}
+    factWrites:
+    - factName: foo_testWrite3
+      factID: 9
+      writeString: True
+      writeValue: 0
+      writeMode: 0
+      lineNumber: 25
+    factTests:
+    - factName: bucket
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 6
+      matchString: foo
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 5
+      lineNumber: 22
+    - factName: test1
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 1
+      matchString: True
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 5
+      lineNumber: 23
+    interpolations: []
+    bucketSliceStartIndex: 3
+    bucketSliceEndIndex: 5
+    startLine: 21
+    textFile: {fileID: 4900000, guid: 752fd1ba1e8e94547b088f6688e0fc96, type: 3}
+  - ruleName: bucket_boo_rule_1
+    RuleID: 6
+    bucket: bucket:boo
+    payload:
+      rawText: bucket_boo_rule_1 matches
+      strippedText: bucket_boo_rule_1 matches
+      keyWords: []
+    PayloadObject: {fileID: 0}
+    factWrites:
+    - factName: boo_testWrite1
+      factID: 10
+      writeString: True
+      writeValue: 0
+      writeMode: 0
+      lineNumber: 35
+    factTests:
+    - factName: bucket
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 6
+      matchString: boo
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 6
+      lineNumber: 31
+    - factName: test1
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 1
+      matchString: True
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 6
+      lineNumber: 32
+    - factName: test2
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 2
+      matchString: True
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 6
+      lineNumber: 33
+    interpolations: []
+    bucketSliceStartIndex: 6
+    bucketSliceEndIndex: 9
+    startLine: 30
+    textFile: {fileID: 4900000, guid: 752fd1ba1e8e94547b088f6688e0fc96, type: 3}
+  - ruleName: bucket_boo_rule_2
+    RuleID: 7
+    bucket: bucket:boo
+    payload:
+      rawText: bucket_boo_rule_2 matches
+      strippedText: bucket_boo_rule_2 matches
+      keyWords: []
+    PayloadObject: {fileID: 0}
+    factWrites:
+    - factName: boo_testWrite2
+      factID: 11
+      writeString: True
+      writeValue: 0
+      writeMode: 0
+      lineNumber: 45
+    factTests:
+    - factName: bucket
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 6
+      matchString: boo
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 7
+      lineNumber: 41
+    - factName: test1
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 1
+      matchString: True
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 7
+      lineNumber: 42
+    - factName: test2
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 2
+      matchString: True
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 7
+      lineNumber: 43
+    interpolations: []
+    bucketSliceStartIndex: 6
+    bucketSliceEndIndex: 9
+    startLine: 40
+    textFile: {fileID: 4900000, guid: 752fd1ba1e8e94547b088f6688e0fc96, type: 3}
+  - ruleName: bucket_boo_rule_3
+    RuleID: 8
+    bucket: bucket:boo
+    payload:
+      rawText: bucket_boo_rule_3 matches
+      strippedText: bucket_boo_rule_3 matches
+      keyWords: []
+    PayloadObject: {fileID: 0}
+    factWrites:
+    - factName: boo_testWrite3
+      factID: 12
+      writeString: True
+      writeValue: 0
+      writeMode: 0
+      lineNumber: 54
+    factTests:
+    - factName: bucket
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 6
+      matchString: boo
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 8
+      lineNumber: 51
+    - factName: test1
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 1
+      matchString: True
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 8
+      lineNumber: 52
+    interpolations: []
+    bucketSliceStartIndex: 6
+    bucketSliceEndIndex: 9
+    startLine: 50
+    textFile: {fileID: 4900000, guid: 752fd1ba1e8e94547b088f6688e0fc96, type: 3}
+  - ruleName: bucket_boo_rule_4
+    RuleID: 9
+    bucket: bucket:boo
+    payload:
+      rawText: bucket_boo_rule_4 matches
+      strippedText: bucket_boo_rule_4 matches
+      keyWords: []
+    PayloadObject: {fileID: 0}
+    factWrites:
+    - factName: testWrite4
+      factID: 13
+      writeString: True
+      writeValue: 0
+      writeMode: 0
+      lineNumber: 63
+    factTests:
+    - factName: bucket
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 6
+      matchString: boo
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 9
+      lineNumber: 60
+    - factName: test1
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 1
+      matchString: True
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 9
+      lineNumber: 61
+    interpolations: []
+    bucketSliceStartIndex: 6
+    bucketSliceEndIndex: 9
+    startLine: 59
+    textFile: {fileID: 4900000, guid: 752fd1ba1e8e94547b088f6688e0fc96, type: 3}

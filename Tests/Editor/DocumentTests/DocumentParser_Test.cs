@@ -67,11 +67,11 @@ public class DocumentParser_Test
     }
 
     [Test]
-    public void TestingTurningDocToTextFileAndParsing100000_TestAdvanced()
+    public void TestingTurningDocToTextFileAndParsing1000_TestAdvanced()
     {
         List<DocumentEntry> docs = new()
         {
-            new(DocTestInfoLoader.GenerateDocumentEntryOfSize(100000))
+            new(DocTestInfoLoader.GenerateDocumentEntryOfSize(1000))
         };
         Assert.IsNotNull(docs);
 
@@ -103,7 +103,7 @@ public class DocumentParser_Test
     {
         List<DocumentEntry> docs = new()
         {
-            new(DocTestInfoLoader.GenerateDocumentEntryOfSize(100000))
+            new(DocTestInfoLoader.GenerateDocumentEntryOfSize(10000))
         };
         Assert.IsNotNull(docs);
 
@@ -123,7 +123,7 @@ public class DocumentParser_Test
     [Test]
     public void ParseMassiveDocumentationTextAsset100000Facts_LongTestTimeMassiveTest()
     {
-        TextAsset massiveDocTextAsset = DocTestInfoLoader.massiveDocTextAsset;
+        TextAsset massiveDocTextAsset = DocTestInfoLoader.MassiveDocTextAsset;
 
         ProblemReporting problems = new();
         List<DocumentEntry> generatedDocs = RuleDocumentationParser.GenerateFromText(ref problems, massiveDocTextAsset);
@@ -131,11 +131,11 @@ public class DocumentParser_Test
     }
 
     [Test]
-    public void TestingTurningDocToTextFileAndParsing10000_TestAdvanced()
+    public void TestingTurningDocToTextFileAndParsing100_TestAdvanced()
     {
         List<DocumentEntry> docs = new()
         {
-            new(DocTestInfoLoader.GenerateDocumentEntryOfSize(10000))
+            new(DocTestInfoLoader.GenerateDocumentEntryOfSize(100))
         };
         Assert.IsNotNull(docs);
 

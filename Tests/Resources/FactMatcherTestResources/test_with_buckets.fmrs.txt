@@ -1,0 +1,67 @@
+.bucket_foo_rule_1 IF
+    @bucket = foo
+    test1 = True
+    test2 = True
+.THEN WRITE
+    foo_testWrite1 = True
+.THEN RESPONSE
+bucket_foo_rule_1 matches
+.END
+
+.bucket_foo_rule_2 IF
+    @bucket = foo
+    test1 = True
+    test2 = True
+.THEN WRITE
+    foo_testWrite2 = True
+.THEN RESPONSE
+bucket_foo_rule_2 matches
+.END
+
+.bucket_foo_rule_3 IF
+    @bucket = foo
+    test1 = True
+.THEN WRITE
+    foo_testWrite3 = True
+.THEN RESPONSE
+bucket_foo_rule_1 matches
+.END
+
+.bucket_boo_rule_1 IF
+    @bucket = boo
+    test1 = True
+    test2 = True
+.THEN WRITE
+    boo_testWrite1 = True
+.THEN RESPONSE
+bucket_boo_rule_1 matches
+.END
+
+.bucket_boo_rule_2 IF
+    @bucket = boo
+    test1 = True
+    test2 = True
+.THEN WRITE
+    boo_testWrite2 = True
+.THEN RESPONSE
+bucket_boo_rule_2 matches
+.END
+
+.bucket_boo_rule_3 IF
+    @bucket = boo
+    test1 = True
+.THEN WRITE
+    boo_testWrite3 = True
+.THEN RESPONSE
+bucket_boo_rule_3 matches
+.END
+
+.bucket_boo_rule_4 IF
+    @bucket = boo
+    test1 = True
+.THEN WRITE
+    testWrite4 = True
+.THEN RESPONSE
+bucket_boo_rule_4 matches
+.END
+

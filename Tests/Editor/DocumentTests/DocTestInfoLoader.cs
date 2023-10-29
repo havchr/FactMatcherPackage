@@ -5,8 +5,9 @@ using System;
 
 public class DocTestInfoLoader
 {
-    public static TextAsset defaultDocAsset = GetDefaultDocFileAsTextAsset();
-    public static TextAsset massiveDocTextAsset = GetDefaultDocFileAsTextAsset("/Packages/no.agens.factmatcher/Tests/Editor/DocumentTests/MassiveDocumentation.txt");
+    public static TextAsset defaultDocAsset => GetDefaultDocFileAsTextAsset();
+    public static TextAsset MassiveDocTextAsset => GetDefaultDocFileAsTextAsset("/Packages/no.agens.factmatcher/Tests/Editor/DocumentTests/MassiveDocumentation.txt");
+    
 
     public static TextAsset GetDefaultDocFileAsTextAsset(string testDocUnityPath = "/Packages/no.agens.factmatcher/Tests/Editor/DocumentTests/TestDocument.txt")
     {

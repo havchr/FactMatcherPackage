@@ -522,8 +522,6 @@ public class RulesDB : ScriptableObject
     [NonSerialized]
     public ProblemReporting problemList;
     public bool autoParseRuleScript = false;
-    public bool PickMultipleBestRules = false;
-    public bool FactWriteToAllThatMatches = false;
     public bool ignoreDocumentationDemand = false;
     public bool debugLogMissingIDS = false;
     public bool debugLogAutoparsing = false;

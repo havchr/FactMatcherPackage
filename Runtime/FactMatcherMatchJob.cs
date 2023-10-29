@@ -19,12 +19,29 @@ public struct FactMatcherMatch : IJob
     [Unity.Collections.ReadOnly] public NativeArray<FactMatching.Settings> Settings;
     [Unity.Collections.ReadOnly] public NativeArray<int> slice;
 
+    //Contains RuleIndex to best rule
     [WriteOnly] public NativeArray<int> BestRule;
+    //Contains amount of matches for Best Rule
     [WriteOnly] public NativeArray<int> BestRuleMatches;
-    [WriteOnly] public NativeArray<int> AllEmRulesIndices;
-    [WriteOnly] public NativeArray<int> AllEmRulesMatches;
+    
+    //Contains Rule Indices for all rules that are valid ,
+    //( probably we will keep all valid rules stored in sequence here, so
+    //[0] contains the rule index to the first valid rule
+    //[1] contains the the index to the second valid rule
+    //[2] if we are FactMatcher.NotSet , the it means we had two valid rules [0] and [1] 
+    [WriteOnly] public NativeArray<int> AllValidRulesIndices;
+    //Contains amount of matches relating to AllEmRulesIndices, ie
+    //AllEmRulesMatches[0] contains amount of matches for rule with ruleIndex allEmRulesIndices[0]
+    //EEEH Error , this actually contains the ruleIndex ... .?
+    [WriteOnly] public NativeArray<int> AllBestRulesIndices;
+    
+    //This stores how many matches - for all rules
     [WriteOnly] public NativeArray<int> AllMatchesForAllRules;
+    //Number of rules that have best match - for instance if we have three rules with 5 matches each
     [WriteOnly] public NativeArray<int> NoOfRulesWithBestMatch;
+    
+    //Number of rules that are valid, only contains valid number if our setting is CheckAllRules 
+    [WriteOnly] public NativeArray<int> NoOfValidRules;
 
 #if FACTMATCHER_BURST
     [BurstCompile(CompileSynchronously = true)]
@@ -40,38 +57,58 @@ public struct FactMatcherMatch : IJob
         int sliceEnd = slice[1];
         bool validRule = true;
 
+        int validRuleIndexCounter = 0;
+
+        if (AllValidRulesIndices.Length > 0)
+        {
+            AllValidRulesIndices[validRuleIndexCounter] = FactMatcher.NotSetValue;
+        }
+
         //Debug.Log($"Natively! We have {Rules.Length} rules to loop");
         for (ruleI = sliceStart; ruleI < sliceEnd; ruleI++)
         {
             var rule = Rules[ruleI];
             int howManyFactTestsMatch = 0;
-            if (rule.numOfFactTests >= currentBestMatch || Settings[0].FactWriteToAllMatches)
+            if (rule.numOfFactTests >= currentBestMatch || Settings[0].CheckAllRules)
             {
                 LogMatchJob($"for rule {ruleI} with ruleFireID {rule.ruleFiredEventId} we are checking atoms from {rule.factTestIndex} to {rule.factTestIndex + rule.numOfFactTests} ");
-                    
                 //assuming sorted on factTest.factID, means that any orGroup can be checked sequentially.
                 int orGroupHits = 0;
                 int lastOrGroup = -1;
                 int lastIndex = rule.factTestIndex + rule.numOfFactTests;
                 validRule = true;
                 howManyFactTestsMatch = (int)HowManyFactTestsMatch(rule, lastIndex, lastOrGroup, orGroupHits, howManyFactTestsMatch,Settings[0].CountAllFactMatches,ref validRule);
-                AllEmRulesIndices[ruleI] = validRule ? ruleI : FactMatcher.NotSetValue;
-                AllMatchesForAllRules[ruleI] = howManyFactTestsMatch;
+                if (validRule)
+                {
+                    int validRuleIndexNext = validRuleIndexCounter + 1;
+                    if (validRuleIndexNext < AllValidRulesIndices.Length)
+                    {
+                        AllValidRulesIndices[validRuleIndexNext] = FactMatcher.NotSetValue;
+                    }
+                    AllValidRulesIndices[validRuleIndexCounter] = ruleI;
+                    validRuleIndexCounter++;
+                    AllMatchesForAllRules[ruleI] = howManyFactTestsMatch;
+                }
+                else
+                {
+                    AllMatchesForAllRules[ruleI] = -howManyFactTestsMatch;
+                }
                 if (howManyFactTestsMatch == currentBestMatch && howManyFactTestsMatch >= 1 && validRule)
                 {
                     allBestMatchesIndex++;
-                    AllEmRulesMatches[allBestMatchesIndex] = ruleI;
+                    AllBestRulesIndices[allBestMatchesIndex] = ruleI;
                 }
                 else if (howManyFactTestsMatch > currentBestMatch && validRule)
                 {
                     currentBestMatch = howManyFactTestsMatch;
                     bestRuleIndex = ruleI;
                     allBestMatchesIndex = 0;
-                    AllEmRulesMatches[allBestMatchesIndex] = ruleI;
+                    AllBestRulesIndices[allBestMatchesIndex] = ruleI;
                 }
             }
         }
-
+        NoOfValidRules[0] = Settings[0].CheckAllRules ? validRuleIndexCounter : FactMatcher.NotSetValue;
+        
         if (bestRuleIndex != FactMatcher.NotSetValue)
         {
             BestRuleMatches[0] = currentBestMatch;

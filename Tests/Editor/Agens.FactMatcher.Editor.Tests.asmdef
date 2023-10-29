@@ -1,9 +1,11 @@
 {
     "name": "Agens.FactMatcher.Editor.Tests",
+    "rootNamespace": "",
     "references": [
         "UnityEditor.TestRunner",
         "UnityEngine.TestRunner",
-        "Agens.FactMatcher"
+        "Agens.FactMatcher",
+        "Agens.FactMatcher.Editor"
     ],
     "includePlatforms": [
         "Editor"
