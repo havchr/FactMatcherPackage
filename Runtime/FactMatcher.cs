@@ -391,6 +391,73 @@ public class FactMatcher
         _cachedJob.Execute();
         return _noOfRulesWithBestMatch[0];
     }
+    
+    
+    public int PickBestRulesFactWriteToAllValidRules(bool fireListeners = true)
+    {
+        PickValidRules(false);
+        for (int i = 0; i < _noOfRulesWithBestMatch[0]; i++)
+        {
+            RuleDBEntry entry = GetRuleFromMatches(0);
+            if (fireListeners)
+            {
+                OnRulePicked?.Invoke(entry.RuleID);
+            }
+        }
+        return _noOfRulesWithBestMatch[0];
+    }
+    
+    public RuleDBEntry PickBestRuleFactWriteToAllValidRules(bool fireListeners = true)
+    {
+        RuleDBEntry entry = null;
+        int rules = PickValidRules(false);
+        if (rules > 0)
+        {
+            entry = GetRuleFromMatches(0);
+            if (fireListeners)
+            {
+                OnRulePicked?.Invoke(entry.RuleID);
+            }
+        }
+        return entry;
+    }
+    
+    public int PickBestRulesInBucketFactWriteToAllValidRules(BucketSlice bucketSlice,bool fireListeners = true)
+    {
+        if (!bucketSlice.IsNullBucket())
+        {
+            bucketSlice.ApplyBucket(this);
+            int rules = PickValidRules(false,bucketSlice.startIndex, bucketSlice.endIndex);
+            for (int i = 0; i < _noOfRulesWithBestMatch[0]; i++)
+            {
+                RuleDBEntry entry = GetRuleFromMatches(0);
+                if (fireListeners)
+                {
+                    OnRulePicked?.Invoke(entry.RuleID);
+                }
+            }
+        }
+        return _noOfRulesWithBestMatch[0];
+    }
+    
+    public RuleDBEntry PickBestRuleInBucketFactWriteToAllValidRules(BucketSlice bucketSlice,bool fireListeners = true)
+    {
+        RuleDBEntry entry = null;
+        if (!bucketSlice.IsNullBucket())
+        {
+            bucketSlice.ApplyBucket(this);
+            int rules = PickValidRules(false,bucketSlice.startIndex, bucketSlice.endIndex);
+            if (rules > 0)
+            {
+                entry = GetRuleFromMatches(0);
+                if (fireListeners)
+                {
+                    OnRulePicked?.Invoke(entry.RuleID);
+                }
+            }
+        }
+        return entry;
+    }
 
     public int PeekValidRulesInBucket(BucketSlice bucketSlice,bool fireListeners = true)
     {

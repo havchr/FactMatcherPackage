@@ -154,6 +154,139 @@ public class FactMatcherTest
     }
     
     [Test]
+    public void TestFactMatcherPickBestRuleFactWriteToAllThatMatches()
+    {
+        RulesDB rulesDB = Resources.Load<RulesDB>("FactMatcherTestResources/TestData");
+        FactMatcher matcher = new FactMatcher(rulesDB);
+        matcher.Init();
+
+        matcher[matcher.FactID("test1")] = FactMatching.Consts.True;
+        matcher[matcher.FactID("test2")] = FactMatching.Consts.True;
+
+        Assert.IsTrue(matcher[matcher.FactID("testWrite1")] != FactMatching.Consts.True);
+        Assert.IsTrue(matcher[matcher.FactID("testWrite2")] != FactMatching.Consts.True);
+        Assert.IsTrue(matcher[matcher.FactID("testWrite3")] != FactMatching.Consts.True);
+        RuleDBEntry rule = matcher.PickBestRuleFactWriteToAllValidRules();
+        Assert.IsTrue(matcher[matcher.FactID("testWrite1")] == FactMatching.Consts.True);
+        Assert.IsTrue(matcher[matcher.FactID("testWrite2")] == FactMatching.Consts.True);
+        Assert.IsTrue(matcher[matcher.FactID("testWrite3")] == FactMatching.Consts.True);
+        Assert.IsFalse(rule.ruleName.Equals("rule_3")); //best rule cannot be rule_3 because rule 3 has only one match
+        
+        matcher.DisposeData();
+    }
+    
+    [Test]
+    public void TestFactMatcherPickBestRulesFactWriteToAllThatMatches()
+    {
+        RulesDB rulesDB = Resources.Load<RulesDB>("FactMatcherTestResources/TestData");
+        FactMatcher matcher = new FactMatcher(rulesDB);
+        matcher.Init();
+
+        matcher[matcher.FactID("test1")] = FactMatching.Consts.True;
+        matcher[matcher.FactID("test2")] = FactMatching.Consts.True;
+
+        Assert.IsTrue(matcher[matcher.FactID("testWrite1")] != FactMatching.Consts.True);
+        Assert.IsTrue(matcher[matcher.FactID("testWrite2")] != FactMatching.Consts.True);
+        Assert.IsTrue(matcher[matcher.FactID("testWrite3")] != FactMatching.Consts.True);
+        int bestRules = matcher.PickBestRulesFactWriteToAllValidRules();
+        Assert.IsTrue(matcher[matcher.FactID("testWrite1")] == FactMatching.Consts.True);
+        Assert.IsTrue(matcher[matcher.FactID("testWrite2")] == FactMatching.Consts.True);
+        Assert.IsTrue(matcher[matcher.FactID("testWrite3")] == FactMatching.Consts.True);
+        Assert.IsTrue(bestRules == 2);
+        string ruleName1 = matcher.GetRuleFromMatches(0).ruleName;
+        string ruleName2 = matcher.GetRuleFromMatches(1).ruleName;
+        Assert.IsTrue(ruleName1.Equals("rule_1") || ruleName1.Equals("rule_2")); 
+        Assert.IsTrue(ruleName2.Equals("rule_1") || ruleName2.Equals("rule_2")); 
+        
+        matcher.DisposeData();
+    }
+    
+    [Test]
+    public void TestFactMatcherPickBestRuleInBucketFactWriteToAllThatMatches()
+    {
+        RulesDB rulesDB = Resources.Load<RulesDB>("FactMatcherTestResources/TestData");
+        FactMatcher matcher = new FactMatcher(rulesDB);
+        matcher.Init();
+
+        
+        BucketSlice fooBucket = matcher.BucketSlice("bucket:foo");
+        BucketSlice booBucket = matcher.BucketSlice("bucket:boo");
+        
+        matcher[matcher.FactID("test1")] = FactMatching.Consts.True;
+        matcher[matcher.FactID("test2")] = FactMatching.Consts.True;
+
+        Assert.IsTrue(matcher[matcher.FactID("foo_testWrite1")] != FactMatching.Consts.True);
+        Assert.IsTrue(matcher[matcher.FactID("foo_testWrite2")] != FactMatching.Consts.True);
+        Assert.IsTrue(matcher[matcher.FactID("foo_testWrite3")] != FactMatching.Consts.True);
+        
+        Assert.IsTrue(matcher[matcher.FactID("boo_testWrite1")] != FactMatching.Consts.True);
+        Assert.IsTrue(matcher[matcher.FactID("boo_testWrite2")] != FactMatching.Consts.True);
+        Assert.IsTrue(matcher[matcher.FactID("boo_testWrite3")] != FactMatching.Consts.True);
+        
+        RuleDBEntry ruleFoo = matcher.PickBestRuleInBucketFactWriteToAllValidRules(fooBucket);
+        Assert.IsTrue(matcher[matcher.FactID("foo_testWrite1")] == FactMatching.Consts.True);
+        Assert.IsTrue(matcher[matcher.FactID("foo_testWrite2")] == FactMatching.Consts.True);
+        Assert.IsTrue(matcher[matcher.FactID("foo_testWrite3")] == FactMatching.Consts.True);
+        
+        Assert.IsTrue(matcher[matcher.FactID("boo_testWrite1")] != FactMatching.Consts.True);
+        Assert.IsTrue(matcher[matcher.FactID("boo_testWrite2")] != FactMatching.Consts.True);
+        Assert.IsTrue(matcher[matcher.FactID("boo_testWrite3")] != FactMatching.Consts.True);
+        Assert.IsTrue(ruleFoo.ruleName.Equals("bucket_foo_rule_1") || ruleFoo.ruleName.Equals("bucket_foo_rule_2")); 
+        
+        RuleDBEntry ruleBoo = matcher.PickBestRuleInBucketFactWriteToAllValidRules(booBucket);
+        
+        Assert.IsTrue(matcher[matcher.FactID("boo_testWrite1")] == FactMatching.Consts.True);
+        Assert.IsTrue(matcher[matcher.FactID("boo_testWrite2")] == FactMatching.Consts.True);
+        Assert.IsTrue(matcher[matcher.FactID("boo_testWrite3")] == FactMatching.Consts.True);
+        Assert.IsTrue(ruleBoo.ruleName.Equals("bucket_boo_rule_1") || ruleBoo.ruleName.Equals("bucket_boo_rule_2")); 
+        
+        
+        matcher.DisposeData();
+    }
+    
+    [Test]
+    public void TestFactMatcherPickBestRulesInBucketFactWriteToAllThatMatches()
+    {
+        
+        
+        RulesDB rulesDB = Resources.Load<RulesDB>("FactMatcherTestResources/TestData");
+        FactMatcher matcher = new FactMatcher(rulesDB);
+        matcher.Init();
+
+        
+        BucketSlice fooBucket = matcher.BucketSlice("bucket:foo");
+        BucketSlice booBucket = matcher.BucketSlice("bucket:boo");
+        
+        matcher[matcher.FactID("test1")] = FactMatching.Consts.True;
+        matcher[matcher.FactID("test2")] = FactMatching.Consts.True;
+
+        Assert.IsTrue(matcher[matcher.FactID("foo_testWrite1")] != FactMatching.Consts.True);
+        Assert.IsTrue(matcher[matcher.FactID("foo_testWrite2")] != FactMatching.Consts.True);
+        Assert.IsTrue(matcher[matcher.FactID("foo_testWrite3")] != FactMatching.Consts.True);
+        
+        Assert.IsTrue(matcher[matcher.FactID("boo_testWrite1")] != FactMatching.Consts.True);
+        Assert.IsTrue(matcher[matcher.FactID("boo_testWrite2")] != FactMatching.Consts.True);
+        Assert.IsTrue(matcher[matcher.FactID("boo_testWrite3")] != FactMatching.Consts.True);
+        
+        int ruleFoos = matcher.PickBestRulesInBucketFactWriteToAllValidRules(fooBucket);
+        Assert.IsTrue(matcher[matcher.FactID("foo_testWrite1")] == FactMatching.Consts.True);
+        Assert.IsTrue(matcher[matcher.FactID("foo_testWrite2")] == FactMatching.Consts.True);
+        Assert.IsTrue(matcher[matcher.FactID("foo_testWrite3")] == FactMatching.Consts.True);
+        
+        Assert.IsTrue(matcher[matcher.FactID("boo_testWrite1")] != FactMatching.Consts.True);
+        Assert.IsTrue(matcher[matcher.FactID("boo_testWrite2")] != FactMatching.Consts.True);
+        Assert.IsTrue(matcher[matcher.FactID("boo_testWrite3")] != FactMatching.Consts.True);
+        
+        
+        Assert.IsTrue(ruleFoos == 2); 
+        
+        int rulesBoo = matcher.PickBestRulesInBucketFactWriteToAllValidRules(booBucket);
+        Assert.IsTrue(rulesBoo == 2); 
+        
+        matcher.DisposeData();
+    }
+    
+    [Test]
     public void TestFactMatcherCountAllMatches()
     {
         RulesDB rulesDB = Resources.Load<RulesDB>("FactMatcherTestResources/TestData");
