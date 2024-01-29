@@ -117,8 +117,9 @@ public class RulesDBEditor : Editor
             ruleFilter.RegisterCallback<ChangeEvent<string>>(evt => UpdateRuleListView(ruleListView));
             UpdateRuleListView(ruleListView);
 
-            Button parseRuleAndDoc = mainRoot.Q<Button>("parseRuleScripts");
-            parseRuleAndDoc.RegisterCallback<ClickEvent>(ParseRuleAndDoc);
+            //Button parseRuleAndDoc = mainRoot.Q<Button>("parseRuleScripts");
+            Button _parseRuleAndDocButton = mainRoot.Q<Button>("parseRuleScripts");
+            _parseRuleAndDocButton.RegisterCallback<ClickEvent>(ParseRuleAndDoc);
 
             Button parseToCS = mainRoot.Q<Button>("parseToCS");
             parseToCS.RegisterCallback<ClickEvent>(GenerateFactIDS);
@@ -144,6 +145,8 @@ public class RulesDBEditor : Editor
         else
         { throw new Exception("VisualTreeAssets not assigned"); }
     }
+
+    private Button _parseRuleAndDocButton;
 
     #region ListView itemsAdded callback workaround
     /*
@@ -307,6 +310,10 @@ public class RulesDBEditor : Editor
 
     private void OnDestroy()
     {
+        if (_parseRuleAndDocButton != null)
+        {
+            _parseRuleAndDocButton.UnregisterCallback<ClickEvent>(ParseRuleAndDoc);
+        }
         if (ruleFilter != null)
         {
             ruleFilter.UnregisterCallback<ChangeEvent<string>>(evt =>
@@ -398,7 +405,7 @@ public class RulesDBEditor : Editor
     {
         problems?.ClearList();
         problems = ParseRuleScripts();
-        EditorUtility.SetDirty(this);
+        EditorUtility.SetDirty(target);
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
         CheckProblems();

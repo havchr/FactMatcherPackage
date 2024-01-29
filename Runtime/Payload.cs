@@ -256,6 +256,7 @@ public class Payload
         public class Parameter
         {
             public string parameter;
+            public float parameterValue;
             public int parameterID;
 
             [SerializeField]
@@ -266,14 +267,15 @@ public class Payload
 
             public Parameter(string parameterInput, int parameterID)
             {
-                FactValueType = int.TryParse(parameterInput, out int result) ? FactValueType.Value : FactValueType.String;
+                FactValueType = float.TryParse(parameterInput, out float result) ? FactValueType.Value : FactValueType.String;
                 switch (FactValueType)
                 {
                     case FactValueType.String:
                         parameter = parameterInput.Trim();
                         break;
                     case FactValueType.Value:
-                        parameter = result.ToString();
+                        parameter = null;
+                        parameterValue = result;
                         break;
                 }
 
