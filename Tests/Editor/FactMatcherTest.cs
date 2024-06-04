@@ -12,6 +12,10 @@ using Assert = UnityEngine.Assertions.Assert;
 using Debug = UnityEngine.Debug;
 using Random = System.Random;
 using FactMatching;
+using Unity.Collections.LowLevel.Unsafe;
+using Unity.Jobs.LowLevel.Unsafe;
+using UnityEngine.Profiling;
+using UnityEngine.Scripting;
 
 public class FactMatcherTest  
 {
@@ -21,6 +25,35 @@ public class FactMatcherTest
          * PickBestRule - only picks one rule only does one factWrite on that rule
          * PeekBestRule - same as PickBestRule - but without FactWrite
     */
+   
+   
+    [Test]
+    public void TestMemoryAllocationDeallocation()
+    {
+        RulesDB rulesDB = Resources.Load<RulesDB>("FactMatcherTestResources/Test_1000_rules_dataset");
+        FactMatcher matcher = new FactMatcher(rulesDB);
+        
+        UnsafeUtility.ForgiveLeaks();
+        matcher.Init();
+
+        long memoryAfterAllocation = matcher.GetMemorySizeInBytesForDatabase(); 
+        matcher.DisposeData();
+        int leaks = UnsafeUtility.CheckForLeaks();
+        long memoryAfterDispose = matcher.GetMemorySizeInBytesForDatabase(); 
+
+        
+        Debug.Log($"leaks found = {leaks}");
+        
+        Debug.Log($"memory after allocation {memoryAfterAllocation}");
+        Debug.Log($"memory after Dispose {memoryAfterDispose}");
+        
+        Debug.Log("If this test fails , check NativeArray memory count, allocation and disposing");
+        
+        Assert.IsTrue(leaks == 0);
+        Assert.IsTrue(memoryAfterAllocation > 0);
+        Assert.IsTrue(memoryAfterDispose == 0);
+        
+    }
    
     [Test]
     public void TestPickBestRuleIn10_000_rules_dataset()

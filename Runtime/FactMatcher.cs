@@ -167,28 +167,54 @@ public class FactMatcher
     }
 
     //returns -1 if Not inited
-    public int GetMemorySizeInBytesForDatabase()
+    public int GetMemorySizeInBytesForInitedDatabase()
     {
         if (_hasBeenInited)
         {
-            int bytes = 0;
-            bytes += _factValues.Length * sizeof(float);
-            bytes += _rules.Length * Rule.SizeInBytes();
-            bytes += _factTests.Length * FactTest.SizeInBytes();
-            bytes += _bestRule.Length * sizeof(int);
-            bytes += _bestRuleMatches.Length * sizeof(int);
-            bytes += _allValidRuleIndices.Length * sizeof(int);
-            bytes += _allBestRulesIndices.Length * sizeof(int);
-            bytes += _allMatchesForAllRules.Length * sizeof(int);
-            bytes += _noOfRulesWithBestMatch.Length * sizeof(int);
-            bytes += _noOfValidRules.Length * sizeof(int);
-            bytes += _noOfRulesWithBestMatch.Length * Settings.SizeInBytes();
-            bytes += _slice.Length * sizeof(int);
-            return bytes;
+            return GetMemorySizeInBytesForDatabase();
         }
 
         return -1;
     }
+    
+    //for NativeArrays not created - we add 0 bytes to our tally.
+    public int GetMemorySizeInBytesForDatabase()
+    {
+        int bytes = 0;
+        bytes += _factValues.IsCreated ? _factValues.Length * sizeof(float) : 0;
+        bytes += _rules.IsCreated ? _rules.Length * Rule.SizeInBytes() : 0;
+        bytes += _factTests.IsCreated ? _factTests.Length * FactTest.SizeInBytes() : 0;
+        bytes += _bestRule.IsCreated ? _bestRule.Length * sizeof(int) : 0;
+        bytes += _bestRuleMatches.IsCreated ? _bestRuleMatches.Length * sizeof(int) : 0;
+        bytes += _allValidRuleIndices.IsCreated ? _allValidRuleIndices.Length * sizeof(int) : 0;
+        bytes += _allBestRulesIndices.IsCreated ? _allBestRulesIndices.Length * sizeof(int) : 0;
+        bytes += _allMatchesForAllRules.IsCreated ? _allMatchesForAllRules.Length * sizeof(int) : 0;
+        bytes += _noOfRulesWithBestMatch.IsCreated ? _noOfRulesWithBestMatch.Length * sizeof(int) : 0;
+        bytes += _noOfValidRules.IsCreated ? _noOfValidRules.Length * sizeof(int) : 0;
+        bytes += _noOfRulesWithBestMatch.IsCreated ? _noOfRulesWithBestMatch.Length * Settings.SizeInBytes() : 0;
+        bytes += _slice.IsCreated ? _slice.Length * sizeof(int) : 0;
+        return bytes;
+    }
+    
+    public void DisposeData()
+    {
+        _factValues.Dispose();
+        _rules.Dispose();
+        _factTests.Dispose();
+        _bestRule.Dispose();
+        _bestRuleMatches.Dispose();
+        _allValidRuleIndices.Dispose();
+        _allBestRulesIndices.Dispose();
+        _allMatchesForAllRules.Dispose();
+        _noOfRulesWithBestMatch.Dispose();
+        _noOfValidRules.Dispose();
+        _settings.Dispose();
+        _slice.Dispose();
+        
+        _dataDisposed = true;
+        _hasBeenInited = false;
+    }
+
 
     public int GetNumberOfMatchesForRuleID(int ruleID, out bool ruleValid)
     {
@@ -720,22 +746,4 @@ public class FactMatcher
         return (!_dataDisposed && _hasBeenInited);
     }
     
-    public void DisposeData()
-    {
-        _factValues.Dispose();
-        _rules.Dispose();
-        _factTests.Dispose();
-        _bestRule.Dispose();
-        _bestRuleMatches.Dispose();
-        _allValidRuleIndices.Dispose();
-        _allBestRulesIndices.Dispose();
-        _allMatchesForAllRules.Dispose();
-        _noOfRulesWithBestMatch.Dispose();
-        _settings.Dispose();
-        _slice.Dispose();
-        
-        _dataDisposed = true;
-        _hasBeenInited = false;
-    }
-
 }
