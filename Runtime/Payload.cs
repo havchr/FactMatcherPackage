@@ -274,7 +274,7 @@ public class Payload
                         parameter = parameterInput.Trim();
                         break;
                     case FactValueType.Value:
-                        parameter = null;
+                        parameter = result.ToString();
                         parameterValue = result;
                         break;
                 }
