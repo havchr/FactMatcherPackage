@@ -548,7 +548,7 @@ public class RulesDB : ScriptableObject
 
     public void InitRuleDB()
     {
-        _stringIDsMap = CreateStringIDs(rules);
+        _stringIDsMap = CreateStringIDs(rules,documentations);
         _ruleIDsMap = CreateRuleIDs(rules);
         _ruleMap = CreateEntryFromIDDic(rules);
         _factIDsMap = CreateFactIDs(rules);
@@ -1050,7 +1050,7 @@ public class RulesDB : ScriptableObject
         return dic;
     }
 
-    private static Dictionary<string, int> CreateStringIDs(List<RuleDBEntry> rules)
+    private static Dictionary<string, int> CreateStringIDs(List<RuleDBEntry> rules, List<DocumentEntry> documentations)
     {
         Dictionary<string, int> dic = new()
         {
@@ -1104,6 +1104,22 @@ public class RulesDB : ScriptableObject
                     }
                 }
             }
+        }
+        
+        foreach (var documentEntry in documentations)
+        {
+            foreach (var fact in documentEntry.Facts)
+            {
+                foreach (var factsCanBe in fact.FactCanBe)
+                {
+                    if (!dic.ContainsKey(factsCanBe))
+                    {
+                        dic[factsCanBe] = id;
+                        id++;
+                    }
+                }
+            }
+
         }
 
         return dic;
