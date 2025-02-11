@@ -83,8 +83,6 @@ public class RulesDBEditor : Editor
             debugLogMissingIDS.bindingPath = nameof(_rulesDB.debugLogMissingIDS);
 
 
-            generateDocFrom = mainRoot.Q<ListView>("generateDocFrom");
-            generateDocFrom.bindingPath = nameof(_rulesDB.generateDocumentationFrom);
             generateRuleFrom = mainRoot.Q<ListView>("generateRuleFrom");
             generateRuleFrom.bindingPath = nameof(_rulesDB.generateRuleFrom);
             
@@ -99,16 +97,6 @@ public class RulesDBEditor : Editor
                 EditorApplication.update += RefreshFileWatchersForItemsChangedInFileListWorkaround;
             };
             
-            generateDocFrom.itemsRemoved += index =>
-            {
-                RuleDBWorkaroundAccess = _rulesDB;
-                EditorApplication.update += RefreshFileWatchersForItemsChangedInFileListWorkaround;
-            };
-            generateDocFrom.itemsAdded += indices =>
-            {
-                RuleDBWorkaroundAccess = _rulesDB;
-                EditorApplication.update += RefreshFileWatchersForItemsChangedInFileListWorkaround;
-            };
 
             ruleFilter = mainRoot.Q<TextField>("ruleFilter");
             ruleListView = mainRoot.Q<ListView>("rules");
@@ -356,7 +344,7 @@ public class RulesDBEditor : Editor
             else if (data.defaultName != "" && data.defaultName != null)
             {
                 bool foundMatch = false;
-                foreach (var doc in _rulesDB.documentations)
+                foreach (var doc in _rulesDB.DocumentationList)
                 {
                     FactInDocument foundFactInDocument = doc.GetFactInDocumentByName(data.defaultName);
                     if (foundMatch = foundFactInDocument != null)
@@ -370,7 +358,7 @@ public class RulesDBEditor : Editor
                     Debug.LogWarning("No matching rule inside the documentation was found");
                 }
             }
-            else if (data.defaultName != "" && data.defaultName != null && _rulesDB.documentations != null)
+            else if (data.defaultName != "" && data.defaultName != null && _rulesDB.DocumentationList != null)
             {
                 DocumentEntry documentEntry = _rulesDB.GetDocumentEntryByName(data.defaultName);
                 Debug.Log($"{(documentEntry != null ? $"{documentEntry?.ToString()}" : $"There is no documentation with the name {data.defaultName}")}");

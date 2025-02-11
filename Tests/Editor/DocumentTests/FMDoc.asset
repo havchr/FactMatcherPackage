@@ -1,0 +1,82 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 0}
+  m_Name: FMDoc
+  m_EditorClassIdentifier: Agens.FactMatcher::FMDocumentation
+  generateDocumentationFrom:
+  - {fileID: 4900000, guid: f157c8d43055a80448b7b11fcf684ba2, type: 3}
+  documentations:
+  - DocumentName: rule_name
+    DocID: 0
+    Summary: 'Documentation about all things related to rule_name.
+
+      As much
+      text as you want to, until you reach .. on a single line, which indicates the
+      end
+
+      of free form text.'
+    Facts:
+    - factName: player.age
+      containsTemplateSymbol: 0
+      FactID: 0
+      LineNumber: 10
+      FactSummary: as much text as you want here.
+      IgnoreNumber: 0
+      FactCanBe: []
+      EnumNames: []
+    - factName: player.name
+      containsTemplateSymbol: 0
+      FactID: 1
+      LineNumber: 19
+      FactSummary: 'this is player.name that can link names into a sequence, like
+        Johnny, Bob, etc.
+
+        related to player.name'
+      IgnoreNumber: 0
+      FactCanBe:
+      - Johnny Lemon
+      - Bob Jonson
+      EnumNames: []
+    - factName: player.height
+      containsTemplateSymbol: 0
+      FactID: 2
+      LineNumber: 30
+      FactSummary: as much text as you want here.
+      IgnoreNumber: 0
+      FactCanBe: []
+      EnumNames: []
+    - factName: player.health
+      containsTemplateSymbol: 0
+      FactID: 3
+      LineNumber: 34
+      FactSummary: as much text as you want here.
+      IgnoreNumber: 0
+      FactCanBe: []
+      EnumNames: []
+    - factName: player.street_smart
+      containsTemplateSymbol: 0
+      FactID: 4
+      LineNumber: 38
+      FactSummary: as much text as you want here.
+      IgnoreNumber: 0
+      FactCanBe: []
+      EnumNames: []
+    - factName: player.intelligence_level
+      containsTemplateSymbol: 0
+      FactID: 5
+      LineNumber: 42
+      FactSummary: as much text as you want here.
+      IgnoreNumber: 0
+      FactCanBe: []
+      EnumNames: []
+    StartLine: 2
+    TextFile: {fileID: 4900000, guid: f157c8d43055a80448b7b11fcf684ba2, type: 3}

@@ -12,63 +12,192 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 49b739ba88421614895d8dd74ce2ccc4, type: 3}
   m_Name: RulesDB
   m_EditorClassIdentifier: 
-  PickMultipleBestRules: 0
-  FactWriteToAllThatMatches: 0
+  autoParseRuleScript: 0
   ignoreDocumentationDemand: 0
   debugLogMissingIDS: 0
-  generateDocumentationFrom:
-  - {fileID: 4900000, guid: f157c8d43055a80448b7b11fcf684ba2, type: 3}
-  documentations:
-  - DocumentName: rule_name
-    DocID: 0
-    Summary: 'Documentation about all things related to rule_name.
-
-      As much
-      text as you want to, until you reach .. on a single line, which indicates the
-      end
-
-      of free form text.'
-    Facts:
-    - FactName: player.age
-      FactID: 0
-      LineNumber: 10
-      FactSummary: as much text as you want here.
-      IgnoreNumber: 0
-      FactCanBe: []
-    - FactName: player.name
-      FactID: 1
-      LineNumber: 19
-      FactSummary: 'this is player.name that can link names into a sequence, like
-        Johnny, Bob, etc.
-
-        related to player.name'
-      IgnoreNumber: 0
-      FactCanBe: []
-    - FactName: player.height
-      FactID: 2
-      LineNumber: 30
-      FactSummary: as much text as you want here.
-      IgnoreNumber: 0
-      FactCanBe: []
-    - FactName: player.health
-      FactID: 3
-      LineNumber: 34
-      FactSummary: as much text as you want here.
-      IgnoreNumber: 0
-      FactCanBe: []
-    - FactName: player.street_smart
-      FactID: 4
-      LineNumber: 38
-      FactSummary: as much text as you want here.
-      IgnoreNumber: 0
-      FactCanBe: []
-    - FactName: player.intelligence_level
-      FactID: 5
-      LineNumber: 42
-      FactSummary: as much text as you want here.
-      IgnoreNumber: 0
-      FactCanBe: []
-    StartLine: 2
-    TextFile: {fileID: 4900000, guid: f157c8d43055a80448b7b11fcf684ba2, type: 3}
-  generateRuleFrom: []
-  rules: []
+  debugLogAutoparsing: 0
+  generateDocumentationFrom: []
+  documentation: {fileID: 11400000, guid: c70cbd3bfcc9647499cb5b01e88a36d2, type: 2}
+  generateRuleFrom:
+  - {fileID: 4900000, guid: 66f533fda4435486ba904bdcf612278d, type: 3}
+  rules:
+  - ruleName: rule_name.derived
+    RuleID: 1
+    bucket: default
+    payload:
+      rawText: rule matches if base rule .RuleName matches and height is bigger than
+        180
+      strippedText: rule matches if base rule .RuleName matches and height is bigger
+        than 180
+      keyWords: []
+    PayloadObject: {fileID: 0}
+    factWrites: []
+    factTests:
+    - factName: player.age
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 1
+      matchString: 
+      matchValue: 10
+      compareMethod: 3
+      compareType: 1
+      ruleOwnerID: 1
+      lineNumber: 2
+    - factName: player.name
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 2
+      matchString: Johnny Lemon
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 1
+      lineNumber: 3
+    - factName: player.height
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 3
+      matchString: 
+      matchValue: 180
+      compareMethod: 3
+      compareType: 1
+      ruleOwnerID: 1
+      lineNumber: 20
+    - factName: player.health
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 4
+      matchString: 
+      matchValue: 5
+      compareMethod: 3
+      compareType: 1
+      ruleOwnerID: 1
+      lineNumber: 22
+    - factName: player.health
+      isStrict: 0
+      orGroupRuleID: 0
+      factID: 4
+      matchString: 
+      matchValue: 25
+      compareMethod: 4
+      compareType: 1
+      ruleOwnerID: 1
+      lineNumber: 0
+    interpolations: []
+    bucketSliceStartIndex: 0
+    bucketSliceEndIndex: 3
+    startLine: 19
+    textFile: {fileID: 4900000, guid: 66f533fda4435486ba904bdcf612278d, type: 3}
+  - ruleName: rule_name
+    RuleID: 0
+    bucket: default
+    payload:
+      rawText: rule matches if age is bigger than 10 and name is Johnny Lemon
+      strippedText: rule matches if age is bigger than 10 and name is Johnny Lemon
+      keyWords: []
+    PayloadObject: {fileID: 0}
+    factWrites:
+    - factName: player.age
+      factID: 1
+      writeString: 
+      writeValue: 9
+      writeMode: 1
+      lineNumber: 6
+    factTests:
+    - factName: player.age
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 1
+      matchString: 
+      matchValue: 10
+      compareMethod: 3
+      compareType: 1
+      ruleOwnerID: 0
+      lineNumber: 2
+    - factName: player.name
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 2
+      matchString: Johnny Lemon
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 0
+      lineNumber: 3
+    interpolations: []
+    bucketSliceStartIndex: 0
+    bucketSliceEndIndex: 3
+    startLine: 1
+    textFile: {fileID: 4900000, guid: 66f533fda4435486ba904bdcf612278d, type: 3}
+  - ruleName: rule_or_group_example
+    RuleID: 2
+    bucket: default
+    payload:
+      rawText: you matched the rule , player.height is above 150 and/or street_smart
+        is above 15
+      strippedText: you matched the rule , player.height is above 150 and/or street_smart
+        is above 15
+      keyWords: []
+    PayloadObject: {fileID: 0}
+    factWrites: []
+    factTests:
+    - factName: player.height
+      isStrict: 1
+      orGroupRuleID: 1
+      factID: 3
+      matchString: 
+      matchValue: 180
+      compareMethod: 3
+      compareType: 1
+      ruleOwnerID: 2
+      lineNumber: 35
+    - factName: player.street_smart
+      isStrict: 1
+      orGroupRuleID: 1
+      factID: 5
+      matchString: 
+      matchValue: 15
+      compareMethod: 3
+      compareType: 1
+      ruleOwnerID: 2
+      lineNumber: 36
+    interpolations: []
+    bucketSliceStartIndex: 0
+    bucketSliceEndIndex: 3
+    startLine: 34
+    textFile: {fileID: 4900000, guid: 66f533fda4435486ba904bdcf612278d, type: 3}
+  - ruleName: rule_payload_example
+    RuleID: 3
+    bucket: default
+    payload:
+      rawText: Rule with payload example
+      strippedText: Rule with payload example
+      keyWords: []
+    PayloadObject: {fileID: 0}
+    factWrites: []
+    factTests:
+    - factName: player.height
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 3
+      matchString: 
+      matchValue: 180
+      compareMethod: 3
+      compareType: 1
+      ruleOwnerID: 3
+      lineNumber: 53
+    - factName: player.intelligence_level
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 6
+      matchString: 
+      matchValue: 10
+      compareMethod: 5
+      compareType: 1
+      ruleOwnerID: 3
+      lineNumber: 54
+    interpolations: []
+    bucketSliceStartIndex: 0
+    bucketSliceEndIndex: 3
+    startLine: 52
+    textFile: {fileID: 4900000, guid: 66f533fda4435486ba904bdcf612278d, type: 3}

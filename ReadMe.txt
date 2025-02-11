@@ -18,6 +18,10 @@ the FactMatcher class, is what you use.
 
 
 ==Update to API==
+Latest update, Documentations are now stored in a Scriptable object instead
+of each RuleDB referencing multiple documentation files. This makes it easier to share 
+a common set of documentation files.
+
 There has been some updates to the API to make it more expressive from the application side of things.
 There is now a distinction of Picking rules, and peeking rules. If you Pick - then the rule-write-back system,
 will run for each rule you picked. If you Pick one single best rule, only that rule will write back with FactWrites.

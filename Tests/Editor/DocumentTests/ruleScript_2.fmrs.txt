@@ -1,0 +1,61 @@
+.rule_name IF
+    player.age > 10
+    player.name = Johnny Lemon
+.THEN WRITE
+    --exmple of writing back to the fact system
+    player.age = 9
+.THEN RESPONSE
+rule matches if age is bigger than 10 and name is Johnny Lemon
+.END
+
+
+-- A comment starts with -- , but, remark,it is not handled within the response block..
+-- Variables start with a namespace. If none is given, it will be automatically be given global as the namespace
+-- The variables defined here will end up in generated c# code in FactMatcherCodeGenerator.cs
+-- Everything is case-sensitive..
+-- Deriving another rule allows you to copy all the checks of that rule. See rule below for an example
+
+
+.rule_name.derived IF
+   player.height > 180
+--You can also use Range which expands into to checks when the rulescript is parsed ( for exclusive [ for inclusive ..
+   player.health Range(5,25]
+.THEN RESPONSE
+rule matches if base rule .RuleName matches and height is bigger than 180
+.END
+
+
+-- You can use OR by starting a test with IF and including OR statements further down
+-- a group of IF OR, is evaluated as matching if one of the elements in the OR group is true.
+-- for judging which rule has the most matches, a match in an OR group counts as 1, even though multiple ORS match
+-- 
+
+
+.rule_or_group_example IF
+   IF player.height > 180
+      OR player.street_smart > 15
+.THEN RESPONSE
+you matched the rule , player.height is above 150 and/or street_smart is above 15
+.END
+
+
+-- the prefered naming convection is snake_case , divide by under_score
+-- Keywords are preferably written in upper caps
+-- .THEN WRITE
+-- .THEN RESPONSE
+-- .THEN PAYLOAD
+-- .IF
+-- .OR
+-- Deriving another rule allows you to copy all the checks of that rule. See rule below for an example
+
+
+.rule_payload_example IF
+   player.height > 180
+   player.intelligence_level >= 10
+.THEN PAYLOAD
+    payload_example.asset
+.THEN RESPONSE
+Rule with payload example
+.END
+
+

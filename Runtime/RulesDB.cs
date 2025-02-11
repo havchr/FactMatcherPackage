@@ -506,7 +506,7 @@ public class SetupForFileSystemWatcherAutoParse
                 string path = AssetDatabase.GUIDToAssetPath(guids[i]);
                 allRulesDB[i] = AssetDatabase.LoadAssetAtPath<RulesDB>(path);
 
-                if (!allRulesDB[i].generateDocumentationFrom.IsNullOrEmpty() || !allRulesDB[i].generateRuleFrom.IsNullOrEmpty())
+                if (allRulesDB[i].HasDocumentation() || !allRulesDB[i].generateRuleFrom.IsNullOrEmpty())
                 {
                     allRulesDB[i].SetUpFileWatcher();
                 }
@@ -515,6 +515,40 @@ public class SetupForFileSystemWatcherAutoParse
     }
 }
 #endif
+
+[CreateAssetMenu(fileName = "FMDoc", menuName = "FactMatcher/DocuHolder", order = 1)]
+public class FMDocumentation : ScriptableObject
+{
+    
+    public List<TextAsset> generateDocumentationFrom;
+    public List<DocumentEntry> documentations;
+    
+    public ProblemReporting CreateDocumentations()
+    {
+        ProblemReporting problems = new();
+        //problemList?.ClearList();
+        if (generateDocumentationFrom.Count != 0)
+        {
+            documentations?.Clear();
+            foreach (var document in generateDocumentationFrom)
+            {
+                documentations ??= new();
+                documentations?.AddRange(RuleDocumentationParser.GenerateFromText(ref problems, document));
+            }
+
+            if (problems.ContainsError())
+            {
+                documentations?.Clear();
+            }
+        }
+        else
+        {
+            documentations?.Clear();
+            problems.ReportNewError("There is nothing to generate from", null, -1);
+        }
+        return problems;
+    }
+}
 
 [CreateAssetMenu(fileName = "RulesDB", menuName = "FactMatcher/RulesDB", order = 1)]
 public class RulesDB : ScriptableObject
@@ -532,9 +566,8 @@ public class RulesDB : ScriptableObject
     private Dictionary<string, BucketSlice> _bucketSlices;
     private Dictionary<int, RuleDBEntry> _ruleMap;
 
-    [Space(10)]
-    public List<TextAsset> generateDocumentationFrom;
-    public List<DocumentEntry> documentations;
+    public List<DocumentEntry> DocumentationList => documentation.documentations;
+    public FMDocumentation documentation;
     public Action OnDocumentationParsed;
 
     [Space(10)]
@@ -548,7 +581,7 @@ public class RulesDB : ScriptableObject
 
     public void InitRuleDB()
     {
-        _stringIDsMap = CreateStringIDs(rules,documentations);
+        _stringIDsMap = CreateStringIDs(rules,DocumentationList);
         _ruleIDsMap = CreateRuleIDs(rules);
         _ruleMap = CreateEntryFromIDDic(rules);
         _factIDsMap = CreateFactIDs(rules);
@@ -563,7 +596,10 @@ public class RulesDB : ScriptableObject
         ClearAllFileWatchers();
         if (autoParseRuleScript)
         {
-            SetupFileWatcherUsingTextAssetList(generateDocumentationFrom);
+            if (documentation != null && documentation.generateDocumentationFrom != null)
+            {
+                SetupFileWatcherUsingTextAssetList(documentation.generateDocumentationFrom);
+            }
             SetupFileWatcherUsingTextAssetList(generateRuleFrom); 
         
         }
@@ -573,7 +609,10 @@ public class RulesDB : ScriptableObject
         ClearAllFileWatchers();
         if (autoParseRuleScript)
         {
-            SetupFileWatcherUsingTextAssetList(generateDocumentationFrom);
+            if (documentation != null && documentation.generateDocumentationFrom != null)
+            {
+                SetupFileWatcherUsingTextAssetList(documentation.generateDocumentationFrom);
+            }
             SetupFileWatcherUsingTextAssetList(generateRuleFrom); 
         
         }
@@ -670,7 +709,7 @@ public class RulesDB : ScriptableObject
 
     public DocumentEntry GetDocumentEntryByName(string nameOfDoc)
     {
-        foreach (var doc in documentations)
+        foreach (var doc in DocumentationList)
         {
             if (doc.DocumentName == nameOfDoc)
             {
@@ -740,7 +779,7 @@ public class RulesDB : ScriptableObject
         if (!ignoreDocumentationDemand)
         {
             problems = CreateDocumentations();
-            if (documentations == null)
+            if (DocumentationList == null)
             {
                 problems.ReportNewWarning("Documentations is null", null, -1);
             }
@@ -789,7 +828,7 @@ public class RulesDB : ScriptableObject
                     path,
                     ruleScript, 
                     ref problems,
-                    ignoreDocumentationDemand ? null : documentations);
+                    ignoreDocumentationDemand ? null : DocumentationList);
             }
 
             InitFactWriteIndexers(ref addedFactIDS,ref factID);
@@ -824,28 +863,8 @@ public class RulesDB : ScriptableObject
     
     public ProblemReporting CreateDocumentations()
     {
-        ProblemReporting problems = new();
         problemList?.ClearList();
-        if (generateDocumentationFrom.Count != 0)
-        {
-            documentations?.Clear();
-            foreach (var document in generateDocumentationFrom)
-            {
-                documentations ??= new();
-                documentations?.AddRange(RuleDocumentationParser.GenerateFromText(ref problems, document));
-            }
-
-            if (problems.ContainsError())
-            {
-                documentations?.Clear();
-            }
-        }
-        else
-        {
-            documentations?.Clear();
-            problems.ReportNewError("There is noting to generate from", null, -1);
-        }
-        return problems;
+        return documentation.CreateDocumentations();
     }
     
     //FactWrites that are referencing another factID - must now be converted to their factIDS.
@@ -1196,4 +1215,8 @@ public class RulesDB : ScriptableObject
         return ruleToSort.OrderBy(entry => entry.bucketSliceStartIndex).ThenByDescending(entry => entry.factTests.Count).ToList();
     }
 
+    public bool HasDocumentation()
+    {
+        return documentation != null && !documentation.generateDocumentationFrom.IsNullOrEmpty();
+    }
 }

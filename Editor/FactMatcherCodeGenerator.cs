@@ -31,7 +31,7 @@ public class FactMatcherCodeGenerator
     {
 	    
 		 List<string> result = new();
-		 foreach (var doc in rulesDB.documentations)
+		 foreach (var doc in rulesDB.DocumentationList)
 		 {
 			 foreach (var fact in doc.Facts)
 			 {

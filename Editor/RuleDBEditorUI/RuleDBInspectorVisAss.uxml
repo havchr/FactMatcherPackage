@@ -5,7 +5,7 @@
             <ui:Toggle label="Auto parse rule script" name="autoParseRuleScript" class="autoWrap" style="flex-direction: row-reverse;" />
             <ui:Toggle label="Ignore Documentation Demand" name="ignoreDoc" class="autoWrap" style="flex-direction: row-reverse;" />
             <ui:Toggle label="Debug Log Missing IDS" name="debugLogMissingIDS" class="autoWrap" style="flex-direction: row-reverse;" />
-            <ui:ListView virtualization-method="DynamicHeight" reorder-mode="Animated" show-add-remove-footer="true" show-foldout-header="true" header-title="Generate documentation from" name="generateDocFrom" show-border="true" style="padding-bottom: 10px;" />
+            <uie:PropertyField binding-path="documentation" data-source-type="FMDocumentation, Agens.FactMatcher" label="DOCS" />
             <ui:Foldout text="Rules" name="rulesFoldout">
                 <ui:ListView virtualization-method="DynamicHeight" reorder-mode="Animated" show-add-remove-footer="true" show-border="true" show-foldout-header="true" header-title="Generate rules from" name="generateRuleFrom" style="padding-bottom: 10px;" />
                 <ui:TextField picking-mode="Ignore" label="Search for item" name="ruleFilter" />

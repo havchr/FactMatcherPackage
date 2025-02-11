@@ -246,6 +246,18 @@ namespace FactMatching
             }
         }
         
+        public static int[] CreateFactIDSFromEnum(FactMatcher fm,Type enumType, string prefix, string postfix, int defaulyValue = 0)
+        {
+            string[] enumNames = Enum.GetNames(enumType);
+            int[] ids = new int[enumNames.Length];
+            for (int i = 0; i < ids.Length; i++)
+            {
+                ids[i] = fm.FactID($"{prefix}{enumNames[i]}{postfix}");
+                fm[ids[i]] = defaulyValue;
+            }
+            return ids;
+        }
+        
         public static int[] CreateStringIDSFromEnum(FactMatcher factMatcher,Type enumType,bool logNotFoundWarning=false)
         {
             var names = Enum.GetNames(enumType);
