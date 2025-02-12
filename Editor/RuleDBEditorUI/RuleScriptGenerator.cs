@@ -33,7 +33,7 @@ namespace FactMatching
     public class RuleScriptGenerator 
     {
     
-        [MenuItem("Assets/Create/FactMatcher/Documentation")]
+        [MenuItem("Assets/Create/FactMatcher/DocumentationScript")]
         private static void CreateDocumentationScript(MenuCommand command)
         {
             var fileName = "Documentation_";
