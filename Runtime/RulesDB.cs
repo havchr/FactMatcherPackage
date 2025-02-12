@@ -532,8 +532,22 @@ public class RulesDB : ScriptableObject
     private Dictionary<string, BucketSlice> _bucketSlices;
     private Dictionary<int, RuleDBEntry> _ruleMap;
 
-    public List<DocumentEntry> DocumentationList => documentation.documentations;
+    public List<DocumentEntry> DocumentationList
+    {
+        get
+        {
+            if (documentation != null && documentation.documentations != null)
+            {
+                return documentation.documentations;
+            }
+            return _emptyDocList;
+        }
+    }
+
+
     public FMDocumentation documentation;
+    private List<DocumentEntry> _emptyDocList = new List<DocumentEntry>();
+
     public Action OnDocumentationParsed;
 
     [Space(10)]
