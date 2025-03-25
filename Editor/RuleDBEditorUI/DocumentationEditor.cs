@@ -21,10 +21,10 @@ public class DocumentationEditor : Editor
                 }
                 else
                 {
-                    EditorUtility.SetDirty(fmDoc);
-                    AssetDatabase.SaveAssetIfDirty(fmDoc);
                     EditorUtility.DisplayDialog("OK", "Documentation Parsed without issues", "OK");
                 }
+                EditorUtility.SetDirty(fmDoc);
+                AssetDatabase.SaveAssetIfDirty(fmDoc);
             }
         }
     }
