@@ -841,6 +841,81 @@ public class RulesDB : ScriptableObject
         return problems;
     }
     
+    public ProblemReporting CreateRulesFromStringList(List<string> rulesAsStrings)
+    {
+        ProblemReporting problems = new();
+        problemList?.ClearList();
+
+        if (!ignoreDocumentationDemand)
+        {
+            problems = CreateDocumentations();
+            if (DocumentationList == null)
+            {
+                problems.ReportNewWarning("Documentations is null", null, -1);
+            }
+        }
+        else
+        {
+            problems.ReportNewWarning("Ignore documentation demand is on", null, -1);
+        }
+
+        if (rulesAsStrings.Count != 0)
+        {
+            rules.Clear();
+            int factID = Consts.FactIDDevNull + 1;
+            int ruleID = 0;
+            int bucketID = 0;
+            Dictionary<string, int> addedFactIDS = new();
+            Dictionary<string, BucketSlice> slicesForBuckets = new();
+            Dictionary<string, string> bucketPartNames = new();
+            foreach (var ruleScript in rulesAsStrings)
+            {
+                var parser = new RuleScriptParser();
+                
+                parser.GenerateFromText(ruleScript,
+                    rules,
+                    ref factID,
+                    ref addedFactIDS,
+                    ref slicesForBuckets,
+                    ref bucketPartNames,
+                    ref bucketID,
+                    ref ruleID,
+                    "",
+                    null, 
+                    ref problems,
+                    ignoreDocumentationDemand ? null : DocumentationList);
+            }
+
+            InitFactWriteIndexers(ref addedFactIDS,ref factID);
+            if (!problems.ContainsError())
+            {
+                /*
+                 * We need to sort on our buckets, so that we can use bucketSlices (slices of the array)
+                 * to test only specific parts of the RuleDB, see the FactMatcher documentation about buckets
+                 */
+                rules = SortListByBucketIndexThenDescendingFactCounts(rules);
+                rules = BucketSlicer.SliceIntoBuckets(rules); 
+                PayloadInterpolationParser payloadInterpolationParser = new();
+                foreach (var rule in rules)
+                {
+                    payloadInterpolationParser.Parsey(rule, ref addedFactIDS);
+                }
+                OnRulesParsed?.Invoke();
+            }
+            else
+            {
+                rules?.Clear();
+            }
+        }
+        else
+        {
+            rules?.Clear();
+            problems.ReportNewError("There is noting to generate from", null, -1);
+        }
+
+        return problems;
+    }
+    
     public ProblemReporting CreateDocumentations()
     {
         problemList?.ClearList();
