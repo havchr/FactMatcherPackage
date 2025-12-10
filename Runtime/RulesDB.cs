@@ -1184,12 +1184,15 @@ public class RulesDB : ScriptableObject
         {
             foreach (var fact in documentEntry.Facts)
             {
-                foreach (var factsCanBe in fact.FactCanBe)
+                if (fact.FactCanBe != null)
                 {
-                    if (!dic.ContainsKey(factsCanBe))
+                    foreach (var factsCanBe in fact.FactCanBe)
                     {
-                        dic[factsCanBe] = id;
-                        id++;
+                        if (factsCanBe!=null && !dic.ContainsKey(factsCanBe))
+                        {
+                            dic[factsCanBe] = id;
+                            id++;
+                        }
                     }
                 }
             }
