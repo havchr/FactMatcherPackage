@@ -120,6 +120,17 @@ namespace FactMatching
             _lineNumber++;
             return line;
         }
+        
+        private static string NextLineTrimmed()
+        {
+            string line = null;
+            while ((line = stringReader.ReadLine()) != null && (line.TrimStart().StartsWith("--") || line == ""))
+            {
+                ++_lineNumber;
+            }
+            _lineNumber++;
+            return line?.Trim();
+        }
 
         private static ProblemReporting localProblems;
         private static TextAsset currentFile;
@@ -192,7 +203,7 @@ namespace FactMatching
             int factID = 0;
             string line;
             RuleDocParserKeyword keywordInLine;
-            while ((line = NextLine().Trim()) != null && (keywordInLine = LookForKeywordInLine(line)) != RuleDocParserKeyword.KeywordEND)
+            while ((line = NextLineTrimmed()) != null && (keywordInLine = LookForKeywordInLine(line)) != RuleDocParserKeyword.KeywordEND)
             {
                 if (keywordInLine == RuleDocParserKeyword.KeywordFACT)
                 {

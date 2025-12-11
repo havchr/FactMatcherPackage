@@ -605,7 +605,7 @@ public class RulesDB : ScriptableObject
             foreach (var textAsset in textAssetList)
             {
                 GetFullPathFromAsset(textAsset, out string directoryPath, out string fileName);
-                if (!fileName.IsNullOrWhitespace())
+                if (!fileName.IsNullOrWhitespace() && File.Exists(fileName))
                 {
                     var fileWatcha = new FileSystemWatcher()
                     {
