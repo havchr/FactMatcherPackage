@@ -840,6 +840,21 @@ public class RulesDB : ScriptableObject
 
         return problems;
     }
+
+    /*
+     * Creates a RulesDB instance that can be created and used on the fly also in a build.
+     * if documentation = null, parsing of rules ignores documentation
+     * template use in rules-as-strings is undefined.
+     */
+    public static RulesDB CreateRulesDBFromStringList(List<string> rulesAsStrings, FMDocumentation documentation, out ProblemReporting problems)
+    {
+        RulesDB ruleDB = ScriptableObject.CreateInstance<RulesDB>();
+        ruleDB.rules = new List<RuleDBEntry>();
+        ruleDB.documentation = documentation;
+        ruleDB.ignoreDocumentationDemand = documentation == null;
+        problems = ruleDB.CreateRulesFromStringList(rulesAsStrings);
+        return ruleDB;
+    }
     
     public ProblemReporting CreateRulesFromStringList(List<string> rulesAsStrings)
     {
