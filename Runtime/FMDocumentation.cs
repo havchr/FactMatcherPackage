@@ -34,4 +34,33 @@ public class FMDocumentation : ScriptableObject
         }
         return problems;
     }
+
+    /*
+     * Makes it easier to gather all documentation for a fact, coming from different sources/files.
+     * Useful for tooling/autocompletion
+     */
+    public Dictionary<string, List<FactInDocument>> GatherAllDocumentations()
+    {
+        Dictionary<string, List<FactInDocument>> docsGather = new Dictionary<string, List<FactInDocument>>();
+        
+        foreach (var doc in documentations)
+        {
+            if (doc == null || doc.Facts == null)
+            {
+                continue;
+            }
+            foreach (var fact in doc.Facts)
+            {
+                if (fact != null)
+                {
+                    if (!docsGather.ContainsKey(fact.factName))
+                    {
+                        docsGather[fact.factName] = new List<FactInDocument>(); 
+                    }
+                    docsGather[fact.factName].Add(fact); 
+                }
+            }
+        }
+        return docsGather;
+    }
 }
