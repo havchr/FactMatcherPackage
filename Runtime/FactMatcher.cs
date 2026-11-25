@@ -30,6 +30,8 @@ public class FactMatcher
     private NativeArray<int> _allValidRuleIndices;
     private NativeArray<int> _allBestRulesIndices;
     private NativeArray<int> _allMatchesForAllRules;
+    // Rules are sorted after parsing, so a rule's RuleID is not its index in _rules.
+    private System.Collections.Generic.Dictionary<int, int> _ruleIDToIndex;
     private NativeArray<int> _noOfRulesWithBestMatch;
     private NativeArray<int> _noOfValidRules;
     private NativeArray<Settings> _settings;
@@ -134,6 +136,11 @@ public class FactMatcher
             }
         }
         FactMatching.Functions.CreateNativeRules(this.ruleDB, out _rules, out _factTests);
+        _ruleIDToIndex = new System.Collections.Generic.Dictionary<int, int>(_rules.Length);
+        for (int i = 0; i < _rules.Length; i++)
+        {
+            _ruleIDToIndex[_rules[i].ruleFiredEventId] = i;
+        }
         _bestRule = new NativeArray<int>(1,Allocator.Persistent);
         
         //if our setting is not in need of these - we could ditch/Skip allocating them, but optimize that later if you feel like it.
@@ -224,8 +231,13 @@ public class FactMatcher
             return 0;
         }
         PeekAllValidRules(true);
-        ruleValid = _allMatchesForAllRules[ruleID] >= 0;
-        return Mathf.Abs(_allMatchesForAllRules[ruleID]);
+        if (_ruleIDToIndex == null || !_ruleIDToIndex.TryGetValue(ruleID, out int index))
+        {
+            ruleValid = false;
+            return 0;
+        }
+        ruleValid = _allMatchesForAllRules[index] >= 0;
+        return Mathf.Abs(_allMatchesForAllRules[index]);
     }
     
          

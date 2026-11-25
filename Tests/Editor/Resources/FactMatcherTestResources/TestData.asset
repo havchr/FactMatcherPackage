@@ -16,12 +16,216 @@ MonoBehaviour:
   ignoreDocumentationDemand: 1
   debugLogMissingIDS: 0
   debugLogAutoparsing: 0
-  generateDocumentationFrom: []
-  documentations: []
+  documentation: {fileID: 0}
   generateRuleFrom:
   - {fileID: 4900000, guid: 9da96597c74d54528b5e0408a9196c40, type: 3}
   - {fileID: 4900000, guid: 752fd1ba1e8e94547b088f6688e0fc96, type: 3}
+  - {fileID: 4900000, guid: 77b2630f0c4a34097b6229b273daf9db, type: 3}
   rules:
+  - ruleName: rule_test_range_inclusive_inclusive
+    RuleID: 10
+    bucket: default
+    payload:
+      rawText: Age Inclusive 2 to Inclusive 12
+      strippedText: Age Inclusive 2 to Inclusive 12
+      keyWords: []
+    PayloadObject: {fileID: 0}
+    factWrites:
+    - factName: rule_test_range_result
+      factID: 16
+      writeString: True
+      writeValue: 0
+      writeMode: 0
+      lineNumber: 5
+    factTests:
+    - factName: test_case
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 14
+      matchString: TestRange
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 10
+      lineNumber: 2
+    - factName: age
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 15
+      matchString: 
+      matchValue: 2
+      compareMethod: 5
+      compareType: 1
+      ruleOwnerID: 10
+      lineNumber: 3
+    - factName: age
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 15
+      matchString: 
+      matchValue: 12
+      compareMethod: 4
+      compareType: 1
+      ruleOwnerID: 10
+      lineNumber: 3
+    interpolations: []
+    bucketSliceStartIndex: 0
+    bucketSliceEndIndex: 6
+    startLine: 1
+    textFile: {fileID: 4900000, guid: 77b2630f0c4a34097b6229b273daf9db, type: 3}
+  - ruleName: rule_test_range_exclusive_inclusive
+    RuleID: 11
+    bucket: default
+    payload:
+      rawText: Age Exclusive 2 to Inclusive 12
+      strippedText: Age Exclusive 2 to Inclusive 12
+      keyWords: []
+    PayloadObject: {fileID: 0}
+    factWrites:
+    - factName: rule_test_range_result
+      factID: 16
+      writeString: True
+      writeValue: 0
+      writeMode: 0
+      lineNumber: 14
+    factTests:
+    - factName: test_case
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 14
+      matchString: TestRange
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 11
+      lineNumber: 11
+    - factName: age
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 15
+      matchString: 
+      matchValue: 2
+      compareMethod: 3
+      compareType: 1
+      ruleOwnerID: 11
+      lineNumber: 12
+    - factName: age
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 15
+      matchString: 
+      matchValue: 12
+      compareMethod: 4
+      compareType: 1
+      ruleOwnerID: 11
+      lineNumber: 12
+    interpolations: []
+    bucketSliceStartIndex: 0
+    bucketSliceEndIndex: 6
+    startLine: 10
+    textFile: {fileID: 4900000, guid: 77b2630f0c4a34097b6229b273daf9db, type: 3}
+  - ruleName: rule_test_range_exclusive_exclusive
+    RuleID: 12
+    bucket: default
+    payload:
+      rawText: Age Exclusive 2 to Exclusive 12
+      strippedText: Age Exclusive 2 to Exclusive 12
+      keyWords: []
+    PayloadObject: {fileID: 0}
+    factWrites:
+    - factName: rule_test_range_result
+      factID: 16
+      writeString: True
+      writeValue: 0
+      writeMode: 0
+      lineNumber: 23
+    factTests:
+    - factName: test_case
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 14
+      matchString: TestRange
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 12
+      lineNumber: 20
+    - factName: age
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 15
+      matchString: 
+      matchValue: 2
+      compareMethod: 3
+      compareType: 1
+      ruleOwnerID: 12
+      lineNumber: 21
+    - factName: age
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 15
+      matchString: 
+      matchValue: 12
+      compareMethod: 2
+      compareType: 1
+      ruleOwnerID: 12
+      lineNumber: 21
+    interpolations: []
+    bucketSliceStartIndex: 0
+    bucketSliceEndIndex: 6
+    startLine: 19
+    textFile: {fileID: 4900000, guid: 77b2630f0c4a34097b6229b273daf9db, type: 3}
+  - ruleName: rule_test_range_inclusive_exclusive
+    RuleID: 13
+    bucket: default
+    payload:
+      rawText: Age Inclusive 2 to Exclusive 12
+      strippedText: Age Inclusive 2 to Exclusive 12
+      keyWords: []
+    PayloadObject: {fileID: 0}
+    factWrites:
+    - factName: rule_test_range_result
+      factID: 16
+      writeString: True
+      writeValue: 0
+      writeMode: 0
+      lineNumber: 32
+    factTests:
+    - factName: test_case
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 14
+      matchString: TestRange
+      matchValue: 0
+      compareMethod: 0
+      compareType: 0
+      ruleOwnerID: 13
+      lineNumber: 29
+    - factName: age
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 15
+      matchString: 
+      matchValue: 2
+      compareMethod: 5
+      compareType: 1
+      ruleOwnerID: 13
+      lineNumber: 30
+    - factName: age
+      isStrict: 1
+      orGroupRuleID: -1
+      factID: 15
+      matchString: 
+      matchValue: 12
+      compareMethod: 2
+      compareType: 1
+      ruleOwnerID: 13
+      lineNumber: 30
+    interpolations: []
+    bucketSliceStartIndex: 0
+    bucketSliceEndIndex: 6
+    startLine: 28
+    textFile: {fileID: 4900000, guid: 77b2630f0c4a34097b6229b273daf9db, type: 3}
   - ruleName: rule_1
     RuleID: 0
     bucket: default
@@ -60,7 +264,7 @@ MonoBehaviour:
       lineNumber: 3
     interpolations: []
     bucketSliceStartIndex: 0
-    bucketSliceEndIndex: 2
+    bucketSliceEndIndex: 6
     startLine: 1
     textFile: {fileID: 4900000, guid: 9da96597c74d54528b5e0408a9196c40, type: 3}
   - ruleName: rule_2
@@ -101,7 +305,7 @@ MonoBehaviour:
       lineNumber: 12
     interpolations: []
     bucketSliceStartIndex: 0
-    bucketSliceEndIndex: 2
+    bucketSliceEndIndex: 6
     startLine: 10
     textFile: {fileID: 4900000, guid: 9da96597c74d54528b5e0408a9196c40, type: 3}
   - ruleName: rule_3
@@ -132,7 +336,7 @@ MonoBehaviour:
       lineNumber: 20
     interpolations: []
     bucketSliceStartIndex: 0
-    bucketSliceEndIndex: 2
+    bucketSliceEndIndex: 6
     startLine: 19
     textFile: {fileID: 4900000, guid: 9da96597c74d54528b5e0408a9196c40, type: 3}
   - ruleName: bucket_foo_rule_1
@@ -182,8 +386,8 @@ MonoBehaviour:
       ruleOwnerID: 3
       lineNumber: 4
     interpolations: []
-    bucketSliceStartIndex: 3
-    bucketSliceEndIndex: 5
+    bucketSliceStartIndex: 7
+    bucketSliceEndIndex: 9
     startLine: 1
     textFile: {fileID: 4900000, guid: 752fd1ba1e8e94547b088f6688e0fc96, type: 3}
   - ruleName: bucket_foo_rule_2
@@ -233,8 +437,8 @@ MonoBehaviour:
       ruleOwnerID: 4
       lineNumber: 14
     interpolations: []
-    bucketSliceStartIndex: 3
-    bucketSliceEndIndex: 5
+    bucketSliceStartIndex: 7
+    bucketSliceEndIndex: 9
     startLine: 11
     textFile: {fileID: 4900000, guid: 752fd1ba1e8e94547b088f6688e0fc96, type: 3}
   - ruleName: bucket_foo_rule_3
@@ -274,8 +478,8 @@ MonoBehaviour:
       ruleOwnerID: 5
       lineNumber: 23
     interpolations: []
-    bucketSliceStartIndex: 3
-    bucketSliceEndIndex: 5
+    bucketSliceStartIndex: 7
+    bucketSliceEndIndex: 9
     startLine: 21
     textFile: {fileID: 4900000, guid: 752fd1ba1e8e94547b088f6688e0fc96, type: 3}
   - ruleName: bucket_boo_rule_1
@@ -325,8 +529,8 @@ MonoBehaviour:
       ruleOwnerID: 6
       lineNumber: 33
     interpolations: []
-    bucketSliceStartIndex: 6
-    bucketSliceEndIndex: 9
+    bucketSliceStartIndex: 10
+    bucketSliceEndIndex: 13
     startLine: 30
     textFile: {fileID: 4900000, guid: 752fd1ba1e8e94547b088f6688e0fc96, type: 3}
   - ruleName: bucket_boo_rule_2
@@ -376,8 +580,8 @@ MonoBehaviour:
       ruleOwnerID: 7
       lineNumber: 43
     interpolations: []
-    bucketSliceStartIndex: 6
-    bucketSliceEndIndex: 9
+    bucketSliceStartIndex: 10
+    bucketSliceEndIndex: 13
     startLine: 40
     textFile: {fileID: 4900000, guid: 752fd1ba1e8e94547b088f6688e0fc96, type: 3}
   - ruleName: bucket_boo_rule_3
@@ -417,8 +621,8 @@ MonoBehaviour:
       ruleOwnerID: 8
       lineNumber: 52
     interpolations: []
-    bucketSliceStartIndex: 6
-    bucketSliceEndIndex: 9
+    bucketSliceStartIndex: 10
+    bucketSliceEndIndex: 13
     startLine: 50
     textFile: {fileID: 4900000, guid: 752fd1ba1e8e94547b088f6688e0fc96, type: 3}
   - ruleName: bucket_boo_rule_4
@@ -458,7 +662,7 @@ MonoBehaviour:
       ruleOwnerID: 9
       lineNumber: 61
     interpolations: []
-    bucketSliceStartIndex: 6
-    bucketSliceEndIndex: 9
+    bucketSliceStartIndex: 10
+    bucketSliceEndIndex: 13
     startLine: 59
     textFile: {fileID: 4900000, guid: 752fd1ba1e8e94547b088f6688e0fc96, type: 3}

@@ -1,0 +1,35 @@
+.rule_test_range_inclusive_inclusive IF
+    test_case = TestRange
+    age Range[2,12]
+.THEN WRITE
+rule_test_range_result = True
+.THEN RESPONSE
+Age Inclusive 2 to Inclusive 12
+.END
+
+.rule_test_range_exclusive_inclusive IF
+    test_case = TestRange
+    age Range(2,12]
+.THEN WRITE
+rule_test_range_result = True
+.THEN RESPONSE
+Age Exclusive 2 to Inclusive 12
+.END
+
+.rule_test_range_exclusive_exclusive IF
+    test_case = TestRange
+    age Range(2,12)
+.THEN WRITE
+rule_test_range_result = True
+.THEN RESPONSE
+Age Exclusive 2 to Exclusive 12
+.END
+
+.rule_test_range_inclusive_exclusive IF
+    test_case = TestRange
+    age Range[2,12)
+.THEN WRITE
+rule_test_range_result = True
+.THEN RESPONSE
+Age Inclusive 2 to Exclusive 12
+.END

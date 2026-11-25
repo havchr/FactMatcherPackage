@@ -817,10 +817,14 @@ namespace FactMatching
             operands.Sort((s, s1) => s1.Item1.Length - s.Item1.Length);
             foreach (var operand in operands)
             {
-                if (line.Trim().Contains(operand.Item1,StringComparison.InvariantCultureIgnoreCase))
+                // "range" is a word, so it must not match inside a fact name like "orange_count".
+                // Require whitespace before it and a [ or ( after it: "health range [0,10]".
+                string pattern = operand.Item2 == RuleDBFactTestEntry.Comparision.Range
+                    ? @"\s+range\s*(?=[\[\(])"
+                    : Regex.Escape(operand.Item1);
+                if (Regex.IsMatch(line, pattern, RegexOptions.IgnoreCase))
                 {
-                    var splits = Regex.Split(line, operand.Item1, RegexOptions.IgnoreCase).Where(s => s.Length > 0).ToArray();
-                    //var splits = line.Split(new[] {operand.Item1}, StringSplitOptions.RemoveEmptyEntries);
+                    var splits = Regex.Split(line, pattern, RegexOptions.IgnoreCase).Where(s => s.Length > 0).ToArray();
                     if (splits.Length != 2)
                     {
                         problems.ReportNewError($"Error case - Operand split trouble , lineNumber = {_lineNumber} and templateLineNumber {_templateLineNumber}", currentFile, _lineNumber);
@@ -878,30 +882,46 @@ namespace FactMatching
                             //Debug.Log($"handling {valueMatch} in compareMethodRange");
                             //Debug.Log($"handling left val {splitRange[0]} in compareMethodRange");
                             //Debug.Log($"handling right val {splitRange[1]} in compareMethodRange");
-                            if (float.TryParse(splitRange[0], out float left))
+                            if (splitRange.Length != 2)
+                            {
+                                problems.ReportNewError(
+                                    $"Range for {factTestEntry.factName} must have two bounds, like [0,10], got: {valueMatch}",
+                                    currentFile, _lineNumber);
+                            }
+                            else if (!float.TryParse(splitRange[0], out float left))
+                            {
+                                problems.ReportNewError(
+                                    $"Could not parse lower bound '{splitRange[0].Trim()}' in range for {factTestEntry.factName}: {valueMatch}",
+                                    currentFile, _lineNumber);
+                            }
+                            else if (!float.TryParse(splitRange[1], out float right))
+                            {
+                                problems.ReportNewError(
+                                    $"Could not parse upper bound '{splitRange[1].Trim()}' in range for {factTestEntry.factName}: {valueMatch}",
+                                    currentFile, _lineNumber);
+                            }
+                            else
                             {
                                 factTestEntry.matchValue = left;
                                 factTestEntry.compareType = FactValueType.Value;
                                 factTestEntry.compareMethod = exclusiveLeft
                                     ? RuleDBFactTestEntry.Comparision.MoreThan
-                                    : RuleDBFactTestEntry.Comparision.MoreThanEqual; 
-                                if (float.TryParse(splitRange[1], out float right))
-                                {
-                                    RuleDBFactTestEntry rangeEnd = new()
-                                    {
-                                        compareMethod = exclusiveRight
-                                        ? RuleDBFactTestEntry.Comparision.LessThan
-                                        : RuleDBFactTestEntry.Comparision.LessThanEqual,
-                                        factName = factTestEntry.factName,
-                                        matchValue = right,
-                                        compareType = FactValueType.Value
-                                    };
+                                    : RuleDBFactTestEntry.Comparision.MoreThanEqual;
 
-                                    currentRule.factTests.Add(factTestEntry);
-                                    currentRule.factTests.Add(rangeEnd);
-                                }
+                                // Copy the lower bound so the upper bound keeps its
+                                // isStrict, orGroupRuleID and lineNumber.
+                                RuleDBFactTestEntry rangeEnd = new(factTestEntry)
+                                {
+                                    compareMethod = exclusiveRight
+                                    ? RuleDBFactTestEntry.Comparision.LessThan
+                                    : RuleDBFactTestEntry.Comparision.LessThanEqual,
+                                    matchValue = right,
+                                };
+
+                                currentRule.factTests.Add(factTestEntry);
+                                currentRule.factTests.Add(rangeEnd);
                             }
-                            
+
                         }
                         else
                         {

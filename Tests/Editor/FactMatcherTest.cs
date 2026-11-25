@@ -459,6 +459,61 @@ public class FactMatcherTest
         
         matcher.DisposeData();
     }
+
+    [Test]
+    public void TestFactMatcherRange()
+    {
+        RulesDB rulesDB = Resources.Load<RulesDB>("FactMatcherTestResources/TestData");
+        FactMatcher matcher = new FactMatcher(rulesDB);
+        matcher.Init();
+
+        matcher[matcher.FactID("rule_test_rangy_result")] = FactMatching.Consts.False;
+        matcher[matcher.FactID("test_case")] = matcher.StringID("TestRange");
+
+        //See test_data_range.fmrs.txt , our test rules have age in 2,12 range mixing exclusive and inclusive syntax
+
+
+        //Checking outside, lower 
+        matcher[matcher.FactID("age")] = 1;
+        int rulesPicked = matcher.PickValidRules(false);
+        Assert.AreEqual(rulesPicked,0);
+
+        //Checking inside
+        matcher[matcher.FactID("age")] = 11;
+        rulesPicked = matcher.PickValidRules(false);
+        Assert.AreEqual(rulesPicked,4);
+
+        //Checking outside, higher 
+        matcher[matcher.FactID("age")] = 13;
+        rulesPicked = matcher.PickValidRules(false);
+        Assert.AreEqual(rulesPicked,0);
+
+        //Checking Boundaries
+        matcher[matcher.FactID("age")] = 2;
+        rulesPicked = matcher.PickValidRules(false);
+        Assert.AreEqual(rulesPicked,2);
+        Assert.IsTrue(
+            ( matcher.GetRuleFromMatches(0).ruleName.Equals("rule_test_range_inclusive_exclusive") ||
+             matcher.GetRuleFromMatches(0).ruleName.Equals("rule_test_range_inclusive_inclusive") )
+            &&
+            ( matcher.GetRuleFromMatches(1).ruleName.Equals("rule_test_range_inclusive_exclusive") ||
+                matcher.GetRuleFromMatches(1).ruleName.Equals("rule_test_range_inclusive_inclusive") )
+            );
+
+        matcher[matcher.FactID("age")] = 12;
+        rulesPicked = matcher.PickValidRules(false);
+        Assert.AreEqual(rulesPicked,2);
+        Assert.IsTrue(
+            (matcher.GetRuleFromMatches(0).ruleName.Equals("rule_test_range_inclusive_inclusive") ||
+            matcher.GetRuleFromMatches(0).ruleName.Equals("rule_test_range_exclusive_inclusive"))
+            &&
+            (matcher.GetRuleFromMatches(1).ruleName.Equals("rule_test_range_inclusive_inclusive") ||
+            matcher.GetRuleFromMatches(1).ruleName.Equals("rule_test_range_exclusive_inclusive"))
+            );
+
+        
+        matcher.DisposeData();
+    }
     
 }
 #endif
