@@ -431,6 +431,109 @@ public class FactMatcherTest
         Assert.AreEqual(0, leaks);
     }
 
+    // Builds a RulesDB with one rule per payload, all testing the facts score and player_name,
+    // sets score = 5 and player_name = Bro, and returns each payload interpolated.
+    private static Dictionary<string, string> InterpolatePayloads(Dictionary<string, string> payloadsByRuleName)
+    {
+        var script = new System.Text.StringBuilder();
+        foreach (var entry in payloadsByRuleName)
+        {
+            script.AppendLine($".{entry.Key} IF");
+            script.AppendLine("    score > 0");
+            script.AppendLine("    player_name = Bro");
+            script.AppendLine(".THEN RESPONSE");
+            script.AppendLine(entry.Value);
+            script.AppendLine(".END");
+            script.AppendLine();
+        }
+
+        RulesDB rulesDB = RulesDB.CreateRulesDBFromStringList(new List<string> { script.ToString() }, null, out var problems);
+        Assert.IsFalse(problems.ContainsError(), problems.ToString());
+        FactMatcher matcher = new FactMatcher(rulesDB);
+        var result = new Dictionary<string, string>();
+        try
+        {
+            matcher.Init();
+            matcher[matcher.FactID("score")] = 5;
+            matcher[matcher.FactID("player_name")] = matcher.StringID("Bro");
+
+            System.Text.StringBuilder sb = null;
+            foreach (var ruleName in payloadsByRuleName.Keys)
+            {
+                RuleDBEntry rule = rulesDB.rules.Find(r => r.ruleName == ruleName);
+                result[ruleName] = rule.Interpolate(matcher, ref sb);
+            }
+        }
+        finally
+        {
+            matcher.DisposeData();
+            UnityEngine.Object.DestroyImmediate(rulesDB);
+        }
+        return result;
+    }
+
+    [Test]
+    public void TestPayloadInterpolationValueAtEndOfPayload()
+    {
+        var result = InterpolatePayloads(new Dictionary<string, string>
+        {
+            // Control: a value interpolation followed by a space already works.
+            { "value_then_text", "You have #{score}F0 points" },
+            // Problem 8: a value interpolation at the very end keeps its last character.
+            { "value_at_end", "Score #{score}" },               // today: "Score 5}"
+            { "value_with_format_at_end", "Score #{score}F0" }, // today: "Score 50"
+        });
+
+        Assert.AreEqual("You have 5 points", result["value_then_text"]);
+        Assert.AreEqual("Score 5", result["value_at_end"]);
+        Assert.AreEqual("Score 5", result["value_with_format_at_end"]);
+    }
+
+    [Test]
+    public void TestPayloadInterpolationLoneMarkerDoesNotBreakLaterInterpolations()
+    {
+        var result = InterpolatePayloads(new Dictionary<string, string>
+        {
+            // Control: string interpolation with no stray markers.
+            { "string_only", "Hello ${player_name} today" },
+            // Problem 9: a '$' or '#' that doesn't start an interpolation must not change
+            // how the next interpolation is read.
+            { "lone_dollar_then_value", "Costs $5 for #{score}F0 items" },  // today: #{score} read as a string interpolation
+            { "lone_hash_then_string", "Item #5 is for ${player_name} today" }, // today: ${player_name} read as a value interpolation
+        });
+
+        Assert.AreEqual("Hello Bro today", result["string_only"]);
+        Assert.AreEqual("Costs $5 for 5 items", result["lone_dollar_then_value"]);
+        Assert.AreEqual("Item #5 is for Bro today", result["lone_hash_then_string"]);
+    }
+
+    [Test]
+    public void TestPayloadInterpolationValueFormatStopsAtNonFormatChar()
+    {
+        // A value format is a standard .NET numeric format: one letter, then optional digits (N0, F2, P1).
+        // Whatever comes after it is payload text, not part of the format.
+        var result = InterpolatePayloads(new Dictionary<string, string>
+        {
+            { "format_then_space", "You have #{score}N0 points" },
+            { "format_at_end", "Score #{score}F0" },
+            // Punctuation straight after the interpolation.
+            { "no_format_then_period", "Your score is #{score}." },
+            { "no_format_then_bang", "You got #{score}!" },
+            { "format_then_comma", "#{score}F0, well done" },
+            { "in_parentheses", "Score (#{score}) today" },
+            // Two interpolations with nothing between them.
+            { "adjacent_values", "#{score}#{score}" },
+        });
+
+        Assert.AreEqual("You have 5 points", result["format_then_space"]);
+        Assert.AreEqual("Score 5", result["format_at_end"]);
+        Assert.AreEqual("Your score is 5.", result["no_format_then_period"]);
+        Assert.AreEqual("You got 5!", result["no_format_then_bang"]);
+        Assert.AreEqual("5, well done", result["format_then_comma"]);
+        Assert.AreEqual("Score (5) today", result["in_parentheses"]);
+        Assert.AreEqual("55", result["adjacent_values"]);
+    }
+
     [Test]
     public void TestFactMatcherCountAllMatches()
     {

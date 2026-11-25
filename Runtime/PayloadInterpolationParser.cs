@@ -35,7 +35,8 @@ public class PayloadInterpolationParser
             { new StateTransformer('#', State.ReadingString), State.PotentialValueInterpolation },
             { new StateTransformer('{', State.PotentialValueInterpolation), State.InValueInterpolation },
             { new StateTransformer('}', State.InValueInterpolation), State.InValueFormatInterpolation },
-            { new StateTransformer(' ', State.InValueFormatInterpolation), State.AddingValueInterpolation },
+            // InValueFormatInterpolation ends at the first char that is not part of the format,
+            // see ContinuesValueFormat in the loop below.
 
             { new StateTransformer('$', State.ReadingString), State.PotentialStringInterpolation },
             { new StateTransformer('{', State.PotentialStringInterpolation), State.InStringInterpolation },
@@ -52,6 +53,23 @@ public class PayloadInterpolationParser
         for (int i = 0; i < ruleDBEntry.payload.StrippedText.Length; i++)
         {
             char theChar = ruleDBEntry.payload.StrippedText[i];
+            // A '$' or '#' not followed by '{' is just text. Go back to reading text before
+            // handling this char, so a lone marker can't decide the type of a later interpolation
+            // (and so "$#{x}" / "$${x}" still start an interpolation at the second marker).
+            if ((state == State.PotentialStringInterpolation || state == State.PotentialValueInterpolation)
+                && theChar != '{')
+            {
+                state = State.ReadingString;
+            }
+            // The value format (N0, F2 ...) ends at the first char that can't extend it.
+            // End the interpolation on the previous char, then handle this char as payload text,
+            // so "#{score}." keeps its '.' and "#{a}#{b}" starts a second interpolation.
+            if (state == State.InValueFormatInterpolation && !ContinuesValueFormat(theChar, valueFormatInterpolation.Length))
+            {
+                HandleNewState(ruleDBEntry, addedFactIDS, State.AddingValueInterpolation, interpolationVariable,
+                    i, valueFormatInterpolation, ref payloadInterpolation);
+                state = State.ReadingString;
+            }
             StateTransformer stateTransformer = new(theChar, state);
             if (parser.ContainsKey(stateTransformer))
             {
@@ -73,13 +91,23 @@ public class PayloadInterpolationParser
             }
         }
         //Handle case of ValueInterpolation at end of string.
+        //AddingValueInterpolation ends the interpolation at i-1 (the char before the first non-format char),
+        //so pass Length here to make it end on the payload's last char.
         if (state == State.InValueFormatInterpolation)
         {
-            state = State.AddingValueInterpolation; 
-            HandleNewState(ruleDBEntry, addedFactIDS,  state, interpolationVariable, ruleDBEntry.payload.StrippedText.Length-1, valueFormatInterpolation, ref payloadInterpolation);
+            state = State.AddingValueInterpolation;
+            HandleNewState(ruleDBEntry, addedFactIDS,  state, interpolationVariable, ruleDBEntry.payload.StrippedText.Length, valueFormatInterpolation, ref payloadInterpolation);
         }
     }
     
+    // A value format is a standard .NET numeric format: one ASCII letter, then digits (N0, F2, P1, C).
+    private static bool ContinuesValueFormat(char c, int formatLengthSoFar)
+    {
+        return formatLengthSoFar == 0
+            ? (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
+            : c >= '0' && c <= '9';
+    }
+
     private static State HandleNewState(RuleDBEntry ruleDBEntry, Dictionary<string, int> addedFactIDS, 
         State state, StringBuilder interpolationVariable, int i,
         StringBuilder valueFormatInterpolation, ref RulePayloadInterpolation payloadInterpolation)
