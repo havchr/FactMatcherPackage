@@ -381,16 +381,13 @@ public class DocumentEntry
         {
             foreach (var currentFact in Facts)
             {
-                if (currentFact.factName == factName.Trim() && currentFact.FactCanBeContains(canBe))
+                // The name can match exactly, or through '#' for IgnoreNumber facts (enemy_# matches enemy_3).
+                // Either way the value must still be one the fact CAN BE.
+                bool nameMatches = currentFact.factName == factName.Trim()
+                    || (currentFact.IgnoreNumber && CompareStringsIgnoringNumbers(currentFact.factName, factName));
+                if (nameMatches && currentFact.FactCanBeContains(canBe))
                 {
                     return true;
-                }
-                else if (currentFact.IgnoreNumber)
-                {
-                    if (CompareStringsIgnoringNumbers(currentFact.factName, factName))
-                    {
-                        return true;
-                    }
                 }
             }
         }
