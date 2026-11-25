@@ -126,6 +126,11 @@ public class FactMatcher
 
     public void Init()
     {
+        // Re-init: free the previous native arrays instead of leaking them.
+        if (HasDataToDispose())
+        {
+            DisposeData();
+        }
         ruleDB.InitRuleDB();
         _factValues = new NativeArray<float>(ruleDB.CountNumberOfFacts(),Allocator.Persistent);
         for (int i = 0; i < _factValues.Length; i++)
@@ -210,6 +215,10 @@ public class FactMatcher
     
     public void DisposeData()
     {
+        if (!HasDataToDispose())
+        {
+            return; // already disposed, or never inited
+        }
         _factValues.Dispose();
         _rules.Dispose();
         _factTests.Dispose();
@@ -222,7 +231,11 @@ public class FactMatcher
         _noOfValidRules.Dispose();
         _settings.Dispose();
         _slice.Dispose();
-        
+
+        // The cached job references the arrays we just freed.
+        hasCachedJob = false;
+        _cachedJob = default;
+
         _dataDisposed = true;
         _hasBeenInited = false;
     }
@@ -441,7 +454,7 @@ public class FactMatcher
         PickValidRules(false);
         for (int i = 0; i < _noOfRulesWithBestMatch[0]; i++)
         {
-            RuleDBEntry entry = GetRuleFromMatches(0);
+            RuleDBEntry entry = GetRuleFromMatches(i);
             if (fireListeners)
             {
                 OnRulePicked?.Invoke(entry.RuleID);
@@ -473,7 +486,7 @@ public class FactMatcher
             int rules = PickValidRules(false,bucketSlice.startIndex, bucketSlice.endIndex);
             for (int i = 0; i < _noOfRulesWithBestMatch[0]; i++)
             {
-                RuleDBEntry entry = GetRuleFromMatches(0);
+                RuleDBEntry entry = GetRuleFromMatches(i);
                 if (fireListeners)
                 {
                     OnRulePicked?.Invoke(entry.RuleID);
@@ -732,7 +745,12 @@ public class FactMatcher
         var bucketSlice = ruleDB.GetSliceForBucket(str);
         if (bucketSlice != null)
         {
-            bucketSlice.Init(this);
+            // Slices are cached in the RulesDB and replaced when it re-inits,
+            // so they only need to be initialised on first lookup.
+            if (!bucketSlice.IsInited)
+            {
+                bucketSlice.Init(this);
+            }
             return bucketSlice;
         }
         bucketSlice = ruleDB.GetSliceForBucket("default");
@@ -742,7 +760,10 @@ public class FactMatcher
             {
                 Debug.LogError($"Could not find FactMatcher Bucket {str} - choosing default bucket [{bucketSlice.startIndex}:{bucketSlice.endIndex}] instead");
             }
-            bucketSlice.Init(this);
+            if (!bucketSlice.IsInited)
+            {
+                bucketSlice.Init(this);
+            }
             return bucketSlice;
         }
 

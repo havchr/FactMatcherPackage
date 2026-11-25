@@ -43,6 +43,11 @@ public class FactMatcherJobSystem : MonoBehaviour, FactMatcherProvider
     #endif
     public void Init()
     {
+        // Free the previous FactMatcher's native arrays before replacing it.
+        if (_factMatcher != null && _factMatcher.HasDataToDispose())
+        {
+            _factMatcher.DisposeData();
+        }
         _factMatcher = new FactMatcher(ruleDB);
         _factMatcher.Init();
         OnInited?.Invoke();

@@ -321,6 +321,117 @@ public class FactMatcherTest
     }
     
     [Test]
+    public void TestFactMatcherPickBestRulesFactWriteToAllValidRules_ReportsEachBestRuleOnce()
+    {
+        RulesDB rulesDB = Resources.Load<RulesDB>("FactMatcherTestResources/TestData");
+        FactMatcher matcher = new FactMatcher(rulesDB);
+        matcher.Init();
+
+        var pickedRuleIDs = new List<int>();
+        matcher.OnRulePicked += ruleID => pickedRuleIDs.Add(ruleID);
+
+        matcher[matcher.FactID("test1")] = FactMatching.Consts.True;
+        matcher[matcher.FactID("test2")] = FactMatching.Consts.True;
+
+        int bestRules = matcher.PickBestRulesFactWriteToAllValidRules();
+
+        Assert.AreEqual(2, bestRules);
+        // rule_1 and rule_2 tie for best match, so each should be reported exactly once
+        // (not the same rule twice).
+        CollectionAssert.AreEquivalent(
+            new[] { matcher.RuleID("rule_1"), matcher.RuleID("rule_2") },
+            pickedRuleIDs);
+
+        matcher.DisposeData();
+    }
+
+    [Test]
+    public void TestFactMatcherPickBestRulesInBucketFactWriteToAllValidRules_ReportsEachBestRuleOnce()
+    {
+        RulesDB rulesDB = Resources.Load<RulesDB>("FactMatcherTestResources/TestData");
+        FactMatcher matcher = new FactMatcher(rulesDB);
+        matcher.Init();
+
+        BucketSlice fooBucket = matcher.BucketSlice("bucket:foo");
+
+        var pickedRuleIDs = new List<int>();
+        matcher.OnRulePicked += ruleID => pickedRuleIDs.Add(ruleID);
+
+        matcher[matcher.FactID("test1")] = FactMatching.Consts.True;
+        matcher[matcher.FactID("test2")] = FactMatching.Consts.True;
+
+        int bestRules = matcher.PickBestRulesInBucketFactWriteToAllValidRules(fooBucket);
+
+        Assert.AreEqual(2, bestRules);
+        // bucket_foo_rule_1 and bucket_foo_rule_2 tie for best match in bucket:foo.
+        CollectionAssert.AreEquivalent(
+            new[] { matcher.RuleID("bucket_foo_rule_1"), matcher.RuleID("bucket_foo_rule_2") },
+            pickedRuleIDs);
+
+        matcher.DisposeData();
+    }
+
+    [Test]
+    public void TestFactMatcherBucketSliceDoesNotGrowOnRepeatedLookups()
+    {
+        RulesDB rulesDB = Resources.Load<RulesDB>("FactMatcherTestResources/TestData");
+        FactMatcher matcher = new FactMatcher(rulesDB);
+        matcher.Init();
+
+        BucketSlice first = matcher.BucketSlice("bucket:foo");
+        int factCount = first.factIds.Count;
+        Assert.IsTrue(factCount > 0);
+
+        // BucketSlice returns the same cached slice every time; looking it up again
+        // must not add its fact assignments again.
+        for (int i = 0; i < 10; i++)
+        {
+            matcher.BucketSlice("bucket:foo");
+        }
+
+        BucketSlice again = matcher.BucketSlice("bucket:foo");
+        Assert.AreEqual(factCount, again.factIds.Count);
+        Assert.AreEqual(factCount, again.factValues.Count);
+
+        matcher.DisposeData();
+    }
+
+    [Test]
+    public void TestFactMatcherReInitAfterDisposeStillPicksRules()
+    {
+        RulesDB rulesDB = Resources.Load<RulesDB>("FactMatcherTestResources/TestData");
+        FactMatcher matcher = new FactMatcher(rulesDB);
+        matcher.Init();
+        matcher.PickBestRules(); // builds and caches the match job
+
+        // The cached job must not keep pointing at the arrays DisposeData freed.
+        matcher.DisposeData();
+        matcher.Init();
+
+        matcher[matcher.FactID("test1")] = FactMatching.Consts.True;
+        matcher[matcher.FactID("test2")] = FactMatching.Consts.True;
+        int bestRules = matcher.PickBestRules();
+        Assert.AreEqual(2, bestRules);
+
+        matcher.DisposeData();
+    }
+
+    [Test]
+    public void TestFactMatcherInitTwiceDoesNotLeak()
+    {
+        RulesDB rulesDB = Resources.Load<RulesDB>("FactMatcherTestResources/TestData");
+        FactMatcher matcher = new FactMatcher(rulesDB);
+
+        UnsafeUtility.ForgiveLeaks();
+        matcher.Init();
+        matcher.Init(); // must free the first set of native arrays, not leak them
+        matcher.DisposeData();
+
+        int leaks = UnsafeUtility.CheckForLeaks();
+        Assert.AreEqual(0, leaks);
+    }
+
+    [Test]
     public void TestFactMatcherCountAllMatches()
     {
         RulesDB rulesDB = Resources.Load<RulesDB>("FactMatcherTestResources/TestData");

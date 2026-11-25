@@ -17,8 +17,16 @@ public class BucketSlice
         return new BucketSlice(-1, -1, null);
     }
     
+    public bool IsInited { get; private set; }
+
+    // Rebuilds the fact assignments from bucketLine. Safe to call more than once:
+    // it clears what an earlier call added instead of appending to it.
     public void Init(FactMatcher fm)
     {
+        factIds.Clear();
+        factValues.Clear();
+        factMap.Clear();
+        IsInited = true;
         if (bucketLine == null)
         {
             return;
