@@ -267,14 +267,14 @@ public class Payload
 
             public Parameter(string parameterInput, int parameterID)
             {
-                FactValueType = float.TryParse(parameterInput, out float result) ? FactValueType.Value : FactValueType.String;
+                FactValueType = FactMatching.Extensions.TryParseFloatInvariant(parameterInput, out float result) ? FactValueType.Value : FactValueType.String;
                 switch (FactValueType)
                 {
                     case FactValueType.String:
                         parameter = parameterInput.Trim();
                         break;
                     case FactValueType.Value:
-                        parameter = result.ToString();
+                        parameter = result.ToInvariantString();
                         parameterValue = result;
                         break;
                 }

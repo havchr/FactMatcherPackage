@@ -41,7 +41,7 @@ public class RuleEntryController
         {
             if (Facty.IsInited)
             {
-                if (float.TryParse(evt.newValue, out float result))
+                if (FactMatching.Extensions.TryParseFloatInvariant(evt.newValue, out float result))
                 {
                     Facty[factTest.factID] = result;
                 }

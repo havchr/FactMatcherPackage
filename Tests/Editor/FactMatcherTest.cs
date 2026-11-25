@@ -3,6 +3,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Security.Claims;
 using NUnit.Framework;
 using Unity.Collections;
@@ -513,6 +514,47 @@ public class FactMatcherTest
 
         
         matcher.DisposeData();
+    }
+
+    // Parses the rule script under different cultures, to check that numbers in rule scripts
+    // always use '.' as the decimal separator, no matter the machine's locale.
+    // (Loading the pre-parsed TestData asset would only test the culture it was parsed with.)
+    [TestCase("nb-NO")]   // decimal comma
+    [TestCase("de-DE")]   // decimal comma, '.' as thousands separator
+    [TestCase("en-US")]   // decimal point
+    public void TestFactMatcherInvariantParse(string cultureName)
+    {
+        var originalCulture = CultureInfo.CurrentCulture;
+        RulesDB rulesDB = null;
+        try
+        {
+            var culture = new CultureInfo(cultureName);
+            CultureInfo.CurrentCulture = culture;
+            // Make sure the culture switch actually took effect, or the test proves nothing.
+            Assert.AreEqual(culture.NumberFormat.NumberDecimalSeparator,
+                CultureInfo.CurrentCulture.NumberFormat.NumberDecimalSeparator);
+
+            var script = Resources.Load<TextAsset>("FactMatcherTestResources/test_data_invariant_parse.fmrs");
+            Assert.IsNotNull(script, "Could not load test_data_invariant_parse.fmrs.txt");
+            rulesDB = RulesDB.CreateRulesDBFromStringList(new List<string> { script.text }, null, out var problems);
+            Assert.IsFalse(problems.ContainsError(), problems.ToString());
+
+            var floaty = rulesDB.GetFactTestFromFactID(rulesDB.FactId("floaty"));
+            Assert.AreEqual(FactValueType.Value, floaty.compareType);
+            Assert.AreEqual(1.75f, floaty.matchValue); // not 175 (de-DE thousands) and not a string
+
+            var nonFloaty = rulesDB.GetFactTestFromFactID(rulesDB.FactId("non_floaty"));
+            Assert.AreEqual(FactValueType.String, nonFloaty.compareType);
+            Assert.AreEqual("1,75", nonFloaty.matchString);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture; // don't leak into other tests
+            if (rulesDB != null)
+            {
+                UnityEngine.Object.DestroyImmediate(rulesDB);
+            }
+        }
     }
     
 }

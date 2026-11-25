@@ -9,7 +9,7 @@ using UnityEditor;
 
 namespace FactMatching
 {
-    public static class Extensions 
+    public static class Extensions
     {
         #if UNITY_EDITOR
         public static TextAsset FromPathToTextAsset(string filePath)
@@ -103,6 +103,21 @@ namespace FactMatching
         }
         
         public static bool IsNullOrEmpty<T>(this IList<T> list) => list == null || list.Count == 0;
+
+        // Rule scripts, CSV files and bucket strings always use '.' as the decimal separator,
+        // whatever the machine's locale is (nb-NO would otherwise expect "1,5").
+        // NumberStyles.Float has no thousands separator, so "1,5" is rejected instead of read as 15.
+        public static bool TryParseFloatInvariant(string s, out float result)
+        {
+            return float.TryParse(s, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out result);
+        }
+
+        public static string ToInvariantString(this float value)
+        {
+            return value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
     }
 
     static class KeywordExtensions
@@ -142,5 +157,6 @@ namespace FactMatching
 
             throw new Exception($"There was no string between ({charStart}) and ({charEnd})");
         }
+
     }
 }

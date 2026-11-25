@@ -108,13 +108,14 @@ public class FactMatcherJobSystem : MonoBehaviour, FactMatcherProvider
         for (int i = 0; i < DebugRewriteEntries.Count; i++)
         {
             var index = FactID(DebugRewriteEntries[i].key);
-            if (index != FactMatcher.NotSetValue)
+            // FactID returns FactIDDevNull (0) for unknown names, never NotSetValue (-1).
+            if (index != FactMatching.Consts.FactIDDevNull)
             {
                 if (DebugRewriteEntries[i].handleAsString)
                 {
-                    _factMatcher[index] = DebugRewriteEntries[i].handleAsString ? StringID(DebugRewriteEntries[i].value) : float.Parse(DebugRewriteEntries[i].value);
+                    _factMatcher[index] = StringID(DebugRewriteEntries[i].value);
                 }
-                else if (float.TryParse(DebugRewriteEntries[i].value, out float value))
+                else if (FactMatching.Extensions.TryParseFloatInvariant(DebugRewriteEntries[i].value, out float value))
                 {
                     _factMatcher[index] = value;
                 }

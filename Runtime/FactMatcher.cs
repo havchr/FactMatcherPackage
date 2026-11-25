@@ -63,7 +63,7 @@ public class FactMatcher
             {
                 var factTest = factTests[i];
                 var rawValue = _factValues[factTest.factID];
-                var value = factTest.compareType == FactValueType.String ? ruleDB.GetStringFromStringID((int)rawValue) : $"{rawValue}";
+                var value = factTest.compareType == FactValueType.String ? ruleDB.GetStringFromStringID((int)rawValue) : rawValue.ToInvariantString();
                 writer.WriteLine($"{factTest.compareType},  {factTest.factName},  {value}");
             }
             catch (Exception e)
@@ -89,21 +89,26 @@ public class FactMatcher
                 keyValType[i] = keyValType[i].Trim();
             }
             var factID = FactID(keyValType[1]);
-            if (factID != -1)
+            // FactID returns FactIDDevNull (0) for unknown names, never -1.
+            if (factID != Consts.FactIDDevNull)
             {
                 FactValueType.TryParse(keyValType[0], out FactValueType compareType);
                 if (compareType == FactValueType.String)
                 {
                     SetFact(factID, StringID(keyValType[2]));
                 }
+                else if (Extensions.TryParseFloatInvariant(keyValType[2], out float value))
+                {
+                    SetFact(factID, value);
+                }
                 else
                 {
-                    SetFact(factID, float.Parse(keyValType[2]));
+                    problemString += $"Could not parse value '{keyValType[2]}' for fact {keyValType[1]}\n";
                 }
             }
             else
             {
-                problemString += $"factID == -1";
+                problemString += $"Unknown fact {keyValType[1]}\n";
             }
         }
         return problemString;

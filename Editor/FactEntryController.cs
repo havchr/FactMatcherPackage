@@ -63,7 +63,7 @@ public class FactEntryController
             var factTest = controller.factTests[controller.index];
             if (controller.factMatcher.IsInited)
             {
-                if (float.TryParse(evt.newValue, out float result))
+                if (FactMatching.Extensions.TryParseFloatInvariant(evt.newValue, out float result))
                 {
                     controller.factMatcher[factTest.factID] = result;
                 }

@@ -1,0 +1,11 @@
+.rule_test_invariant_parse IF
+    floaty = 1.75
+.THEN RESPONSE
+This is floaty
+.END
+
+.rule_test_invariant_parse_2 IF
+    non_floaty = 1,75
+.THEN RESPONSE
+This is not floaty, but texty
+.END

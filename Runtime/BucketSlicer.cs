@@ -31,7 +31,7 @@ public class BucketSlice
             {
                 break;
             }
-            if (float.TryParse(keyValue[1], out float result))
+            if (FactMatching.Extensions.TryParseFloatInvariant(keyValue[1], out float result))
             {
                 factMap[keyValue[0]] = result;
             }

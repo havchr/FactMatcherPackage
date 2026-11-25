@@ -769,7 +769,7 @@ namespace FactMatching
                         };
                         
                         var valueMatch = splits[1].Trim();
-                        if (float.TryParse(valueMatch, out float floatVal))
+                        if (Extensions.TryParseFloatInvariant(valueMatch, out float floatVal))
                         {
                             factWrite.writeValue = floatVal;
                             if (factWrite.writeMode == RuleDBFactWrite.WriteMode.SetString)
@@ -888,13 +888,13 @@ namespace FactMatching
                                     $"Range for {factTestEntry.factName} must have two bounds, like [0,10], got: {valueMatch}",
                                     currentFile, _lineNumber);
                             }
-                            else if (!float.TryParse(splitRange[0], out float left))
+                            else if (!Extensions.TryParseFloatInvariant(splitRange[0], out float left))
                             {
                                 problems.ReportNewError(
                                     $"Could not parse lower bound '{splitRange[0].Trim()}' in range for {factTestEntry.factName}: {valueMatch}",
                                     currentFile, _lineNumber);
                             }
-                            else if (!float.TryParse(splitRange[1], out float right))
+                            else if (!Extensions.TryParseFloatInvariant(splitRange[1], out float right))
                             {
                                 problems.ReportNewError(
                                     $"Could not parse upper bound '{splitRange[1].Trim()}' in range for {factTestEntry.factName}: {valueMatch}",
@@ -926,7 +926,7 @@ namespace FactMatching
                         else
                         {
                             factTestEntry.compareType = FactValueType.String;
-                            if (float.TryParse(valueMatch, out float floatVal))
+                            if (Extensions.TryParseFloatInvariant(valueMatch, out float floatVal))
                             {
                                 factTestEntry.matchValue = floatVal;
                                 factTestEntry.compareType = FactValueType.Value;
