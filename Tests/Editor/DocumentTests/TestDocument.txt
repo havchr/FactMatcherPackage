@@ -43,5 +43,19 @@ as much text as you want here.
 as much text as you want here.
 ..
 
+.FACT internal_enum_test
+Example of internal enum
+..
+.IT CAN BE
+    C#_ENUM DocumentParser_Test.EnumParseTest 
+..
+
+.FACT external_enum_test
+Example of external enum
+..
+.IT CAN BE
+    C#_ENUM EnumParseTest 
+..
+
 .END
     -- .END indicates the end of the document.

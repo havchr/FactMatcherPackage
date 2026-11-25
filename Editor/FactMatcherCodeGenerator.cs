@@ -171,7 +171,7 @@ public class FactMatcherCodeGenerator
 			{
 				foreach (var enumName in enumNames)
 				{
-					string varName = $"{enumName}StringIDS";
+					string varName = $"{enumName.Replace('.', '_')}StringIDS";
 					contains.Add($"public int[] {varName};");
 					variableAssignment.Add($"{varName} = FactMatching.Functions.CreateStringIDSFromEnum(factMatcher, typeof({enumName}));");	
 				}

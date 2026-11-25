@@ -271,23 +271,57 @@ namespace FactMatching
 
         public static Array GetEnumValuesFromEnumName(string enumName)
         {
-            System.Reflection.Assembly[] scriptAssemblies = AppDomain.CurrentDomain.GetAssemblies();
-            foreach (var assembly in scriptAssemblies)
+            if (string.IsNullOrWhiteSpace(enumName))
+                return null;
+
+            // Allow "ClassName+EnumType" too, and normalise to C# syntax.
+            string wanted = enumName.Trim().Replace('+', '.');
+
+            // An exact full-name match always wins over a suffix match, so "EnumType"
+            // means the top-level enum even if some class also has a nested "EnumType".
+            Type exact = null;
+            Type suffix = null;
+
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
-                if (assembly != null)
-                {
-                    Type enumType = assembly.GetTypes().FirstOrDefault(t => t.IsEnum && t.Name == enumName);
-                    if (enumType != null)
-                    {
-                        return Enum.GetValues(enumType);
-                    }
-                }
-                else
+                if (assembly == null)
                 {
                     localProblems.ReportNewError($"Could not find Assemblies, (looking for enum of type {enumName}", currentFile, _lineNumber);
+                    continue;
                 }
+
+                Type[] types;
+                try
+                {
+                    types = assembly.GetTypes();
+                }
+                catch (System.Reflection.ReflectionTypeLoadException e)
+                {
+                    types = e.Types.Where(t => t != null).ToArray();
+                }
+
+                foreach (var t in types)
+                {
+                    if (!t.IsEnum || t.FullName == null)
+                        continue;
+
+                    // Matches "EnumType", "Class.EnumType" and "NameSpace.Class.EnumType".
+                    string csharpName = t.FullName.Replace('+', '.');
+                    if (csharpName == wanted)
+                    {
+                        exact = t;
+                        break;
+                    }
+                    if (suffix == null && csharpName.EndsWith("." + wanted, StringComparison.Ordinal))
+                        suffix = t;
+                }
+
+                if (exact != null)
+                    break;
             }
-            return null;
+
+            Type enumType = exact ?? suffix;
+            return enumType != null ? Enum.GetValues(enumType) : null;
         }
     }
 }

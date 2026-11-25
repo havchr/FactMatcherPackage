@@ -78,5 +78,27 @@ MonoBehaviour:
       IgnoreNumber: 0
       FactCanBe: []
       EnumNames: []
+    - factName: internal_enum_test
+      containsTemplateSymbol: 0
+      FactID: 6
+      LineNumber: 46
+      FactSummary: Example of internal enum
+      IgnoreNumber: 0
+      FactCanBe:
+      - EnumParseTestInternal1
+      - EnumParseTestInternal2
+      EnumNames:
+      - DocumentParser_Test.EnumParseTest
+    - factName: external_enum_test
+      containsTemplateSymbol: 0
+      FactID: 7
+      LineNumber: 53
+      FactSummary: Example of external enum
+      IgnoreNumber: 0
+      FactCanBe:
+      - EnumParseTestExternal1
+      - EnumParseTestExternal2
+      EnumNames:
+      - EnumParseTest
     StartLine: 2
     TextFile: {fileID: 4900000, guid: f157c8d43055a80448b7b11fcf684ba2, type: 3}

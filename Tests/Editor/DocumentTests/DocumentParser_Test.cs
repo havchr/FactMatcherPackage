@@ -8,8 +8,21 @@ using UnityEngine;
 using System.IO;
 using System;
 
+public enum EnumParseTest
+{
+    EnumParseTestExternal1,
+    EnumParseTestExternal2,
+}
+
 public class DocumentParser_Test
 {
+
+    public enum EnumParseTest
+    {
+        EnumParseTestInternal1,
+        EnumParseTestInternal2,
+    }
+
     [Test]
     public void ParsingDefaultDocumentation_TestSimpleIsNotNullAndNoProblems()
     {
@@ -17,6 +30,68 @@ public class DocumentParser_Test
         List<DocumentEntry> documentation = RuleDocumentationParser.GenerateFromText(ref problems, DocTestInfoLoader.GetDefaultDocFileAsTextAsset());
         Assert.IsFalse(problems.ContainsErrorOrWarning());
         Assert.IsNotNull(documentation);
+    }
+
+    [Test]
+    public void ParsingDefaultDocumentation_TestCSharpEnums_Internal()
+    {
+        ProblemReporting problems = new();
+        List<DocumentEntry> documentation = RuleDocumentationParser.GenerateFromText(ref problems, DocTestInfoLoader.GetDefaultDocFileAsTextAsset());
+        Assert.IsFalse(problems.ContainsErrorOrWarning());
+        Assert.IsNotNull(documentation);
+        
+        //Must match name in the test document
+        string enumFactName = "internal_enum_test";
+        bool enumParsingOK = false;
+
+        foreach( DocumentEntry docEntry in documentation)
+        {
+            FactInDocument enumFactEntry = docEntry.GetFactInDocumentByName(enumFactName);
+            if (enumFactEntry != null)
+            {
+                enumParsingOK = true;
+                string[] enumNames = Enum.GetNames(typeof(DocumentParser_Test.EnumParseTest));
+                foreach(string eName in enumNames)
+                {
+                    if (!enumFactEntry.FactCanBeContains(eName))
+                    {
+                        enumParsingOK = false;
+                    }
+                }
+            }
+        }
+        Assert.IsTrue(enumParsingOK);
+    }
+
+    [Test]
+    public void ParsingDefaultDocumentation_TestCSharpEnums_External()
+    {
+        ProblemReporting problems = new();
+        List<DocumentEntry> documentation = RuleDocumentationParser.GenerateFromText(ref problems, DocTestInfoLoader.GetDefaultDocFileAsTextAsset());
+        Assert.IsFalse(problems.ContainsErrorOrWarning());
+        Assert.IsNotNull(documentation);
+        
+        //Must match name in the test document
+        string enumFactName = "external_enum_test";
+        bool enumParsingOK = false;
+
+        foreach( DocumentEntry docEntry in documentation)
+        {
+            FactInDocument enumFactEntry = docEntry.GetFactInDocumentByName(enumFactName);
+            if (enumFactEntry != null)
+            {
+                enumParsingOK = true;
+                string[] enumNames = Enum.GetNames(typeof(global::EnumParseTest));
+                foreach(string eName in enumNames)
+                {
+                    if (!enumFactEntry.FactCanBeContains(eName))
+                    {
+                        enumParsingOK = false;
+                    }
+                }
+            }
+        }
+        Assert.IsTrue(enumParsingOK);
     }
 
     [Test]
