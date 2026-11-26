@@ -90,7 +90,23 @@ namespace FactMatching
             }
         }
 
-        private static string GetTestRuleScriptContent(int numRules)
+        // Same seed gives the same rule script, so tests can generate a large dataset instead of storing it.
+        // Restores UnityEngine.Random's state afterwards, so callers' own random sequences are unaffected.
+        public static string GetTestRuleScriptContent(int numRules, int seed)
+        {
+            var oldState = Random.state;
+            Random.InitState(seed);
+            try
+            {
+                return GetTestRuleScriptContent(numRules);
+            }
+            finally
+            {
+                Random.state = oldState;
+            }
+        }
+
+        public static string GetTestRuleScriptContent(int numRules)
         {
             var stringnames = RuleScriptTestData.testValuesStringNames;
             var stringvals = RuleScriptTestData.testValuesStringValues;
@@ -142,7 +158,7 @@ namespace FactMatching
                             floatnamesIndices[index] = floatnamesIndices[floatNamesAvailable];
                             name = floatnames[floatnamesIndices[index]];
                         }
-                        writer.WriteLine($"    {name} {floatTest[Random.Range(0,floatTest.Length)]} {Random.Range(-500.0f,500.0f)}");
+                        writer.WriteLine($"    {name} {floatTest[Random.Range(0,floatTest.Length)]} {Random.Range(-500.0f,500.0f).ToInvariantString()}");
                     }
                 }
                 writer.WriteLine($".THEN RESPONSE");

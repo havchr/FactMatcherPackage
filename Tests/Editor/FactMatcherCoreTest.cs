@@ -57,16 +57,8 @@ public class FactMatcherCoreTest
     
     private void PerfTestNativeFactChecker(int worldFacts, int numORules)
     {
-        var sw = new Stopwatch();
-        sw.Start();
+        var sw = Stopwatch.StartNew();
 
-        sw.Stop();
-        Debug.Log($"took {sw.ElapsedMilliseconds} ms to add {worldFacts} Facts");
-
-
-        sw = new Stopwatch();
-        sw.Start();
-        
         Functions.CreateMockRules(worldFacts,numORules,out var rules,out var atoms,out var facts);
         var nativeRules = new NativeArray<FactMatching.Rule>(rules.Count, Allocator.Persistent);
         var nativeAtoms= new NativeArray<FactMatching.FactTest>(atoms.Count, Allocator.Persistent);
@@ -85,13 +77,14 @@ public class FactMatcherCoreTest
         }
         
         sw.Stop();
-        Debug.Log($"took {sw.ElapsedMilliseconds} ms to add {numORules} rules");
+        Debug.Log($"took {sw.ElapsedMilliseconds} ms to create {worldFacts} facts and {numORules} rules");
         FactMatching.Rule bestRule = new FactMatching.Rule(-1,0,0);
 
+        // Warm-up: keep the JIT compile of PickBestRule out of the timed loop.
+        PickBestRule(nativeRules, nativeAtoms, nativeFacts, ref bestRule);
 
         int howManyRulesToPick = 50;
-        sw = new Stopwatch();
-        sw.Start();
+        sw.Restart();
         int matches = -1;
         for (int i = 0; i < howManyRulesToPick; i++)
         {
@@ -103,7 +96,7 @@ public class FactMatcherCoreTest
         nativeFacts.Dispose();
         nativeRules.Dispose();
         Debug.Log(
-            $"Picking {howManyRulesToPick} bestMatch rules in {worldFacts} facts with {numORules} rules , took {sw.ElapsedMilliseconds} milliseconds");
+            $"Picking {howManyRulesToPick} bestMatch rules in {worldFacts} facts with {numORules} rules , took {sw.Elapsed.TotalMilliseconds:F3} ms ({sw.Elapsed.TotalMilliseconds / howManyRulesToPick:F3} ms per pick)");
         Debug.Log($"Our best rule is {bestRule.ruleFiredEventId} with {matches} matches");
     }
 

@@ -1,12 +1,15 @@
+
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using FactMatching;
 using Unity.Collections;
+using Unity.Jobs;
 using Debug = UnityEngine.Debug;
 using UnityEngine;
 
+            
 public interface FactMatcherProvider
 {
     public FactMatcher GetFactMatcher();
@@ -39,6 +42,11 @@ public class FactMatcher
     private FactMatcherMatch _cachedJob;
     private bool hasCachedJob = false;
 
+    // Runs the match through the job system, so Burst compiles it when FACTMATCHER_BURST is set.
+    // false = call Execute() directly as plain C# (for comparison, or to step through it in a debugger).
+    // Defaults to off without Burst, since .Run() would then only add job-system overhead.
+    public bool UseJobSystem = false;
+
     
     public bool _dataDisposed = false;
     public bool _hasBeenInited = false;
@@ -46,8 +54,9 @@ public class FactMatcher
     
     public bool IsInited => _hasBeenInited;
 
-    public FactMatcher(RulesDB ruleDB)
+    public FactMatcher(RulesDB ruleDB,bool useBurstJobSystem=false)
     {
+        UseJobSystem = useBurstJobSystem;
         this.ruleDB = ruleDB;
     }
 
@@ -180,7 +189,56 @@ public class FactMatcher
         _dataDisposed = false;
         _inReload = false;
         _hasBeenInited = true;
+        WarmUpJobOnce();
         OnInited?.Invoke();
+    }
+
+    // The first .Run() of FactMatcherMatch pays a one-off cost: job reflection setup, and in the
+    // editor a (synchronous) Burst compile. Pay it here instead of on the first real pick.
+    // Static, since that cost is per job type per domain reload, not per FactMatcher instance.
+    private static bool s_jobWarmedUp;
+
+    private void WarmUpJobOnce()
+    {
+        if (s_jobWarmedUp || !UseJobSystem)
+        {
+            return;
+        }
+        s_jobWarmedUp = true;
+
+        EnsureCachedJob();
+        // An empty slice matches no rules; Execute only resets the output arrays.
+        _slice[0] = 0;
+        _slice[1] = 0;
+        _settings[0] = new Settings(false, false);
+        _cachedJob.Run();
+
+        // Restore the state Init left us in.
+        _slice[1] = _rules.Length;
+    }
+
+    private void EnsureCachedJob()
+    {
+        if (hasCachedJob)
+        {
+            return;
+        }
+        hasCachedJob = true;
+        _cachedJob = new FactMatcherMatch()
+        {
+            FactValues = _factValues,
+            FactTests = _factTests,
+            Rules = _rules,
+            BestRule = _bestRule,
+            BestRuleMatches = _bestRuleMatches,
+            AllValidRulesIndices = _allValidRuleIndices,
+            AllBestRulesIndices =  _allBestRulesIndices,
+            AllMatchesForAllRules = _allMatchesForAllRules,
+            NoOfRulesWithBestMatch = _noOfRulesWithBestMatch,
+            NoOfValidRules = _noOfValidRules,
+            slice = _slice,
+            Settings = _settings
+        };
     }
 
     //returns -1 if Not inited
@@ -425,26 +483,19 @@ public class FactMatcher
         _slice[1] = endIndex == -1 ? _rules.Length : (endIndex+1);
         _settings[0] = new Settings(checkAllRules,countAllMatches);
 
-        if (!hasCachedJob)
+        EnsureCachedJob();
+        if (UseJobSystem)
         {
-            hasCachedJob = true;
-            _cachedJob = new FactMatcherMatch() 
-            {
-                FactValues = _factValues,
-                FactTests = _factTests,
-                Rules = _rules,
-                BestRule = _bestRule,
-                BestRuleMatches = _bestRuleMatches,
-                AllValidRulesIndices = _allValidRuleIndices,
-                AllBestRulesIndices =  _allBestRulesIndices,
-                AllMatchesForAllRules = _allMatchesForAllRules,
-                NoOfRulesWithBestMatch = _noOfRulesWithBestMatch,
-                NoOfValidRules = _noOfValidRules,
-                slice = _slice,
-                Settings = _settings
-            };
+            #if !FACTMATCHER_BURST
+            Debug.LogWarning("Use JobSystem on For FactMatcher, but DEFINE FACTMATCHER_BURST not set, no effect");
+            #endif
+            // synchronous, on the main thread, Burst-compiled when FACTMATCHER_BURST is set
+            _cachedJob.Run(); 
         }
-        _cachedJob.Execute();
+        else
+        {
+            _cachedJob.Execute();
+        }
         return _noOfRulesWithBestMatch[0];
     }
     

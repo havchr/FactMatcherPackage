@@ -17,7 +17,16 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs.LowLevel.Unsafe;
 using UnityEngine.Profiling;
 using UnityEngine.Scripting;
+using Unity.PerformanceTesting;
 
+/*
+ * 100 000 rule tests are off by default - generating and parsing that dataset takes a long time.
+ * To turn them on, add FACTMATCHER_100K_TESTS to
+ *   Project Settings > Player > Other Settings > Scripting Define Symbols
+ * (for the platform the editor is currently set to), then let Unity recompile.
+ * This adds the 100k cases to TestJobSystemAndManagedMatchGiveSameResults and
+ * PerformanceMatchManagedVsJobSystem, and the TestPickBestRuleIn_100_000_rules_dataset tests.
+ */
 public class FactMatcherTest  
 {
 
@@ -55,80 +64,80 @@ public class FactMatcherTest
         Assert.IsTrue(memoryAfterDispose == 0);
         
     }
-   
-    [Test]
-    public void TestPickBestRuleIn10_000_rules_dataset()
+
+    public void PickBestRuleTimePerformance(string dataset,int mutations,bool burstOn)
     {
-        
+
         var sw = new Stopwatch();
         sw.Start();
 
-        RulesDB rulesDB = Resources.Load<RulesDB>("FactMatcherTestResources/Test_10_000_rules_dataset");
-        FactMatcher matcher = new FactMatcher(rulesDB);
+        // For the generated 100k dataset, the first load also generates and parses the rules.
+        RulesDB rulesDB = LoadDataset(dataset);
+        FactMatcher matcher = new FactMatcher(rulesDB,useBurstJobSystem:burstOn);
         matcher.Init();
         
-        Debug.Log($"took {sw.ElapsedMilliseconds} ms to load {matcher.ruleDB.rules.Count} rules");
+        Debug.Log($"took {sw.ElapsedMilliseconds} ms to load {matcher.ruleDB.rules.Count:N0} rules");
         sw.Stop();
 
 
-        sw.Start();
-        int mutations = 1000;
+        sw.Restart();
         FactMatching.RuleScriptGenerator.MutateRuleScriptTestData(matcher, mutations);
-        Debug.Log($"took {sw.ElapsedMilliseconds} ms to mutate {mutations} - {matcher.ruleDB.rules.Count} rules");
+        Debug.Log($"took {sw.ElapsedMilliseconds} ms to mutate {mutations} - {matcher.ruleDB.rules.Count:N0} rules");
         sw.Stop();
         
-        sw.Start();
+        sw.Restart();
         RuleDBEntry rule = matcher.PickBestRule();
         if (rule != null)
         {
             int matches = 0;
             matches = matcher.GetNumberOfMatchesInBestMatch();
-            Debug.Log($"took {sw.ElapsedMilliseconds} ms to pick best rule {rule.ruleName} with {matches} matches among {matcher.ruleDB.rules.Count} rules");
+            Debug.Log($"took {sw.Elapsed.TotalMilliseconds:F3} ms to pick best rule {rule.ruleName} with {matches} matches among {matcher.ruleDB.rules.Count:N0} rules");
         }
         else
         {
-            Debug.Log($"took {sw.ElapsedMilliseconds} ms to pick best rules among {matcher.ruleDB.rules.Count} rules");
+            Debug.Log($"took {sw.Elapsed.TotalMilliseconds:F3} ms to pick best rules among {matcher.ruleDB.rules.Count:N0} rules");
         }
         sw.Stop();
         matcher.DisposeData();
     }
+   
     
     [Test]
-    public void TestPickBestRuleIn_1000_rules_dataset()
+    public void TestPickBestRuleIn_1000_rules_dataset_no_burst()
     {
-        
-        var sw = new Stopwatch();
-        sw.Start();
-
-        RulesDB rulesDB = Resources.Load<RulesDB>("FactMatcherTestResources/Test_1000_rules_dataset");
-        FactMatcher matcher = new FactMatcher(rulesDB);
-        matcher.Init();
-        
-        Debug.Log($"took {sw.ElapsedMilliseconds} ms to load {matcher.ruleDB.rules.Count} rules");
-        sw.Stop();
-
-
-        sw.Start();
-        int mutations = 1000;
-        FactMatching.RuleScriptGenerator.MutateRuleScriptTestData(matcher, mutations);
-        Debug.Log($"took {sw.ElapsedMilliseconds} ms to mutate {mutations} - {matcher.ruleDB.rules.Count} rules");
-        sw.Stop();
-        
-        sw.Start();
-        RuleDBEntry rule = matcher.PickBestRule();
-        if (rule != null)
-        {
-            int matches = 0;
-            matches = matcher.GetNumberOfMatchesInBestMatch();
-            Debug.Log($"took {sw.ElapsedMilliseconds} ms to pick best rule {rule.ruleName} with {matches} matches among {matcher.ruleDB.rules.Count} rules");
-        }
-        else
-        {
-            Debug.Log($"took {sw.ElapsedMilliseconds} ms to pick best rules among {matcher.ruleDB.rules.Count} rules");
-        }
-        sw.Stop();
-        matcher.DisposeData();
+        PickBestRuleTimePerformance("Test_1000_rules_dataset",1000,false);
     }
+    [Test]
+    public void TestPickBestRuleIn_1000_rules_dataset_burst()
+    {
+        PickBestRuleTimePerformance("Test_1000_rules_dataset",1000,true);
+    }
+
+    [Test]
+    public void TestPickBestRuleIn_10_000_rules_dataset_no_burst()
+    {
+        PickBestRuleTimePerformance("Test_10_000_rules_dataset",1000,false);
+    }
+
+    [Test]
+    public void TestPickBestRuleIn_10_000_rules_dataset_burst()
+    {
+        PickBestRuleTimePerformance("Test_10_000_rules_dataset",1000,true);
+    }
+
+#if FACTMATCHER_100K_TESTS
+    [Test]
+    public void TestPickBestRuleIn_100_000_rules_dataset_no_burst()
+    {
+        PickBestRuleTimePerformance(Generated100kDataset,1000,false);
+    }
+
+    [Test]
+    public void TestPickBestRuleIn_100_000_rules_dataset_burst()
+    {
+        PickBestRuleTimePerformance(Generated100kDataset,1000,true);
+    }
+#endif
     
     [Test]
     public void TestFactMatcherPeekAndPickBestRule()
@@ -532,6 +541,129 @@ public class FactMatcherTest
         Assert.AreEqual("5, well done", result["format_then_comma"]);
         Assert.AreEqual("Score (5) today", result["in_parentheses"]);
         Assert.AreEqual("55", result["adjacent_values"]);
+    }
+
+    // The 100 000 rule dataset is too large to keep in git (the parsed asset is ~200 MB), so it is
+    // generated and parsed in memory from a fixed seed, once per domain reload.
+    private const string Generated100kDataset = "Generated_100_000_rules";
+    private static RulesDB s_generated100kRulesDB;
+
+    private static RulesDB LoadDataset(string dataset)
+    {
+        if (dataset != Generated100kDataset)
+        {
+            return Resources.Load<RulesDB>($"FactMatcherTestResources/{dataset}");
+        }
+        if (s_generated100kRulesDB == null)
+        {
+            string script = FactMatching.RuleScriptGenerator.GetTestRuleScriptContent(100_000, seed: 100_000);
+            s_generated100kRulesDB = RulesDB.CreateRulesDBFromStringList(new List<string> { script }, null, out var problems);
+            Assert.IsFalse(problems.ContainsError(), problems.ToString());
+        }
+        return s_generated100kRulesDB;
+    }
+
+    // Running the match through the job system (Burst) must give exactly the same results
+    // as calling Execute() directly, or any speed comparison between them means nothing.
+    [TestCase("Test_1000_rules_dataset")]
+    [TestCase("Test_10_000_rules_dataset")]
+#if FACTMATCHER_100K_TESTS
+    [TestCase(Generated100kDataset)]
+#endif
+    public void TestJobSystemAndManagedMatchGiveSameResults(string dataset)
+    {
+        RulesDB rulesDB = LoadDataset(dataset);
+        FactMatcher matcher = new FactMatcher(rulesDB);
+        matcher.Init();
+        UnityEngine.Random.InitState(1234);
+        FactMatching.RuleScriptGenerator.MutateRuleScriptTestData(matcher, 1000);
+
+        (int best, int bestMatches, List<int> bestIDs, int valid, List<int> validIDs) Snapshot(bool useJobSystem)
+        {
+            matcher.UseJobSystem = useJobSystem;
+            int best = matcher.PeekBestRules(false);
+            var bestIDs = new List<int>();
+            for (int i = 0; i < best; i++)
+            {
+                bestIDs.Add(matcher.GetRuleFromMatches(i).RuleID);
+            }
+            int bestMatches = matcher.GetNumberOfMatchesInBestMatch();
+
+            int valid = matcher.PeekValidRules(false);
+            var validIDs = new List<int>();
+            for (int i = 0; i < valid; i++)
+            {
+                validIDs.Add(matcher.GetRuleFromValidMatches(i).RuleID);
+            }
+            return (best, bestMatches, bestIDs, valid, validIDs);
+        }
+
+        try
+        {
+            var managed = Snapshot(false);
+            var jobSystem = Snapshot(true);
+
+            Assert.AreEqual(managed.best, jobSystem.best);
+            Assert.AreEqual(managed.bestMatches, jobSystem.bestMatches);
+            CollectionAssert.AreEqual(managed.bestIDs, jobSystem.bestIDs);
+            Assert.AreEqual(managed.valid, jobSystem.valid);
+            CollectionAssert.AreEqual(managed.validIDs, jobSystem.validIDs);
+        }
+        finally
+        {
+            matcher.DisposeData();
+        }
+    }
+
+    // Times the same matcher, with the same facts, run as plain C# (Execute) and through the job system (Burst).
+    // Results: Window > Analysis > Performance Test Report. No speed assertion - timings are too noisy for that;
+    // TestJobSystemAndManagedMatchGiveSameResults checks that both give the same results.
+    // For representative numbers, turn off Jobs > Burst > Safety Checks while measuring.
+    [Test, Performance]
+    [TestCase("TestData")]                  // ~20 rules: shows the fixed cost of running through the job system
+    [TestCase("Test_1000_rules_dataset")]
+    [TestCase("Test_10_000_rules_dataset")]
+#if FACTMATCHER_100K_TESTS
+    [TestCase(Generated100kDataset)]
+#endif
+    public void PerformanceMatchManagedVsJobSystem(string dataset)
+    {
+        RulesDB rulesDB = LoadDataset(dataset);
+        FactMatcher matcher = new FactMatcher(rulesDB);
+        matcher.Init();
+        UnityEngine.Random.InitState(1234);
+        FactMatching.RuleScriptGenerator.MutateRuleScriptTestData(matcher, 1000);
+
+        if (!Unity.Burst.BurstCompiler.IsEnabled)
+        {
+            Debug.LogWarning("Burst compilation is disabled (Jobs > Burst > Enable Compilation) - the JobSystem numbers will not include Burst.");
+        }
+
+        void MeasureBoth(string query, Action peek)
+        {
+            foreach (bool useJobSystem in new[] { false, true })
+            {
+                matcher.UseJobSystem = useJobSystem;
+                Measure.Method(peek)
+                    .WarmupCount(10)
+                    .MeasurementCount(30)
+                    .IterationsPerMeasurement(20)
+                    .SampleGroup(new SampleGroup($"{query} - {(useJobSystem ? "JobSystem+Burst" : "Managed")}", SampleUnit.Microsecond))
+                    .Run();
+            }
+        }
+
+        try
+        {
+            // Best rule: rules that can't beat the current best are skipped, so less work per query.
+            MeasureBoth("PeekBestRules", () => matcher.PeekBestRules(false));
+            // All valid rules with match counts: every rule is checked, the largest workload.
+            MeasureBoth("PeekAllValidRules", () => matcher.PeekAllValidRules(true));
+        }
+        finally
+        {
+            matcher.DisposeData();
+        }
     }
 
     [Test]

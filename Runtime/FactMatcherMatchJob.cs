@@ -10,6 +10,12 @@ using Debug = UnityEngine.Debug;
 using Unity.Burst;
 #endif
 
+// Burst only compiles a job when it is run through the job system (Run/Schedule),
+// and the attribute must be on the job struct, not on Execute().
+// CompileSynchronously makes the editor wait for Burst instead of running plain C# while it compiles.
+#if FACTMATCHER_BURST
+[BurstCompile(CompileSynchronously = true)]
+#endif
 public struct FactMatcherMatch : IJob
 {
 
@@ -43,9 +49,6 @@ public struct FactMatcherMatch : IJob
     //Number of rules that are valid, only contains valid number if our setting is CheckAllRules 
     [WriteOnly] public NativeArray<int> NoOfValidRules;
 
-#if FACTMATCHER_BURST
-    [BurstCompile(CompileSynchronously = true)]
-#endif
     public void Execute()
     {
 
@@ -210,7 +213,12 @@ public struct FactMatcherMatch : IJob
         return howManyFactTestsMatch;
     }
 
+    // Debug.Log(object) can't be Burst-compiled, so Burst skips this call:
+    // match logging only shows when running with UseJobSystem = false.
     [Conditional("FACTMATCHER_LOG_MATCH_JOB")]
+#if FACTMATCHER_BURST
+    [BurstDiscard]
+#endif
     static void LogMatchJob(object msg)
     {
         Debug.Log(msg);
